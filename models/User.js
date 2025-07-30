@@ -1,59 +1,84 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
 const bcrypt = require('bcryptjs');
 
-const userSchema = new mongoose.Schema({
+const User = sequelize.define('User', {
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
+  },
   phone: {
-    type: String,
-    required: true,
+    type: DataTypes.STRING,
+    allowNull: false,
     unique: true,
-    trim: true
+    validate: {
+      notEmpty: true
+    }
   },
   name: {
-    type: String,
-    required: true,
-    trim: true
+    type: DataTypes.STRING,
+    allowNull: false,
+    validate: {
+      notEmpty: true
+    }
   },
   email: {
-    type: String,
-    trim: true,
-    lowercase: true
+    type: DataTypes.STRING,
+    allowNull: true,
+    unique: true,
+    validate: {
+      isEmail: true
+    }
   },
   role: {
-    type: String,
-    enum: ['customer', 'driver', 'operator', 'dispatcher', 'admin'],
-    default: 'customer'
+    type: DataTypes.ENUM('customer', 'driver', 'operator', 'dispatcher', 'admin'),
+    defaultValue: 'customer',
+    allowNull: false
   },
   isVerified: {
-    type: Boolean,
-    default: false
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
   },
   isActive: {
-    type: Boolean,
-    default: true
+    type: DataTypes.BOOLEAN,
+    defaultValue: true
   },
   profileImage: {
-    type: String
+    type: DataTypes.STRING,
+    allowNull: true
   },
   fcmToken: {
-    type: String
+    type: DataTypes.STRING,
+    allowNull: true
   },
   lastLogin: {
-    type: Date
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
+    type: DataTypes.DATE,
+    allowNull: true
   }
 }, {
-  timestamps: true
+  tableName: 'users',
+  timestamps: true,
+  hooks: {
+    beforeCreate: async (user) => {
+      if (user.phone) {
+        user.phone = user.phone.replace(/\s/g, '');
+      }
+    },
+    beforeUpdate: async (user) => {
+      if (user.phone) {
+        user.phone = user.phone.replace(/\s/g, '');
+      }
+    }
+  }
 });
 
-// Index for phone number queries
-userSchema.index({ phone: 1 });
-userSchema.index({ role: 1 });
+// Instance methods
+User.prototype.toJSON = function() {
+  const values = Object.assign({}, this.get());
+  delete values.createdAt;
+  delete values.updatedAt;
+  return values;
+};
 
-module.exports = mongoose.model('User', userSchema); 
+module.exports = User; 

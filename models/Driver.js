@@ -1,103 +1,91 @@
-const mongoose = require('mongoose');
+const { DataTypes } = require('sequelize');
+const { sequelize } = require('../config/database');
+const User = require('./User');
 
-const driverSchema = new mongoose.Schema({
+const Driver = sequelize.define('Driver', {
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true
+  },
   userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+    type: DataTypes.UUID,
+    allowNull: false,
+    references: {
+      model: 'users',
+      key: 'id'
+    }
   },
   licenseNumber: {
-    type: String,
-    required: true,
+    type: DataTypes.STRING,
+    allowNull: false,
     unique: true
   },
   vehicleInfo: {
-    make: String,
-    model: String,
-    year: Number,
-    color: String,
-    plateNumber: {
-      type: String,
-      required: true,
-      unique: true
-    }
+    type: DataTypes.JSONB,
+    allowNull: false,
+    defaultValue: {}
   },
   documents: {
-    license: String,
-    insurance: String,
-    registration: String,
-    vehiclePhoto: String
+    type: DataTypes.JSONB,
+    allowNull: true,
+    defaultValue: {}
   },
   isOnline: {
-    type: Boolean,
-    default: false
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  isAvailable: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
   },
   currentLocation: {
-    type: {
-      type: String,
-      enum: ['Point'],
-      default: 'Point'
-    },
-    coordinates: {
-      type: [Number],
-      default: [0, 0]
-    },
-    address: String
+    type: DataTypes.JSONB,
+    allowNull: true
   },
   rating: {
-    average: {
-      type: Number,
-      default: 0,
-      min: 0,
-      max: 5
-    },
-    count: {
-      type: Number,
-      default: 0
+    type: DataTypes.JSONB,
+    defaultValue: {
+      average: 0,
+      count: 0
     }
   },
   earnings: {
-    total: {
-      type: Number,
-      default: 0
-    },
-    today: {
-      type: Number,
-      default: 0
-    },
-    thisWeek: {
-      type: Number,
-      default: 0
-    },
-    thisMonth: {
-      type: Number,
-      default: 0
+    type: DataTypes.JSONB,
+    defaultValue: {
+      total: 0,
+      today: 0,
+      thisWeek: 0,
+      thisMonth: 0
     }
   },
   status: {
-    type: String,
-    enum: ['pending', 'approved', 'rejected', 'suspended'],
-    default: 'pending'
-  },
-  isAvailable: {
-    type: Boolean,
-    default: false
-  },
-  lastActive: {
-    type: Date,
-    default: Date.now
+    type: DataTypes.ENUM('pending', 'approved', 'rejected', 'suspended'),
+    defaultValue: 'pending'
   },
   commission: {
-    type: Number,
-    default: 20 // percentage
+    type: DataTypes.DECIMAL(5, 2),
+    defaultValue: 20.00
+  },
+  lastActive: {
+    type: DataTypes.DATE,
+    allowNull: true
   }
 }, {
+  tableName: 'drivers',
   timestamps: true
 });
 
-// Geospatial index for location queries
-driverSchema.index({ currentLocation: '2dsphere' });
-driverSchema.index({ userId: 1 });
-driverSchema.index({ isOnline: 1, isAvailable: 1 });
+// Associations
+Driver.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+User.hasOne(Driver, { foreignKey: 'userId', as: 'driver' });
 
-module.exports = mongoose.model('Driver', driverSchema); 
+// Instance methods
+Driver.prototype.toJSON = function() {
+  const values = Object.assign({}, this.get());
+  delete values.createdAt;
+  delete values.updatedAt;
+  return values;
+};
+
+module.exports = Driver; 

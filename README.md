@@ -53,8 +53,8 @@ Bu layihə taxi sifariş sistemi üçün tam funksional backend API-dir. Sistem 
 
 - **Node.js** - Server runtime
 - **Express.js** - Web framework
-- **MongoDB** - Database
-- **Mongoose** - ODM
+- **PostgreSQL** - Database
+- **Sequelize** - ORM
 - **Socket.IO** - Real-time communication
 - **JWT** - Authentication
 - **Twilio** - SMS/OTP
@@ -65,7 +65,7 @@ Bu layihə taxi sifariş sistemi üçün tam funksional backend API-dir. Sistem 
 
 ### Tələblər
 - Node.js (v14 və ya daha yuxarı)
-- MongoDB (v4.4 və ya daha yuxarı)
+- PostgreSQL (v12 və ya daha yuxarı)
 - Twilio hesabı
 - Firebase layihəsi
 
@@ -82,7 +82,14 @@ cd ayiqsurucu
 npm install
 ```
 
-3. **Environment dəyişənlərini konfiqurasiya edin**
+3. **PostgreSQL verilənlər bazasını yaradın**
+```sql
+CREATE DATABASE ayiqsurucu;
+CREATE USER ayiqsurucu_user WITH PASSWORD 'your_password';
+GRANT ALL PRIVILEGES ON DATABASE ayiqsurucu TO ayiqsurucu_user;
+```
+
+4. **Environment dəyişənlərini konfiqurasiya edin**
 ```bash
 cp env.example .env
 ```
@@ -93,8 +100,8 @@ cp env.example .env
 PORT=3000
 NODE_ENV=development
 
-# Database
-MONGODB_URI=mongodb://localhost:27017/ayiqsurucu
+# Database (PostgreSQL)
+DATABASE_URL=postgresql://ayiqsurucu_user:your_password@localhost:5432/ayiqsurucu
 
 # JWT Secret
 JWT_SECRET=your-super-secret-jwt-key-here
@@ -113,7 +120,7 @@ FIREBASE_CLIENT_EMAIL=your-firebase-client-email
 GOOGLE_MAPS_API_KEY=your-google-maps-api-key
 ```
 
-4. **Serveri başladın**
+5. **Serveri başladın**
 ```bash
 # Development
 npm run dev
@@ -239,132 +246,67 @@ Content-Type: application/json
 
 ## 📊 Database Schema
 
-### User Collection
-```javascript
-{
-  _id: ObjectId,
-  phone: String,
-  name: String,
-  email: String,
-  role: String, // customer, driver, operator, dispatcher, admin
-  isVerified: Boolean,
-  isActive: Boolean,
-  profileImage: String,
-  fcmToken: String,
-  lastLogin: Date,
-  createdAt: Date,
-  updatedAt: Date
-}
+### Users Table
+```sql
+CREATE TABLE users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  phone VARCHAR NOT NULL UNIQUE,
+  name VARCHAR NOT NULL,
+  email VARCHAR UNIQUE,
+  role VARCHAR NOT NULL DEFAULT 'customer',
+  is_verified BOOLEAN DEFAULT FALSE,
+  is_active BOOLEAN DEFAULT TRUE,
+  profile_image VARCHAR,
+  fcm_token VARCHAR,
+  last_login TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
 ```
 
-### Driver Collection
-```javascript
-{
-  _id: ObjectId,
-  userId: ObjectId,
-  licenseNumber: String,
-  vehicleInfo: {
-    make: String,
-    model: String,
-    year: Number,
-    color: String,
-    plateNumber: String
-  },
-  documents: {
-    license: String,
-    insurance: String,
-    registration: String,
-    vehiclePhoto: String
-  },
-  isOnline: Boolean,
-  isAvailable: Boolean,
-  currentLocation: {
-    type: String,
-    coordinates: [Number],
-    address: String
-  },
-  rating: {
-    average: Number,
-    count: Number
-  },
-  earnings: {
-    total: Number,
-    today: Number,
-    thisWeek: Number,
-    thisMonth: Number
-  },
-  status: String, // pending, approved, rejected, suspended
-  commission: Number,
-  lastActive: Date,
-  createdAt: Date,
-  updatedAt: Date
-}
+### Drivers Table
+```sql
+CREATE TABLE drivers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id),
+  license_number VARCHAR NOT NULL UNIQUE,
+  vehicle_info JSONB NOT NULL DEFAULT '{}',
+  documents JSONB DEFAULT '{}',
+  is_online BOOLEAN DEFAULT FALSE,
+  is_available BOOLEAN DEFAULT FALSE,
+  current_location JSONB,
+  rating JSONB DEFAULT '{"average": 0, "count": 0}',
+  earnings JSONB DEFAULT '{"total": 0, "today": 0, "thisWeek": 0, "thisMonth": 0}',
+  status VARCHAR DEFAULT 'pending',
+  commission DECIMAL(5,2) DEFAULT 20.00,
+  last_active TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
 ```
 
-### Order Collection
-```javascript
-{
-  _id: ObjectId,
-  orderNumber: String,
-  customer: ObjectId,
-  driver: ObjectId,
-  pickup: {
-    location: {
-      type: String,
-      coordinates: [Number]
-    },
-    address: String,
-    instructions: String
-  },
-  destination: {
-    location: {
-      type: String,
-      coordinates: [Number]
-    },
-    address: String,
-    instructions: String
-  },
-  status: String, // pending, accepted, driver_assigned, driver_arrived, in_progress, completed, cancelled
-  estimatedTime: Number,
-  estimatedDistance: Number,
-  fare: {
-    base: Number,
-    distance: Number,
-    time: Number,
-    total: Number,
-    currency: String
-  },
-  payment: {
-    method: String, // cash, card, online
-    status: String, // pending, paid, failed
-    transactionId: String
-  },
-  rating: {
-    customerRating: {
-      rating: Number,
-      comment: String,
-      createdAt: Date
-    },
-    driverRating: {
-      rating: Number,
-      comment: String,
-      createdAt: Date
-    }
-  },
-  timeline: [{
-    status: String,
-    timestamp: Date,
-    location: {
-      type: String,
-      coordinates: [Number]
-    }
-  }],
-  notes: String,
-  cancelledBy: String,
-  cancellationReason: String,
-  createdAt: Date,
-  updatedAt: Date
-}
+### Orders Table
+```sql
+CREATE TABLE orders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_number VARCHAR NOT NULL UNIQUE,
+  customer_id UUID REFERENCES users(id),
+  driver_id UUID REFERENCES drivers(id),
+  pickup JSONB NOT NULL,
+  destination JSONB NOT NULL,
+  status VARCHAR DEFAULT 'pending',
+  estimated_time INTEGER,
+  estimated_distance DECIMAL(8,2),
+  fare JSONB NOT NULL DEFAULT '{"base": 0, "distance": 0, "time": 0, "total": 0, "currency": "AZN"}',
+  payment JSONB DEFAULT '{"method": "cash", "status": "pending", "transactionId": null}',
+  rating JSONB,
+  timeline JSONB DEFAULT '[]',
+  notes TEXT,
+  cancelled_by VARCHAR,
+  cancellation_reason TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
 ```
 
 ## 🔒 Təhlükəsizlik
