@@ -5,7 +5,7 @@ Bu layihə taxi sifariş sistemi üçün tam funksional backend API-dir. Sistem 
 ## 🚀 Xüsusiyyətlər
 
 ### 🔐 Authentication & Authorization
-- OTP ilə telefon nömrəsi yoxlaması (Twilio)
+- OTP ilə telefon nömrəsi yoxlaması
 - JWT token əsaslı authentication
 - Role-based access control (RBAC)
 - İstifadəçi rolları: customer, driver, operator, dispatcher, admin
@@ -57,7 +57,6 @@ Bu layihə taxi sifariş sistemi üçün tam funksional backend API-dir. Sistem 
 - **Sequelize** - ORM
 - **Socket.IO** - Real-time communication
 - **JWT** - Authentication
-- **Twilio** - SMS/OTP
 - **Firebase Admin** - Push notifications
 - **Node-geocoder** - Geolocation services
 
@@ -66,7 +65,6 @@ Bu layihə taxi sifariş sistemi üçün tam funksional backend API-dir. Sistem 
 ### Tələblər
 - Node.js (v14 və ya daha yuxarı)
 - PostgreSQL (v12 və ya daha yuxarı)
-- Twilio hesabı
 - Firebase layihəsi
 
 ### Quraşdırma addımları
@@ -105,11 +103,6 @@ DATABASE_URL=postgresql://ayiqsurucu_user:your_password@localhost:5432/ayiqsuruc
 
 # JWT Secret
 JWT_SECRET=your-super-secret-jwt-key-here
-
-# Twilio Configuration
-TWILIO_ACCOUNT_SID=your-twilio-account-sid
-TWILIO_AUTH_TOKEN=your-twilio-auth-token
-TWILIO_PHONE_NUMBER=your-twilio-phone-number
 
 # Firebase Configuration
 FIREBASE_PROJECT_ID=your-firebase-project-id

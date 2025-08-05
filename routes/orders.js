@@ -38,8 +38,8 @@ router.post('/', auth, [
     const fare = calculateFare(distance, estimatedTime);
 
     // Yeni sifariş yarat
-    const order = new Order({
-      customer: req.user._id,
+    const order = await Order.create({
+      customerId: req.user.id, // Sequelize üçün customerId istifadə et
       pickup: {
         location: {
           type: 'Point',
@@ -74,8 +74,6 @@ router.post('/', auth, [
       }]
     });
 
-    await order.save();
-
     // Yaxın sürücüləri tap
     const nearbyDrivers = await findNearbyDrivers(
       pickup.coordinates[1], 
@@ -85,7 +83,7 @@ router.post('/', auth, [
     res.status(201).json({
       message: 'Sifariş uğurla yaradıldı',
       order: {
-        id: order._id,
+        id: order.id, // Sequelize üçün id istifadə et
         orderNumber: order.orderNumber,
         status: order.status,
         estimatedTime,
@@ -96,6 +94,16 @@ router.post('/', auth, [
     });
   } catch (error) {
     console.error('Sifariş yaratma xətası:', error);
+    console.error('Request user:', req.user);
+    console.error('Request body:', req.body);
+    
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ 
+        error: 'Validation error', 
+        details: error.errors 
+      });
+    }
+    
     res.status(500).json({ error: 'Server xətası' });
   }
 });

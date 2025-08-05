@@ -1,10 +1,3 @@
-const twilio = require('twilio');
-
-const client = twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-);
-
 // In-memory OTP storage (production-da Redis istifadə edilməlidir)
 const otpStorage = new Map();
 
@@ -14,15 +7,16 @@ const generateOTP = () => {
 
 const sendOTP = async (phoneNumber, otp) => {
   try {
-    const message = await client.messages.create({
-      body: `Ayiq Sürücü tətbiqi üçün OTP kodunuz: ${otp}. Kod 5 dəqiqə ərzində etibarlıdır.`,
-      from: process.env.TWILIO_PHONE_NUMBER,
-      to: phoneNumber
-    });
+    // Development üçün console-a yazdır
+    console.log(`📱 OTP göndərildi: ${phoneNumber} - Kod: ${otp}`);
+    console.log(`💬 Mesaj: Ayiq Sürücü tətbiqi üçün OTP kodunuz: ${otp}. Kod 5 dəqiqə ərzində etibarlıdır.`);
+    
+    // Production-da burada SMS göndərmə servisi əlavə edilə bilər
+    // Məsələn: AWS SNS, MessageBird, və ya başqa SMS provider
 
     return {
       success: true,
-      messageId: message.sid
+      messageId: `dev_${Date.now()}`
     };
   } catch (error) {
     console.error('OTP göndərilmə xətası:', error);
@@ -39,36 +33,49 @@ const storeOTP = (phoneNumber, otp) => {
     otp,
     expiryTime
   });
+  
+  console.log(`💾 OTP saxlanıldı: ${phoneNumber} - Vaxt: ${new Date(expiryTime).toLocaleString()}`);
 };
 
 const verifyOTP = (phoneNumber, otp) => {
   const storedData = otpStorage.get(phoneNumber);
   
   if (!storedData) {
+    console.log(`❌ OTP tapılmadı: ${phoneNumber}`);
     return { valid: false, message: 'OTP tapılmadı' };
   }
 
   if (Date.now() > storedData.expiryTime) {
     otpStorage.delete(phoneNumber);
+    console.log(`⏰ OTP vaxtı keçib: ${phoneNumber}`);
     return { valid: false, message: 'OTP vaxtı keçib' };
   }
 
   if (storedData.otp !== otp) {
+    console.log(`❌ Yanlış OTP: ${phoneNumber} - Göndərilən: ${otp}, Saxlanılan: ${storedData.otp}`);
     return { valid: false, message: 'Yanlış OTP' };
   }
 
   // OTP uğurla yoxlandıqdan sonra sil
   otpStorage.delete(phoneNumber);
+  console.log(`✅ OTP uğurla yoxlandı: ${phoneNumber}`);
   
   return { valid: true, message: 'OTP uğurla yoxlandı' };
 };
 
 const clearExpiredOTPs = () => {
   const now = Date.now();
+  let clearedCount = 0;
+  
   for (const [phoneNumber, data] of otpStorage.entries()) {
     if (now > data.expiryTime) {
       otpStorage.delete(phoneNumber);
+      clearedCount++;
     }
+  }
+  
+  if (clearedCount > 0) {
+    console.log(`🧹 ${clearedCount} ədəd vaxtı keçmiş OTP təmizləndi`);
   }
 };
 

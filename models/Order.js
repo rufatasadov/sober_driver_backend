@@ -102,6 +102,7 @@ const Order = sequelize.define('Order', {
   timestamps: true,
   hooks: {
     beforeCreate: async (order) => {
+      // Order number yarat
       if (!order.orderNumber) {
         const date = new Date();
         const year = date.getFullYear();
@@ -110,6 +111,17 @@ const Order = sequelize.define('Order', {
         const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
         order.orderNumber = `ORD-${year}${month}${day}-${random}`;
       }
+      
+      // CustomerId yoxla
+      if (!order.customerId) {
+        throw new Error('customerId is required');
+      }
+      
+      console.log('Creating order with:', {
+        orderNumber: order.orderNumber,
+        customerId: order.customerId,
+        status: order.status
+      });
     }
   }
 });

@@ -1,0 +1,1006 @@
+{
+	"info": {
+		"_postman_id": "ayiq-surucu-api-collection",
+		"name": "Ayiq Sürücü API",
+		"description": "Ayiq Sürücü taxi ordering system API collection with all endpoints and examples",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "ayiq-surucu"
+	},
+	"item": [
+		{
+			"name": "🔐 Authentication",
+			"item": [
+				{
+					"name": "Send OTP",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"+994501234567\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/send-otp",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"send-otp"
+							]
+						},
+						"description": "Send OTP code to phone number for authentication"
+					},
+					"response": []
+				},
+				{
+					"name": "Verify OTP & Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"+994501234567\",\n  \"otp\": \"123456\",\n  \"name\": \"Test User\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/verify-otp",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"verify-otp"
+							]
+						},
+						"description": "Verify OTP and login/register user"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/auth/me",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"me"
+							]
+						},
+						"description": "Get current user profile information"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Profile",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Updated Name\",\n  \"email\": \"user@example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/profile",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"profile"
+							]
+						},
+						"description": "Update user profile information"
+					},
+					"response": []
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/auth/logout",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"logout"
+							]
+						},
+						"description": "Logout user and clear FCM token"
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication endpoints for user login, registration, and profile management"
+		},
+		{
+			"name": "🚗 Orders",
+			"item": [
+				{
+					"name": "Create Order",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"pickup\": {\n    \"coordinates\": [49.8516, 40.3777],\n    \"address\": \"Bakı şəhəri, Nərimanov rayonu\",\n    \"instructions\": \"Körpü yaxınlığında\"\n  },\n  \"destination\": {\n    \"coordinates\": [49.8516, 40.3777],\n    \"address\": \"Bakı şəhəri, Yasamal rayonu\",\n    \"instructions\": \"Mərmər bina\"\n  },\n  \"payment\": {\n    \"method\": \"cash\"\n  },\n  \"notes\": \"Təcili sifariş\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/orders",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"orders"
+							]
+						},
+						"description": "Create a new taxi order"
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Orders",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/orders/my-orders",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"orders",
+								"my-orders"
+							]
+						},
+						"description": "Get current user's orders"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Order Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/orders/{{order_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"orders",
+								"{{order_id}}"
+							]
+						},
+						"description": "Get detailed information about a specific order"
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel Order",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/orders/{{order_id}}/cancel",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"orders",
+								"{{order_id}}",
+								"cancel"
+							]
+						},
+						"description": "Cancel an existing order"
+					},
+					"response": []
+				},
+				{
+					"name": "Rate Order",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rating\": 5,\n  \"comment\": \"Əla xidmət!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/orders/{{order_id}}/rate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"orders",
+								"{{order_id}}",
+								"rate"
+							]
+						},
+						"description": "Rate and comment on a completed order"
+					},
+					"response": []
+				}
+			],
+			"description": "Order management endpoints for customers"
+		},
+		{
+			"name": "👨‍💼 Operator Panel",
+			"item": [
+				{
+					"name": "Get Dashboard",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{operator_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/operator/dashboard",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"operator",
+								"dashboard"
+							]
+						},
+						"description": "Get operator dashboard statistics and recent orders"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Order (Manual)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{operator_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"customerPhone\": \"+994501234567\",\n  \"customerName\": \"Test Customer\",\n  \"pickup\": {\n    \"coordinates\": [49.8516, 40.3777],\n    \"address\": \"Bakı şəhəri, Nərimanov rayonu\",\n    \"instructions\": \"Körpü yaxınlığında\"\n  },\n  \"destination\": {\n    \"coordinates\": [49.8516, 40.3777],\n    \"address\": \"Bakı şəhəri, Yasamal rayonu\",\n    \"instructions\": \"Mərmər bina\"\n  },\n  \"payment\": {\n    \"method\": \"cash\"\n  },\n  \"notes\": \"Operator tərəfindən yaradıldı\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/operator/orders",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"operator",
+								"orders"
+							]
+						},
+						"description": "Create order manually through operator panel"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Orders",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{operator_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/operator/orders?status=pending&page=1&limit=10",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"operator",
+								"orders"
+							],
+							"query": [
+								{
+									"key": "status",
+									"value": "pending"
+								},
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								}
+							]
+						},
+						"description": "Get all orders with filtering and pagination"
+					},
+					"response": []
+				},
+				{
+					"name": "Assign Driver to Order",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{operator_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"driverId\": \"{{driver_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/operator/orders/{{order_id}}/assign",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"operator",
+								"orders",
+								"{{order_id}}",
+								"assign"
+							]
+						},
+						"description": "Assign a driver to an order"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Customers",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{operator_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/operator/customers",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"operator",
+								"customers"
+							]
+						},
+						"description": "Get all customers with their order history"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Drivers",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{operator_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/operator/drivers",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"operator",
+								"drivers"
+							]
+						},
+						"description": "Get all drivers with their status and location"
+					},
+					"response": []
+				}
+			],
+			"description": "Operator panel endpoints for managing orders, customers, and drivers"
+		},
+		{
+			"name": "🚕 Driver Management",
+			"item": [
+				{
+					"name": "Driver Registration",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"licenseNumber\": \"AZ123456789\",\n  \"vehicleInfo\": {\n    \"make\": \"Toyota\",\n    \"model\": \"Camry\",\n    \"year\": 2020,\n    \"color\": \"Ağ\",\n    \"plateNumber\": \"10-AA-123\"\n  },\n  \"documents\": {\n    \"license\": \"license_file_url\",\n    \"insurance\": \"insurance_file_url\",\n    \"vehicleRegistration\": \"registration_file_url\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/drivers/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"drivers",
+								"register"
+							]
+						},
+						"description": "Register as a driver with vehicle and document information"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Driver Status",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{driver_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"isOnline\": true,\n  \"isAvailable\": true,\n  \"currentLocation\": {\n    \"coordinates\": [49.8516, 40.3777],\n    \"address\": \"Bakı şəhəri, Nərimanov rayonu\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/drivers/status",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"drivers",
+								"status"
+							]
+						},
+						"description": "Update driver online status and current location"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Driver Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{driver_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/drivers/profile",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"drivers",
+								"profile"
+							]
+						},
+						"description": "Get driver profile with earnings and rating information"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Driver Orders",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{driver_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/drivers/orders",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"drivers",
+								"orders"
+							]
+						},
+						"description": "Get driver's assigned orders"
+					},
+					"response": []
+				},
+				{
+					"name": "Accept Order",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{driver_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/drivers/orders/{{order_id}}/accept",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"drivers",
+								"orders",
+								"{{order_id}}",
+								"accept"
+							]
+						},
+						"description": "Accept an assigned order"
+					},
+					"response": []
+				},
+				{
+					"name": "Start Trip",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{driver_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/drivers/orders/{{order_id}}/start",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"drivers",
+								"orders",
+								"{{order_id}}",
+								"start"
+							]
+						},
+						"description": "Start the trip for an accepted order"
+					},
+					"response": []
+				},
+				{
+					"name": "Complete Trip",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{driver_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/drivers/orders/{{order_id}}/complete",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"drivers",
+								"orders",
+								"{{order_id}}",
+								"complete"
+							]
+						},
+						"description": "Complete the trip and mark order as finished"
+					},
+					"response": []
+				}
+			],
+			"description": "Driver management endpoints for driver registration, status updates, and order handling"
+		},
+		{
+			"name": "💰 Payments",
+			"item": [
+				{
+					"name": "Get Payment Methods",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/payments/methods",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"payments",
+								"methods"
+							]
+						},
+						"description": "Get available payment methods"
+					},
+					"response": []
+				},
+				{
+					"name": "Process Payment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"orderId\": \"{{order_id}}\",\n  \"method\": \"card\",\n  \"cardToken\": \"card_token_here\",\n  \"amount\": 15.50\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/payments/process",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"payments",
+								"process"
+							]
+						},
+						"description": "Process payment for an order"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Payment History",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/payments/history",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"payments",
+								"history"
+							]
+						},
+						"description": "Get user's payment history"
+					},
+					"response": []
+				}
+			],
+			"description": "Payment processing and management endpoints"
+		},
+		{
+			"name": "🔔 Notifications",
+			"item": [
+				{
+					"name": "Update FCM Token",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fcmToken\": \"fcm_token_here\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/fcm-token",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"fcm-token"
+							]
+						},
+						"description": "Update FCM token for push notifications"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Notifications",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/notifications",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"notifications"
+							]
+						},
+						"description": "Get user's notifications"
+					},
+					"response": []
+				},
+				{
+					"name": "Mark Notification as Read",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/notifications/{{notification_id}}/read",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"notifications",
+								"{{notification_id}}",
+								"read"
+							]
+						},
+						"description": "Mark a notification as read"
+					},
+					"response": []
+				}
+			],
+			"description": "Push notification and notification management endpoints"
+		},
+		{
+			"name": "👥 Users",
+			"item": [
+				{
+					"name": "Get All Users (Admin)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/users",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"users"
+							]
+						},
+						"description": "Get all users (admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Update User Role",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"role\": \"operator\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/users/{{user_id}}/role",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"{{user_id}}",
+								"role"
+							]
+						},
+						"description": "Update user role (admin only)"
+					},
+					"response": []
+				}
+			],
+			"description": "User management endpoints (admin only)"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:3000",
+			"type": "string"
+		},
+		{
+			"key": "auth_token",
+			"value": "your_jwt_token_here",
+			"type": "string"
+		},
+		{
+			"key": "operator_token",
+			"value": "your_operator_jwt_token_here",
+			"type": "string"
+		},
+		{
+			"key": "driver_token",
+			"value": "your_driver_jwt_token_here",
+			"type": "string"
+		},
+		{
+			"key": "admin_token",
+			"value": "your_admin_jwt_token_here",
+			"type": "string"
+		},
+		{
+			"key": "order_id",
+			"value": "order_id_here",
+			"type": "string"
+		},
+		{
+			"key": "user_id",
+			"value": "user_id_here",
+			"type": "string"
+		},
+		{
+			"key": "driver_id",
+			"value": "driver_id_here",
+			"type": "string"
+		},
+		{
+			"key": "notification_id",
+			"value": "notification_id_here",
+			"type": "string"
+		}
+	]
+} 
