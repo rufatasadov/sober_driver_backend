@@ -10,6 +10,7 @@ const {
   estimateTravelTime,
   findNearbyDrivers 
 } = require('../utils/geolocation');
+const { Op } = require('sequelize');
 
 const router = express.Router();
 
@@ -22,43 +23,76 @@ router.get('/dashboard', auth, authorize('operator'), async (req, res) => {
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     // Bugünkü statistika
-    const todayOrders = await Order.countDocuments({
-      createdAt: { $gte: today, $lt: tomorrow }
+    const todayOrders = await Order.count({
+      where: {
+        createdAt: {
+          [Op.gte]: today,
+          [Op.lt]: tomorrow
+        }
+      }
     });
 
-    const todayCompleted = await Order.countDocuments({
-      status: 'completed',
-      createdAt: { $gte: today, $lt: tomorrow }
+    const todayCompleted = await Order.count({
+      where: {
+        status: 'completed',
+        createdAt: {
+          [Op.gte]: today,
+          [Op.lt]: tomorrow
+        }
+      }
     });
 
-    const todayPending = await Order.countDocuments({
-      status: 'pending',
-      createdAt: { $gte: today, $lt: tomorrow }
+    const todayPending = await Order.count({
+      where: {
+        status: 'pending',
+        createdAt: {
+          [Op.gte]: today,
+          [Op.lt]: tomorrow
+        }
+      }
     });
 
-    const todayCancelled = await Order.countDocuments({
-      status: 'cancelled',
-      createdAt: { $gte: today, $lt: tomorrow }
+    const todayCancelled = await Order.count({
+      where: {
+        status: 'cancelled',
+        createdAt: {
+          [Op.gte]: today,
+          [Op.lt]: tomorrow
+        }
+      }
     });
 
     // Online sürücülər
-    const onlineDrivers = await Driver.countDocuments({
-      isOnline: true,
-      isAvailable: true
+    const onlineDrivers = await Driver.count({
+      where: {
+        isOnline: true,
+        isAvailable: true
+      }
     });
 
     // Son sifarişlər
-    const recentOrders = await Order.find()
-      .populate('customer', 'name phone')
-      .populate({
-        path: 'driver',
-        populate: {
-          path: 'userId',
-          select: 'name phone'
+    const recentOrders = await Order.findAll({
+      include: [
+        {
+          model: User,
+          as: 'customer',
+          attributes: ['name', 'phone']
+        },
+        {
+          model: Driver,
+          as: 'driver',
+          include: [
+            {
+              model: User,
+              as: 'userId',
+              attributes: ['name', 'phone']
+            }
+          ]
         }
-      })
-      .sort({ createdAt: -1 })
-      .limit(10);
+      ],
+      order: [['createdAt', 'DESC']],
+      limit: 10
+    });
 
     res.json({
       stats: {
@@ -102,15 +136,14 @@ router.post('/orders', auth, authorize('operator'), [
     } = req.body;
 
     // Müştərini tap və ya yarat
-    let customer = await User.findOne({ phone: customerPhone });
+    let customer = await User.findOne({ where: { phone: customerPhone } });
     if (!customer) {
-      customer = new User({
+      customer = await User.create({
         phone: customerPhone,
         name: customerName,
         role: 'customer',
         isVerified: true
       });
-      await customer.save();
     }
 
     // Məsafə və vaxt hesabla
@@ -123,8 +156,8 @@ router.post('/orders', auth, authorize('operator'), [
     const fare = calculateFare(distance, estimatedTime);
 
     // Yeni sifariş yarat
-    const order = new Order({
-      customer: customer._id,
+    const order = await Order.create({
+      customerId: customer.id,
       pickup: {
         location: {
           type: 'Point',
@@ -159,12 +192,10 @@ router.post('/orders', auth, authorize('operator'), [
       }]
     });
 
-    await order.save();
-
     res.status(201).json({
       message: 'Sifariş uğurla əlavə edildi',
       order: {
-        id: order._id,
+        id: order.id,
         orderNumber: order.orderNumber,
         customer: {
           name: customer.name,
@@ -195,7 +226,7 @@ router.post('/orders/:orderId/assign-driver', auth, authorize('operator'), [
     }
 
     const { driverId } = req.body;
-    const order = await Order.findById(req.params.orderId);
+    const order = await Order.findByPk(req.params.orderId);
 
     if (!order) {
       return res.status(404).json({ error: 'Sifariş tapılmadı' });
@@ -206,7 +237,7 @@ router.post('/orders/:orderId/assign-driver', auth, authorize('operator'), [
     }
 
     // Sürücünü yoxla
-    const driver = await Driver.findById(driverId);
+    const driver = await Driver.findByPk(driverId);
     if (!driver) {
       return res.status(404).json({ error: 'Sürücü tapılmadı' });
     }
@@ -216,7 +247,7 @@ router.post('/orders/:orderId/assign-driver', auth, authorize('operator'), [
     }
 
     // Sifarişi sürücüyə təyin et
-    order.driver = driver._id;
+    order.driverId = driver.id;
     order.status = 'driver_assigned';
     order.timeline.push({
       status: 'driver_assigned',
@@ -232,11 +263,11 @@ router.post('/orders/:orderId/assign-driver', auth, authorize('operator'), [
     res.json({
       message: 'Sifariş uğurla sürücüyə təyin edildi',
       order: {
-        id: order._id,
+        id: order.id,
         orderNumber: order.orderNumber,
         status: order.status,
         driver: {
-          id: driver._id,
+          id: driver.id,
           name: driver.userId.name,
           phone: driver.userId.phone
         }
@@ -296,33 +327,45 @@ router.get('/orders', auth, authorize('operator'), async (req, res) => {
 
     if (status) filter.status = status;
     if (customerPhone) {
-      const customer = await User.findOne({ phone: customerPhone });
+      const customer = await User.findOne({ where: { phone: customerPhone } });
       if (customer) {
-        filter.customer = customer._id;
+        filter.customerId = customer.id;
       }
     }
 
     if (startDate && endDate) {
       filter.createdAt = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
+        [Op.gte]: new Date(startDate),
+        [Op.lte]: new Date(endDate)
       };
     }
 
-    const orders = await Order.find(filter)
-      .populate('customer', 'name phone')
-      .populate({
-        path: 'driver',
-        populate: {
-          path: 'userId',
-          select: 'name phone'
+    const orders = await Order.findAll({
+      where: filter,
+      include: [
+        {
+          model: User,
+          as: 'customer',
+          attributes: ['name', 'phone']
+        },
+        {
+          model: Driver,
+          as: 'driver',
+          include: [
+            {
+              model: User,
+              as: 'userId',
+              attributes: ['name', 'phone']
+            }
+          ]
         }
-      })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+      ],
+      order: [['createdAt', 'DESC']],
+      offset: skip,
+      limit: parseInt(limit)
+    });
 
-    const total = await Order.countDocuments(filter);
+    const total = await Order.count({ where: filter });
 
     res.json({
       orders,
@@ -352,7 +395,7 @@ router.put('/orders/:orderId', auth, authorize('operator'), [
     }
 
     const { pickup, destination, notes } = req.body;
-    const order = await Order.findById(req.params.orderId);
+    const order = await Order.findByPk(req.params.orderId);
 
     if (!order) {
       return res.status(404).json({ error: 'Sifariş tapılmadı' });
@@ -369,23 +412,14 @@ router.put('/orders/:orderId', auth, authorize('operator'), [
       updates.notes = notes;
     }
 
-    const updatedOrder = await Order.findByIdAndUpdate(
-      req.params.orderId,
+    const updatedOrder = await Order.update(
       updates,
-      { new: true, runValidators: true }
-    )
-    .populate('customer', 'name phone')
-    .populate({
-      path: 'driver',
-      populate: {
-        path: 'userId',
-        select: 'name phone'
-      }
-    });
+      { where: { id: req.params.orderId }, returning: true }
+    );
 
     res.json({
       message: 'Sifariş uğurla yeniləndi',
-      order: updatedOrder
+      order: updatedOrder[1][0]
     });
   } catch (error) {
     console.error('Sifariş yeniləmə xətası:', error);
@@ -400,16 +434,16 @@ router.get('/customers/search', auth, authorize('operator'), async (req, res) =>
     const filter = {};
 
     if (phone) {
-      filter.phone = { $regex: phone, $options: 'i' };
+      filter.phone = { [Op.iLike]: `%${phone}%` };
     }
     if (name) {
-      filter.name = { $regex: name, $options: 'i' };
+      filter.name = { [Op.iLike]: `%${name}%` };
     }
 
-    const customers = await User.find(filter)
-      .select('name phone email createdAt')
-      .sort({ createdAt: -1 })
-      .limit(20);
+    const customers = await User.findAll({
+      where: filter,
+      attributes: ['name', 'phone', 'email', 'createdAt']
+    });
 
     res.json({ customers });
   } catch (error) {
@@ -424,13 +458,27 @@ router.get('/customers/:customerId/orders', auth, authorize('operator'), async (
     const { page = 1, limit = 10 } = req.query;
     const skip = (page - 1) * limit;
 
-    const orders = await Order.find({ customer: req.params.customerId })
-      .populate('driver', 'userId')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+    const orders = await Order.findAll({
+      where: { customerId: req.params.customerId },
+      include: [
+        {
+          model: Driver,
+          as: 'driver',
+          include: [
+            {
+              model: User,
+              as: 'userId',
+              attributes: ['name', 'phone']
+            }
+          ]
+        }
+      ],
+      order: [['createdAt', 'DESC']],
+      offset: skip,
+      limit: parseInt(limit)
+    });
 
-    const total = await Order.countDocuments({ customer: req.params.customerId });
+    const total = await Order.count({ where: { customerId: req.params.customerId } });
 
     res.json({
       orders,

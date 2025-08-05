@@ -6,8 +6,8 @@ const User = require('../models/User');
 const router = express.Router();
 
 // FCM token yenilə
-router.put('/fcm-token', auth, [
-  body('fcmToken').notEmpty().withMessage('FCM token tələb olunur')
+router.post('/fcm-token', auth, [
+  body('fcmToken').isString().withMessage('FCM token tələb olunur')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -17,7 +17,7 @@ router.put('/fcm-token', auth, [
 
     const { fcmToken } = req.body;
 
-    await User.findByIdAndUpdate(req.user._id, { fcmToken });
+    await req.user.update({ fcmToken });
 
     res.json({ message: 'FCM token uğurla yeniləndi' });
   } catch (error) {

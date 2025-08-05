@@ -24,7 +24,7 @@ router.post('/register', auth, [
     }
 
     // İstifadəçinin sürücü olub-olmadığını yoxla
-    const existingDriver = await Driver.findOne({ userId: req.user._id });
+    const existingDriver = await Driver.findOne({ where: { userId: req.user.id } });
     if (existingDriver) {
       return res.status(400).json({ error: 'Siz artıq sürücü kimi qeydiyyatdan keçmisiniz' });
     }
@@ -32,34 +32,38 @@ router.post('/register', auth, [
     const { licenseNumber, vehicleInfo, documents } = req.body;
 
     // Lisenziya və nömrə nişanının unikallığını yoxla
-    const existingLicense = await Driver.findOne({ licenseNumber });
+    const existingLicense = await Driver.findOne({ where: { licenseNumber } });
     if (existingLicense) {
       return res.status(400).json({ error: 'Bu sürücülük vəsiqəsi artıq istifadə olunub' });
     }
 
-    const existingPlate = await Driver.findOne({ 'vehicleInfo.plateNumber': vehicleInfo.plateNumber });
+    const existingPlate = await Driver.findOne({ 
+      where: { 
+        vehicleInfo: { 
+          plateNumber: vehicleInfo.plateNumber 
+        } 
+      } 
+    });
     if (existingPlate) {
       return res.status(400).json({ error: 'Bu nömrə nişanı artıq istifadə olunub' });
     }
 
     // Yeni sürücü yarat
-    const driver = new Driver({
-      userId: req.user._id,
+    const driver = await Driver.create({
+      userId: req.user.id,
       licenseNumber,
       vehicleInfo,
       documents: documents || {},
       status: 'pending'
     });
 
-    await driver.save();
-
     // İstifadəçi rolunu yenilə
-    await User.findByIdAndUpdate(req.user._id, { role: 'driver' });
+    await req.user.update({ role: 'driver' });
 
     res.status(201).json({
       message: 'Sürücü qeydiyyatı uğurla tamamlandı',
       driver: {
-        id: driver._id,
+        id: driver.id,
         licenseNumber: driver.licenseNumber,
         vehicleInfo: driver.vehicleInfo,
         status: driver.status
@@ -74,8 +78,16 @@ router.post('/register', auth, [
 // Sürücü məlumatlarını al
 router.get('/profile', auth, authorize('driver'), async (req, res) => {
   try {
-    const driver = await Driver.findOne({ userId: req.user._id })
-      .populate('userId', 'name phone email');
+    const driver = await Driver.findOne({ 
+      where: { userId: req.user.id },
+      include: [
+        {
+          model: User,
+          as: 'userId',
+          attributes: ['name', 'phone', 'email']
+        }
+      ]
+    });
 
     if (!driver) {
       return res.status(404).json({ error: 'Sürücü məlumatları tapılmadı' });

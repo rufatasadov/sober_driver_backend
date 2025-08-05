@@ -3,7 +3,9 @@ const { body, validationResult } = require('express-validator');
 const { auth, authorize } = require('../middleware/auth');
 const Order = require('../models/Order');
 const Driver = require('../models/Driver');
+const User = require('../models/User');
 const { findNearbyDrivers } = require('../utils/geolocation');
+const { Op } = require('sequelize');
 
 const router = express.Router();
 
@@ -11,14 +13,20 @@ const router = express.Router();
 router.get('/dashboard', auth, authorize('dispatcher'), async (req, res) => {
   try {
     // Aktiv sifarişlər
-    const activeOrders = await Order.countDocuments({
-      status: { $in: ['pending', 'accepted', 'driver_assigned', 'driver_arrived', 'in_progress'] }
+    const activeOrders = await Order.count({
+      where: {
+        status: {
+          [Op.in]: ['pending', 'accepted', 'driver_assigned', 'driver_arrived', 'in_progress']
+        }
+      }
     });
 
     // Online sürücülər
-    const onlineDrivers = await Driver.countDocuments({
-      isOnline: true,
-      isAvailable: true
+    const onlineDrivers = await Driver.count({
+      where: {
+        isOnline: true,
+        isAvailable: true
+      }
     });
 
     // Bugünkü sifarişlər
@@ -27,37 +35,69 @@ router.get('/dashboard', auth, authorize('dispatcher'), async (req, res) => {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const todayOrders = await Order.countDocuments({
-      createdAt: { $gte: today, $lt: tomorrow }
+    const todayOrders = await Order.count({
+      where: {
+        createdAt: {
+          [Op.gte]: today,
+          [Op.lt]: tomorrow
+        }
+      }
     });
 
-    const todayCompleted = await Order.countDocuments({
-      status: 'completed',
-      createdAt: { $gte: today, $lt: tomorrow }
+    const todayCompleted = await Order.count({
+      where: {
+        status: 'completed',
+        createdAt: {
+          [Op.gte]: today,
+          [Op.lt]: tomorrow
+        }
+      }
     });
 
     // Son aktiv sifarişlər
-    const recentActiveOrders = await Order.find({
-      status: { $in: ['pending', 'accepted', 'driver_assigned', 'driver_arrived', 'in_progress'] }
-    })
-    .populate('customer', 'name phone')
-    .populate({
-      path: 'driver',
-      populate: {
-        path: 'userId',
-        select: 'name phone'
-      }
-    })
-    .sort({ createdAt: -1 })
-    .limit(10);
+    const recentActiveOrders = await Order.findAll({
+      where: {
+        status: {
+          [Op.in]: ['pending', 'accepted', 'driver_assigned', 'driver_arrived', 'in_progress']
+        }
+      },
+      include: [
+        {
+          model: User,
+          as: 'customer',
+          attributes: ['name', 'phone']
+        },
+        {
+          model: Driver,
+          as: 'driver',
+          include: [
+            {
+              model: User,
+              as: 'userId',
+              attributes: ['name', 'phone']
+            }
+          ]
+        }
+      ],
+      order: [['createdAt', 'DESC']],
+      limit: 10
+    });
 
     // Online sürücülərin siyahısı
-    const onlineDriversList = await Driver.find({
-      isOnline: true
-    })
-    .populate('userId', 'name phone')
-    .select('currentLocation rating isAvailable lastActive')
-    .limit(20);
+    const onlineDriversList = await Driver.findAll({
+      where: {
+        isOnline: true
+      },
+      include: [
+        {
+          model: User,
+          as: 'userId',
+          attributes: ['name', 'phone']
+        }
+      ],
+      attributes: ['currentLocation', 'rating', 'isAvailable', 'lastActive'],
+      limit: 20
+    });
 
     res.json({
       stats: {

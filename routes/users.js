@@ -1,37 +1,75 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const { auth } = require('../middleware/auth');
+const { auth, authorize } = require('../middleware/auth');
 const User = require('../models/User');
+const { Op } = require('sequelize');
 
 const router = express.Router();
 
-// İstifadəçi profilini al
-router.get('/profile', auth, async (req, res) => {
+// Bütün istifadəçiləri al (admin üçün)
+router.get('/', auth, authorize('admin'), async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('-__v');
+    const { page = 1, limit = 10, role, search } = req.query;
+    const offset = (page - 1) * limit;
+
+    const whereClause = {};
     
+    if (role) {
+      whereClause.role = role;
+    }
+    
+    if (search) {
+      whereClause[Op.or] = [
+        { name: { [Op.iLike]: `%${search}%` } },
+        { phone: { [Op.iLike]: `%${search}%` } },
+        { email: { [Op.iLike]: `%${search}%` } }
+      ];
+    }
+
+    const { count, rows: users } = await User.findAndCountAll({
+      where: whereClause,
+      attributes: { exclude: ['password'] },
+      order: [['createdAt', 'DESC']],
+      offset: parseInt(offset),
+      limit: parseInt(limit)
+    });
+
     res.json({
-      user: {
-        id: user._id,
-        name: user.name,
-        phone: user.phone,
-        email: user.email,
-        role: user.role,
-        isVerified: user.isVerified,
-        profileImage: user.profileImage,
-        createdAt: user.createdAt
+      users,
+      pagination: {
+        current: parseInt(page),
+        total: Math.ceil(count / limit),
+        hasNext: page * limit < count,
+        hasPrev: page > 1
       }
     });
   } catch (error) {
-    console.error('Profil alma xətası:', error);
+    console.error('İstifadəçilər alma xətası:', error);
     res.status(500).json({ error: 'Server xətası' });
   }
 });
 
-// İstifadəçi profilini yenilə
-router.put('/profile', auth, [
-  body('name').optional().isLength({ min: 2 }).withMessage('Ad minimum 2 simvol olmalıdır'),
-  body('email').optional().isEmail().withMessage('Düzgün email daxil edin')
+// İstifadəçi məlumatlarını al
+router.get('/:userId', auth, authorize('admin'), async (req, res) => {
+  try {
+    const user = await User.findByPk(req.params.userId, {
+      attributes: { exclude: ['password'] }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'İstifadəçi tapılmadı' });
+    }
+
+    res.json({ user });
+  } catch (error) {
+    console.error('İstifadəçi məlumatları alma xətası:', error);
+    res.status(500).json({ error: 'Server xətası' });
+  }
+});
+
+// İstifadəçi rolunu yenilə
+router.put('/:userId/role', auth, authorize('admin'), [
+  body('role').isIn(['customer', 'driver', 'operator', 'dispatcher', 'admin']).withMessage('Düzgün rol seçin')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -39,34 +77,55 @@ router.put('/profile', auth, [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, email } = req.body;
-    const updates = {};
+    const { role } = req.body;
+    const user = await User.findByPk(req.params.userId);
 
-    if (name) updates.name = name;
-    if (email) updates.email = email;
+    if (!user) {
+      return res.status(404).json({ error: 'İstifadəçi tapılmadı' });
+    }
 
-    const user = await User.findByIdAndUpdate(
-      req.user._id,
-      updates,
-      { new: true, runValidators: true }
-    ).select('-__v');
+    await user.update({ role });
 
     res.json({
-      message: 'Profil uğurla yeniləndi',
+      message: 'İstifadəçi rolu uğurla yeniləndi',
       user: {
-        id: user._id,
+        id: user.id,
         name: user.name,
         phone: user.phone,
-        email: user.email,
-        role: user.role,
-        isVerified: user.isVerified,
-        profileImage: user.profileImage
+        role: user.role
       }
     });
   } catch (error) {
-    console.error('Profil yeniləmə xətası:', error);
+    console.error('İstifadəçi rolu yeniləmə xətası:', error);
     res.status(500).json({ error: 'Server xətası' });
   }
 });
 
+// İstifadəçini deaktiv et
+router.put('/:userId/deactivate', auth, authorize('admin'), async (req, res) => {
+  try {
+    const user = await User.findByPk(req.params.userId);
+
+    if (!user) {
+      return res.status(404).json({ error: 'İstifadəçi tapılmadı' });
+    }
+
+    await user.update({ isActive: false });
+
+    res.json({
+      message: 'İstifadəçi uğurla deaktiv edildi',
+      user: {
+        id: user.id,
+        name: user.name,
+        phone: user.phone,
+        isActive: user.isActive
+      }
+    });
+  } catch (error) {
+    console.error('İstifadəçi deaktiv etmə xətası:', error);
+    res.status(500).json({ error: 'Server xətası' });
+  }
+});
+
+module.exports = router; 
 module.exports = router; 

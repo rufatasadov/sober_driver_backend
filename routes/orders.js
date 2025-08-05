@@ -3,6 +3,7 @@ const { body, validationResult } = require('express-validator');
 const { auth, authorize } = require('../middleware/auth');
 const Order = require('../models/Order');
 const Driver = require('../models/Driver');
+const User = require('../models/User'); // Added for population
 const { 
   calculateDistance, 
   calculateFare, 
@@ -131,23 +132,34 @@ router.post('/', auth, [
 // Sifariş məlumatlarını al
 router.get('/:orderId', auth, async (req, res) => {
   try {
-    const order = await Order.findById(req.params.orderId)
-      .populate('customer', 'name phone')
-      .populate({
-        path: 'driver',
-        populate: {
-          path: 'userId',
-          select: 'name phone'
+    const order = await Order.findByPk(req.params.orderId, {
+      include: [
+        {
+          model: User,
+          as: 'customer',
+          attributes: ['name', 'phone']
+        },
+        {
+          model: Driver,
+          as: 'driver',
+          include: [
+            {
+              model: User,
+              as: 'userId',
+              attributes: ['name', 'phone']
+            }
+          ]
         }
-      });
+      ]
+    });
 
     if (!order) {
       return res.status(404).json({ error: 'Sifariş tapılmadı' });
     }
 
     // Yalnız sifariş sahibi və ya təyin edilmiş sürücü görə bilər
-    if (order.customer._id.toString() !== req.user._id.toString() && 
-        (!order.driver || order.driver.userId._id.toString() !== req.user._id.toString())) {
+    if (order.customerId !== req.user.id && 
+        (!order.driverId || order.driver.userId.id !== req.user.id)) {
       return res.status(403).json({ error: 'Bu sifarişə giriş icazəniz yoxdur' });
     }
 
@@ -162,44 +174,54 @@ router.get('/:orderId', auth, async (req, res) => {
 router.get('/', auth, async (req, res) => {
   try {
     const { page = 1, limit = 10, status } = req.query;
-    const skip = (page - 1) * limit;
+    const offset = (page - 1) * limit;
 
-    const filter = {};
+    const whereClause = {};
     
     if (req.user.role === 'customer') {
-      filter.customer = req.user._id;
+      whereClause.customerId = req.user.id;
     } else if (req.user.role === 'driver') {
-      const driver = await Driver.findOne({ userId: req.user._id });
+      const driver = await Driver.findOne({ where: { userId: req.user.id } });
       if (driver) {
-        filter.driver = driver._id;
+        whereClause.driverId = driver.id;
       }
     }
 
     if (status) {
-      filter.status = status;
+      whereClause.status = status;
     }
 
-    const orders = await Order.find(filter)
-      .populate('customer', 'name phone')
-      .populate({
-        path: 'driver',
-        populate: {
-          path: 'userId',
-          select: 'name phone'
+    const { count, rows: orders } = await Order.findAndCountAll({
+      where: whereClause,
+      include: [
+        {
+          model: User,
+          as: 'customer',
+          attributes: ['name', 'phone']
+        },
+        {
+          model: Driver,
+          as: 'driver',
+          include: [
+            {
+              model: User,
+              as: 'userId',
+              attributes: ['name', 'phone']
+            }
+          ]
         }
-      })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    const total = await Order.countDocuments(filter);
+      ],
+      order: [['createdAt', 'DESC']],
+      offset: parseInt(offset),
+      limit: parseInt(limit)
+    });
 
     res.json({
       orders,
       pagination: {
         current: parseInt(page),
-        total: Math.ceil(total / limit),
-        hasNext: page * limit < total,
+        total: Math.ceil(count / limit),
+        hasNext: page * limit < count,
         hasPrev: page > 1
       }
     });
@@ -221,7 +243,7 @@ router.patch('/:orderId/status', auth, [
     }
 
     const { status, location, notes } = req.body;
-    const order = await Order.findById(req.params.orderId);
+    const order = await Order.findByPk(req.params.orderId);
 
     if (!order) {
       return res.status(404).json({ error: 'Sifariş tapılmadı' });
@@ -232,8 +254,8 @@ router.patch('/:orderId/status', auth, [
       req.user.role === 'admin' ||
       req.user.role === 'operator' ||
       req.user.role === 'dispatcher' ||
-      order.customer.toString() === req.user._id.toString() ||
-      (order.driver && order.driver.toString() === req.user._id.toString());
+      order.customerId === req.user.id ||
+      (order.driverId && order.driverId === req.user.id);
 
     if (!canUpdateStatus) {
       return res.status(403).json({ error: 'Status dəyişdirmə icazəniz yoxdur' });
@@ -257,10 +279,8 @@ router.patch('/:orderId/status', auth, [
     }
 
     // Status yenilə
-    order.status = status;
-    
-    // Timeline-ə əlavə et
-    order.timeline.push({
+    const timeline = order.timeline || [];
+    timeline.push({
       status,
       timestamp: new Date(),
       location: location ? {
@@ -269,16 +289,16 @@ router.patch('/:orderId/status', auth, [
       } : undefined
     });
 
-    if (notes) {
-      order.notes = notes;
-    }
-
-    await order.save();
+    await order.update({
+      status,
+      timeline,
+      notes: notes || order.notes
+    });
 
     res.json({
       message: 'Status uğurla yeniləndi',
       order: {
-        id: order._id,
+        id: order.id,
         status: order.status,
         timeline: order.timeline
       }
@@ -300,14 +320,14 @@ router.post('/:orderId/cancel', auth, [
     }
 
     const { reason } = req.body;
-    const order = await Order.findById(req.params.orderId);
+    const order = await Order.findByPk(req.params.orderId);
 
     if (!order) {
       return res.status(404).json({ error: 'Sifariş tapılmadı' });
     }
 
     // Ləğv etmə icazəsini yoxla
-    if (order.customer.toString() !== req.user._id.toString() && 
+    if (order.customerId !== req.user.id && 
         req.user.role !== 'admin' && 
         req.user.role !== 'operator') {
       return res.status(403).json({ error: 'Sifarişi ləğv etmə icazəniz yoxdur' });
@@ -317,21 +337,23 @@ router.post('/:orderId/cancel', auth, [
       return res.status(400).json({ error: 'Bu sifariş artıq tamamlanıb və ya ləğv edilib' });
     }
 
-    order.status = 'cancelled';
-    order.cancelledBy = req.user.role === 'customer' ? 'customer' : 'operator';
-    order.cancellationReason = reason;
-
-    order.timeline.push({
+    const timeline = order.timeline || [];
+    timeline.push({
       status: 'cancelled',
       timestamp: new Date()
     });
 
-    await order.save();
+    await order.update({
+      status: 'cancelled',
+      cancelledBy: req.user.role === 'customer' ? 'customer' : 'operator',
+      cancellationReason: reason,
+      timeline
+    });
 
     res.json({
       message: 'Sifariş uğurla ləğv edildi',
       order: {
-        id: order._id,
+        id: order.id,
         status: order.status,
         cancelledBy: order.cancelledBy,
         cancellationReason: order.cancellationReason
@@ -355,7 +377,7 @@ router.post('/:orderId/rate', auth, [
     }
 
     const { rating, comment } = req.body;
-    const order = await Order.findById(req.params.orderId);
+    const order = await Order.findByPk(req.params.orderId);
 
     if (!order) {
       return res.status(404).json({ error: 'Sifariş tapılmadı' });
@@ -366,29 +388,31 @@ router.post('/:orderId/rate', auth, [
     }
 
     // Qiymətləndirmə verən istifadəçini müəyyən et
-    const isCustomer = order.customer.toString() === req.user._id.toString();
-    const isDriver = order.driver && order.driver.toString() === req.user._id.toString();
+    const isCustomer = order.customerId === req.user.id;
+    const isDriver = order.driverId && order.driverId === req.user.id;
 
     if (!isCustomer && !isDriver) {
       return res.status(403).json({ error: 'Bu sifarişə qiymətləndirmə vermə icazəniz yoxdur' });
     }
 
     // Qiymətləndirməni əlavə et
+    const ratingData = order.rating || {};
+    
     if (isCustomer) {
-      order.rating.customerRating = {
+      ratingData.customerRating = {
         rating,
         comment,
         createdAt: new Date()
       };
     } else if (isDriver) {
-      order.rating.driverRating = {
+      ratingData.driverRating = {
         rating,
         comment,
         createdAt: new Date()
       };
     }
 
-    await order.save();
+    await order.update({ rating: ratingData });
 
     res.json({
       message: 'Qiymətləndirmə uğurla əlavə edildi',

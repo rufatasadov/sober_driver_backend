@@ -5,59 +5,19 @@ const Order = require('../models/Order');
 
 const router = express.Router();
 
-// Ödəniş statusunu yenilə
-router.patch('/orders/:orderId/status', auth, [
-  body('status').isIn(['pending', 'paid', 'failed']).withMessage('Düzgün ödəniş statusu seçin'),
-  body('transactionId').optional().isString().withMessage('Transaction ID string olmalıdır')
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { status, transactionId } = req.body;
-    const order = await Order.findById(req.params.orderId);
-
-    if (!order) {
-      return res.status(404).json({ error: 'Sifariş tapılmadı' });
-    }
-
-    // Yalnız sifariş sahibi və ya admin ödəniş statusunu dəyişə bilər
-    if (order.customer.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Bu əməliyyatı yerinə yetirmə icazəniz yoxdur' });
-    }
-
-    order.payment.status = status;
-    if (transactionId) {
-      order.payment.transactionId = transactionId;
-    }
-
-    await order.save();
-
-    res.json({
-      message: 'Ödəniş statusu uğurla yeniləndi',
-      payment: order.payment
-    });
-  } catch (error) {
-    console.error('Ödəniş statusu yeniləmə xətası:', error);
-    res.status(500).json({ error: 'Server xətası' });
-  }
-});
-
 // Ödəniş məlumatlarını al
-router.get('/orders/:orderId', auth, async (req, res) => {
+router.get('/order/:orderId', auth, async (req, res) => {
   try {
-    const order = await Order.findById(req.params.orderId)
-      .select('payment fare');
+    const order = await Order.findByPk(req.params.orderId);
 
     if (!order) {
       return res.status(404).json({ error: 'Sifariş tapılmadı' });
     }
 
-    // Yalnız sifariş sahibi və ya admin ödəniş məlumatlarını görə bilər
-    if (order.customer.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Bu məlumatlara giriş icazəniz yoxdur' });
+    // Yalnız sifariş sahibi və ya təyin edilmiş sürücü görə bilər
+    if (order.customerId !== req.user.id && 
+        (!order.driverId || order.driverId !== req.user.id)) {
+      return res.status(403).json({ error: 'Bu sifarişə giriş icazəniz yoxdur' });
     }
 
     res.json({
@@ -66,6 +26,89 @@ router.get('/orders/:orderId', auth, async (req, res) => {
     });
   } catch (error) {
     console.error('Ödəniş məlumatları alma xətası:', error);
+    res.status(500).json({ error: 'Server xətası' });
+  }
+});
+
+// Ödəniş statusunu yenilə
+router.post('/order/:orderId/process', auth, [
+  body('method').isIn(['cash', 'card', 'online']).withMessage('Düzgün ödəniş üsulu seçin'),
+  body('transactionId').optional().isString().withMessage('Transaction ID düzgün formatda olmalıdır')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { method, transactionId } = req.body;
+    const order = await Order.findByPk(req.params.orderId);
+
+    if (!order) {
+      return res.status(404).json({ error: 'Sifariş tapılmadı' });
+    }
+
+    if (order.status !== 'completed') {
+      return res.status(400).json({ error: 'Yalnız tamamlanmış sifarişlər üçün ödəniş edə bilərsiniz' });
+    }
+
+    // Ödəniş statusunu yenilə
+    const paymentData = {
+      method,
+      status: 'completed',
+      transactionId: transactionId || null,
+      completedAt: new Date()
+    };
+
+    await order.update({ payment: paymentData });
+
+    res.json({
+      message: 'Ödəniş uğurla tamamlandı',
+      payment: paymentData
+    });
+  } catch (error) {
+    console.error('Ödəniş emal etmə xətası:', error);
+    res.status(500).json({ error: 'Server xətası' });
+  }
+});
+
+// Ödənişi ləğv et
+router.post('/order/:orderId/refund', auth, [
+  body('reason').isLength({ min: 3 }).withMessage('Ləğv səbəbi minimum 3 simvol olmalıdır')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { reason } = req.body;
+    const order = await Order.findByPk(req.params.orderId);
+
+    if (!order) {
+      return res.status(404).json({ error: 'Sifariş tapılmadı' });
+    }
+
+    if (order.payment.status !== 'completed') {
+      return res.status(400).json({ error: 'Yalnız tamamlanmış ödənişlər ləğv edilə bilər' });
+    }
+
+    // Ödəniş statusunu yenilə
+    const paymentData = {
+      ...order.payment,
+      status: 'refunded',
+      refundReason: reason,
+      refundedAt: new Date()
+    };
+
+    await order.update({ payment: paymentData });
+
+    res.json({
+      message: 'Ödəniş uğurla ləğv edildi',
+      payment: paymentData
+    });
+  } catch (error) {
+    console.error('Ödəniş ləğv etmə xətası:', error);
     res.status(500).json({ error: 'Server xətası' });
   }
 });

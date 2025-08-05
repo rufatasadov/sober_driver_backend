@@ -86,9 +86,10 @@ router.post('/verify-otp', [
       });
     } else {
       // Mövcud istifadəçini yenilə
-      user.isVerified = true;
-      user.lastLogin = new Date();
-      await user.save();
+      await user.update({
+        isVerified: true,
+        lastLogin: new Date()
+      });
     }
 
     // JWT token yarat

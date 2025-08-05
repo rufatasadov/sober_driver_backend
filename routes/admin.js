@@ -4,6 +4,7 @@ const { auth, authorize } = require('../middleware/auth');
 const User = require('../models/User');
 const Driver = require('../models/Driver');
 const Order = require('../models/Order');
+const { Op } = require('sequelize');
 
 const router = express.Router();
 
@@ -16,60 +17,91 @@ router.get('/dashboard', auth, authorize('admin'), async (req, res) => {
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     // Ümumi statistika
-    const totalUsers = await User.countDocuments({ role: 'customer' });
-    const totalDrivers = await Driver.countDocuments();
-    const totalOrders = await Order.countDocuments();
-    const totalCompletedOrders = await Order.countDocuments({ status: 'completed' });
+    const totalUsers = await User.count({ where: { role: 'customer' } });
+    const totalDrivers = await Driver.count();
+    const totalOrders = await Order.count();
+    const totalCompletedOrders = await Order.count({ where: { status: 'completed' } });
 
     // Bugünkü statistika
-    const todayOrders = await Order.countDocuments({
-      createdAt: { $gte: today, $lt: tomorrow }
-    });
-
-    const todayCompleted = await Order.countDocuments({
-      status: 'completed',
-      createdAt: { $gte: today, $lt: tomorrow }
-    });
-
-    const todayRevenue = await Order.aggregate([
-      {
-        $match: {
-          status: 'completed',
-          createdAt: { $gte: today, $lt: tomorrow }
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: '$fare.total' }
+    const todayOrders = await Order.count({
+      where: {
+        createdAt: {
+          [Op.gte]: today,
+          [Op.lt]: tomorrow
         }
       }
-    ]);
+    });
+
+    const todayCompleted = await Order.count({
+      where: {
+        status: 'completed',
+        createdAt: {
+          [Op.gte]: today,
+          [Op.lt]: tomorrow
+        }
+      }
+    });
+
+    // Bugünkü gəlir (Sequelize-də aggregate əvəzinə)
+    const todayCompletedOrders = await Order.findAll({
+      where: {
+        status: 'completed',
+        createdAt: {
+          [Op.gte]: today,
+          [Op.lt]: tomorrow
+        }
+      },
+      attributes: ['fare']
+    });
+
+    const todayRevenue = todayCompletedOrders.reduce((sum, order) => {
+      return sum + (order.fare?.total || 0);
+    }, 0);
 
     // Online sürücülər
-    const onlineDrivers = await Driver.countDocuments({
-      isOnline: true,
-      isAvailable: true
+    const onlineDrivers = await Driver.count({
+      where: {
+        isOnline: true,
+        isAvailable: true
+      }
     });
 
     // Son sifarişlər
-    const recentOrders = await Order.find()
-      .populate('customer', 'name phone')
-      .populate({
-        path: 'driver',
-        populate: {
-          path: 'userId',
-          select: 'name phone'
+    const recentOrders = await Order.findAll({
+      include: [
+        {
+          model: User,
+          as: 'customer',
+          attributes: ['name', 'phone']
+        },
+        {
+          model: Driver,
+          as: 'driver',
+          include: [
+            {
+              model: User,
+              as: 'userId',
+              attributes: ['name', 'phone']
+            }
+          ]
         }
-      })
-      .sort({ createdAt: -1 })
-      .limit(10);
+      ],
+      order: [['createdAt', 'DESC']],
+      limit: 10
+    });
 
     // Son qeydiyyatdan keçən sürücülər
-    const recentDrivers = await Driver.find()
-      .populate('userId', 'name phone')
-      .sort({ createdAt: -1 })
-      .limit(5);
+    const recentDrivers = await Driver.findAll({
+      include: [
+        {
+          model: User,
+          as: 'userId',
+          attributes: ['name', 'phone']
+        }
+      ],
+      order: [['createdAt', 'DESC']],
+      limit: 5
+    });
 
     res.json({
       stats: {
@@ -79,7 +111,7 @@ router.get('/dashboard', auth, authorize('admin'), async (req, res) => {
         totalCompletedOrders,
         todayOrders,
         todayCompleted,
-        todayRevenue: todayRevenue[0]?.total || 0,
+        todayRevenue,
         onlineDrivers
       },
       recentOrders,
