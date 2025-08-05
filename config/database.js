@@ -25,7 +25,7 @@ const connectDB = async () => {
     // Sync all models with database
     if (process.env.NODE_ENV === 'development') {
       await sequelize.sync({ alter: true });
-      console.log('Database synchronized.');
+      console.log('Database synchronized with alter option.');
     }
   } catch (error) {
     console.error('Database connection error:', error);

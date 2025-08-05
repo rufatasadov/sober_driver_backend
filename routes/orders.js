@@ -38,7 +38,12 @@ router.post('/', auth, [
     const fare = calculateFare(distance, estimatedTime);
 
     // Yeni sifariş yarat
-    const order = await Order.create({
+    console.log('Creating order with user:', {
+      userId: req.user.id,
+      userRole: req.user.role
+    });
+    
+    const orderData = {
       customerId: req.user.id, // Sequelize üçün customerId istifadə et
       pickup: {
         location: {
@@ -72,7 +77,11 @@ router.post('/', auth, [
           coordinates: pickup.coordinates
         }
       }]
-    });
+    };
+    
+    console.log('Order data to create:', orderData);
+    
+    const order = await Order.create(orderData);
 
     // Yaxın sürücüləri tap
     const nearbyDrivers = await findNearbyDrivers(

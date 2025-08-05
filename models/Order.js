@@ -11,7 +11,7 @@ const Order = sequelize.define('Order', {
   },
   orderNumber: {
     type: DataTypes.STRING,
-    allowNull: false,
+    allowNull: false, // Hook-da həmişə yaradılacaq
     unique: true
   },
   customerId: {
@@ -102,26 +102,29 @@ const Order = sequelize.define('Order', {
   timestamps: true,
   hooks: {
     beforeCreate: async (order) => {
-      // Order number yarat
-      if (!order.orderNumber) {
+      try {
+        // Order number həmişə yarat
         const date = new Date();
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
         const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
         order.orderNumber = `ORD-${year}${month}${day}-${random}`;
+        
+        // CustomerId yoxla
+        if (!order.customerId) {
+          throw new Error('customerId is required');
+        }
+        
+        console.log('Creating order with:', {
+          orderNumber: order.orderNumber,
+          customerId: order.customerId,
+          status: order.status
+        });
+      } catch (error) {
+        console.error('Order creation hook error:', error);
+        throw error;
       }
-      
-      // CustomerId yoxla
-      if (!order.customerId) {
-        throw new Error('customerId is required');
-      }
-      
-      console.log('Creating order with:', {
-        orderNumber: order.orderNumber,
-        customerId: order.customerId,
-        status: order.status
-      });
     }
   }
 });
