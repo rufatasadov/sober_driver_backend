@@ -145,7 +145,7 @@ router.get('/:orderId', auth, async (req, res) => {
           include: [
             {
               model: User,
-              as: 'userId',
+              as: 'user',
               attributes: ['name', 'phone']
             }
           ]
@@ -159,7 +159,7 @@ router.get('/:orderId', auth, async (req, res) => {
 
     // Yalnız sifariş sahibi və ya təyin edilmiş sürücü görə bilər
     if (order.customerId !== req.user.id && 
-        (!order.driverId || order.driver.userId.id !== req.user.id)) {
+        (!order.driverId || order.driver.user.id !== req.user.id)) {
       return res.status(403).json({ error: 'Bu sifarişə giriş icazəniz yoxdur' });
     }
 
@@ -205,7 +205,7 @@ router.get('/', auth, async (req, res) => {
           include: [
             {
               model: User,
-              as: 'userId',
+              as: 'user',
               attributes: ['name', 'phone']
             }
           ]

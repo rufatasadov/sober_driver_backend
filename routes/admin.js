@@ -80,7 +80,7 @@ router.get('/dashboard', auth, authorize('admin'), async (req, res) => {
           include: [
             {
               model: User,
-              as: 'userId',
+              as: 'user',
               attributes: ['name', 'phone']
             }
           ]
@@ -95,7 +95,7 @@ router.get('/dashboard', auth, authorize('admin'), async (req, res) => {
       include: [
         {
           model: User,
-          as: 'userId',
+          as: 'user',
           attributes: ['name', 'phone']
         }
       ],

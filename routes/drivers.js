@@ -83,7 +83,7 @@ router.get('/profile', auth, authorize('driver'), async (req, res) => {
       include: [
         {
           model: User,
-          as: 'userId',
+          as: 'user',
           attributes: ['name', 'phone', 'email']
         }
       ]

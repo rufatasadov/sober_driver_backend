@@ -84,7 +84,7 @@ router.get('/dashboard', auth, authorize('operator'), async (req, res) => {
           include: [
             {
               model: User,
-              as: 'userId',
+              as: 'user',
               attributes: ['name', 'phone']
             }
           ]
@@ -268,8 +268,8 @@ router.post('/orders/:orderId/assign-driver', auth, authorize('operator'), [
         status: order.status,
         driver: {
           id: driver.id,
-          name: driver.userId.name,
-          phone: driver.userId.phone
+          name: driver.user.name,
+          phone: driver.user.phone
         }
       }
     });
@@ -297,8 +297,8 @@ router.get('/nearby-drivers', auth, authorize('operator'), async (req, res) => {
     res.json({
       drivers: nearbyDrivers.map(driver => ({
         id: driver._id,
-        name: driver.userId.name,
-        phone: driver.userId.phone,
+        name: driver.user.name,
+        phone: driver.user.phone,
         vehicleInfo: driver.vehicleInfo,
         rating: driver.rating,
         distance: driver.distance // əgər hesablanıbsa
@@ -354,7 +354,7 @@ router.get('/orders', auth, authorize('operator'), async (req, res) => {
           include: [
             {
               model: User,
-              as: 'userId',
+              as: 'user',
               attributes: ['name', 'phone']
             }
           ]
@@ -467,7 +467,7 @@ router.get('/customers/:customerId/orders', auth, authorize('operator'), async (
           include: [
             {
               model: User,
-              as: 'userId',
+              as: 'user',
               attributes: ['name', 'phone']
             }
           ]

@@ -73,7 +73,7 @@ router.get('/dashboard', auth, authorize('dispatcher'), async (req, res) => {
           include: [
             {
               model: User,
-              as: 'userId',
+              as: 'user',
               attributes: ['name', 'phone']
             }
           ]
@@ -91,7 +91,7 @@ router.get('/dashboard', auth, authorize('dispatcher'), async (req, res) => {
       include: [
         {
           model: User,
-          as: 'userId',
+          as: 'user',
           attributes: ['name', 'phone']
         }
       ],
@@ -162,39 +162,26 @@ router.get('/active-orders', auth, authorize('dispatcher'), async (req, res) => 
 // Online sürücüləri al
 router.get('/online-drivers', auth, authorize('dispatcher'), async (req, res) => {
   try {
-    const { latitude, longitude, maxDistance } = req.query;
-    const filter = { isOnline: true };
-
-    let drivers;
-    if (latitude && longitude && maxDistance) {
-      // Yaxın sürücüləri tap
-      drivers = await Driver.find({
-        ...filter,
-        currentLocation: {
-          $near: {
-            $geometry: {
-              type: 'Point',
-              coordinates: [parseFloat(longitude), parseFloat(latitude)]
-            },
-            $maxDistance: parseFloat(maxDistance) * 1000
-          }
+    const drivers = await Driver.findAll({
+      where: {
+        isOnline: true,
+        isAvailable: true
+      },
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['name', 'phone']
         }
-      })
-      .populate('userId', 'name phone')
-      .select('currentLocation rating isAvailable lastActive vehicleInfo');
-    } else {
-      // Bütün online sürücüləri al
-      drivers = await Driver.find(filter)
-        .populate('userId', 'name phone')
-        .select('currentLocation rating isAvailable lastActive vehicleInfo')
-        .sort({ lastActive: -1 });
-    }
+      ],
+      order: [['lastActive', 'DESC']]
+    });
 
     res.json({
       drivers: drivers.map(driver => ({
-        id: driver._id,
-        name: driver.userId.name,
-        phone: driver.userId.phone,
+        id: driver.id,
+        name: driver.user.name,
+        phone: driver.user.phone,
         location: driver.currentLocation,
         rating: driver.rating,
         isAvailable: driver.isAvailable,
@@ -219,7 +206,7 @@ router.post('/orders/:orderId/assign-driver', auth, authorize('dispatcher'), [
     }
 
     const { driverId } = req.body;
-    const order = await Order.findById(req.params.orderId);
+    const order = await Order.findByPk(req.params.orderId);
 
     if (!order) {
       return res.status(404).json({ error: 'Sifariş tapılmadı' });
@@ -230,7 +217,15 @@ router.post('/orders/:orderId/assign-driver', auth, authorize('dispatcher'), [
     }
 
     // Sürücünü yoxla
-    const driver = await Driver.findById(driverId);
+    const driver = await Driver.findByPk(driverId, {
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['name', 'phone']
+        }
+      ]
+    });
     if (!driver) {
       return res.status(404).json({ error: 'Sürücü tapılmadı' });
     }
@@ -240,29 +235,31 @@ router.post('/orders/:orderId/assign-driver', auth, authorize('dispatcher'), [
     }
 
     // Sifarişi sürücüyə təyin et
-    order.driver = driver._id;
-    order.status = 'driver_assigned';
-    order.timeline.push({
+    const timeline = order.timeline || [];
+    timeline.push({
       status: 'driver_assigned',
       timestamp: new Date()
     });
 
-    await order.save();
+    await order.update({
+      driverId: driver.id,
+      status: 'driver_assigned',
+      timeline
+    });
 
     // Sürücünü unavailable et
-    driver.isAvailable = false;
-    await driver.save();
+    await driver.update({ isAvailable: false });
 
     res.json({
       message: 'Sifariş uğurla sürücüyə təyin edildi',
       order: {
-        id: order._id,
+        id: order.id,
         orderNumber: order.orderNumber,
         status: order.status,
         driver: {
-          id: driver._id,
-          name: driver.userId.name,
-          phone: driver.userId.phone
+          id: driver.id,
+          name: driver.user.name,
+          phone: driver.user.phone
         }
       }
     });
