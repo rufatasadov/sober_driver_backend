@@ -37,6 +37,16 @@ router.post('/', auth, [
     const estimatedTime = estimateTravelTime(distance);
     const fare = calculateFare(distance, estimatedTime);
 
+    // Order number yarat
+    const generateOrderNumber = () => {
+      const date = new Date();
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+      return `ORD-${year}${month}${day}-${random}`;
+    };
+
     // Yeni sifariş yarat
     console.log('Creating order with user:', {
       userId: req.user.id,
@@ -44,6 +54,7 @@ router.post('/', auth, [
     });
     
     const orderData = {
+      orderNumber: generateOrderNumber(), // Manual order number yarat
       customerId: req.user.id, // Sequelize üçün customerId istifadə et
       pickup: {
         location: {
