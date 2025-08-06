@@ -1,1035 +1,716 @@
 {
-	"info": {
-		"_postman_id": "ayiq-surucu-api-collection",
-		"name": "Ayiq Sürücü API",
-		"description": "Ayiq Sürücü taxi ordering system API collection with all endpoints and examples",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "ayiq-surucu"
-	},
-	"item": [
-		{
-			"name": "🔐 Authentication",
-			"item": [
-				{
-					"name": "Send OTP",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"phone\": \"+994501234567\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/auth/send-otp",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"auth",
-								"send-otp"
-							]
-						},
-						"description": "Send OTP code to phone number for authentication"
-					},
-					"response": []
-				},
-				{
-					"name": "Verify OTP & Login",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"phone\": \"+994501234567\",\n  \"otp\": \"123456\",\n  \"name\": \"Test User\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/auth/verify-otp",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"auth",
-								"verify-otp"
-							]
-						},
-						"description": "Verify OTP and login/register user"
-					},
-					"response": []
-				},
-				{
-					"name": "Operator Login",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"username\": \"operator\",\n  \"password\": \"operator123\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/auth/operator-login",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"auth",
-								"operator-login"
-							]
-						},
-						"description": "Login for operators and admins using username/password"
-					},
-					"response": []
-				},
-				{
-					"name": "Get Profile",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/api/auth/me",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"auth",
-								"me"
-							]
-						},
-						"description": "Get current user profile information"
-					},
-					"response": []
-				},
-				{
-					"name": "Update Profile",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"name\": \"Updated Name\",\n  \"email\": \"user@example.com\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/auth/profile",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"auth",
-								"profile"
-							]
-						},
-						"description": "Update user profile information"
-					},
-					"response": []
-				},
-				{
-					"name": "Logout",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/api/auth/logout",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"auth",
-								"logout"
-							]
-						},
-						"description": "Logout user and clear FCM token"
-					},
-					"response": []
-				}
-			],
-			"description": "Authentication endpoints for user login, registration, and profile management"
-		},
-		{
-			"name": "🚗 Orders",
-			"item": [
-				{
-					"name": "Create Order",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"pickup\": {\n    \"coordinates\": [49.8516, 40.3777],\n    \"address\": \"Bakı şəhəri, Nərimanov rayonu\",\n    \"instructions\": \"Körpü yaxınlığında\"\n  },\n  \"destination\": {\n    \"coordinates\": [49.8516, 40.3777],\n    \"address\": \"Bakı şəhəri, Yasamal rayonu\",\n    \"instructions\": \"Mərmər bina\"\n  },\n  \"payment\": {\n    \"method\": \"cash\"\n  },\n  \"notes\": \"Təcili sifariş\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/orders",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"orders"
-							]
-						},
-						"description": "Create a new taxi order"
-					},
-					"response": []
-				},
-				{
-					"name": "Get My Orders",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/api/orders/my-orders",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"orders",
-								"my-orders"
-							]
-						},
-						"description": "Get current user's orders"
-					},
-					"response": []
-				},
-				{
-					"name": "Get Order Details",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/api/orders/{{order_id}}",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"orders",
-								"{{order_id}}"
-							]
-						},
-						"description": "Get detailed information about a specific order"
-					},
-					"response": []
-				},
-				{
-					"name": "Cancel Order",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/api/orders/{{order_id}}/cancel",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"orders",
-								"{{order_id}}",
-								"cancel"
-							]
-						},
-						"description": "Cancel an existing order"
-					},
-					"response": []
-				},
-				{
-					"name": "Rate Order",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"rating\": 5,\n  \"comment\": \"Əla xidmət!\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/orders/{{order_id}}/rate",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"orders",
-								"{{order_id}}",
-								"rate"
-							]
-						},
-						"description": "Rate and comment on a completed order"
-					},
-					"response": []
-				}
-			],
-			"description": "Order management endpoints for customers"
-		},
-		{
-			"name": "👨‍💼 Operator Panel",
-			"item": [
-				{
-					"name": "Get Dashboard",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{operator_token}}"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/api/operator/dashboard",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"operator",
-								"dashboard"
-							]
-						},
-						"description": "Get operator dashboard statistics and recent orders"
-					},
-					"response": []
-				},
-				{
-					"name": "Create Order (Manual)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{operator_token}}"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"customerPhone\": \"+994501234567\",\n  \"customerName\": \"Test Customer\",\n  \"pickup\": {\n    \"coordinates\": [49.8516, 40.3777],\n    \"address\": \"Bakı şəhəri, Nərimanov rayonu\",\n    \"instructions\": \"Körpü yaxınlığında\"\n  },\n  \"destination\": {\n    \"coordinates\": [49.8516, 40.3777],\n    \"address\": \"Bakı şəhəri, Yasamal rayonu\",\n    \"instructions\": \"Mərmər bina\"\n  },\n  \"payment\": {\n    \"method\": \"cash\"\n  },\n  \"notes\": \"Operator tərəfindən yaradıldı\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/operator/orders",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"operator",
-								"orders"
-							]
-						},
-						"description": "Create order manually through operator panel"
-					},
-					"response": []
-				},
-				{
-					"name": "Get All Orders",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{operator_token}}"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/api/operator/orders?status=pending&page=1&limit=10",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"operator",
-								"orders"
-							],
-							"query": [
-								{
-									"key": "status",
-									"value": "pending"
-								},
-								{
-									"key": "page",
-									"value": "1"
-								},
-								{
-									"key": "limit",
-									"value": "10"
-								}
-							]
-						},
-						"description": "Get all orders with filtering and pagination"
-					},
-					"response": []
-				},
-				{
-					"name": "Assign Driver to Order",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{operator_token}}"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"driverId\": \"{{driver_id}}\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/operator/orders/{{order_id}}/assign",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"operator",
-								"orders",
-								"{{order_id}}",
-								"assign"
-							]
-						},
-						"description": "Assign a driver to an order"
-					},
-					"response": []
-				},
-				{
-					"name": "Get Customers",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{operator_token}}"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/api/operator/customers",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"operator",
-								"customers"
-							]
-						},
-						"description": "Get all customers with their order history"
-					},
-					"response": []
-				},
-				{
-					"name": "Get Drivers",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{operator_token}}"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/api/operator/drivers",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"operator",
-								"drivers"
-							]
-						},
-						"description": "Get all drivers with their status and location"
-					},
-					"response": []
-				}
-			],
-			"description": "Operator panel endpoints for managing orders, customers, and drivers"
-		},
-		{
-			"name": "🚕 Driver Management",
-			"item": [
-				{
-					"name": "Driver Registration",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"licenseNumber\": \"AZ123456789\",\n  \"vehicleInfo\": {\n    \"make\": \"Toyota\",\n    \"model\": \"Camry\",\n    \"year\": 2020,\n    \"color\": \"Ağ\",\n    \"plateNumber\": \"10-AA-123\"\n  },\n  \"documents\": {\n    \"license\": \"license_file_url\",\n    \"insurance\": \"insurance_file_url\",\n    \"vehicleRegistration\": \"registration_file_url\"\n  }\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/drivers/register",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"drivers",
-								"register"
-							]
-						},
-						"description": "Register as a driver with vehicle and document information"
-					},
-					"response": []
-				},
-				{
-					"name": "Update Driver Status",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{driver_token}}"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"isOnline\": true,\n  \"isAvailable\": true,\n  \"currentLocation\": {\n    \"coordinates\": [49.8516, 40.3777],\n    \"address\": \"Bakı şəhəri, Nərimanov rayonu\"\n  }\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/drivers/status",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"drivers",
-								"status"
-							]
-						},
-						"description": "Update driver online status and current location"
-					},
-					"response": []
-				},
-				{
-					"name": "Get Driver Profile",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{driver_token}}"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/api/drivers/profile",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"drivers",
-								"profile"
-							]
-						},
-						"description": "Get driver profile with earnings and rating information"
-					},
-					"response": []
-				},
-				{
-					"name": "Get Driver Orders",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{driver_token}}"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/api/drivers/orders",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"drivers",
-								"orders"
-							]
-						},
-						"description": "Get driver's assigned orders"
-					},
-					"response": []
-				},
-				{
-					"name": "Accept Order",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{driver_token}}"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/api/drivers/orders/{{order_id}}/accept",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"drivers",
-								"orders",
-								"{{order_id}}",
-								"accept"
-							]
-						},
-						"description": "Accept an assigned order"
-					},
-					"response": []
-				},
-				{
-					"name": "Start Trip",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{driver_token}}"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/api/drivers/orders/{{order_id}}/start",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"drivers",
-								"orders",
-								"{{order_id}}",
-								"start"
-							]
-						},
-						"description": "Start the trip for an accepted order"
-					},
-					"response": []
-				},
-				{
-					"name": "Complete Trip",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{driver_token}}"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/api/drivers/orders/{{order_id}}/complete",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"drivers",
-								"orders",
-								"{{order_id}}",
-								"complete"
-							]
-						},
-						"description": "Complete the trip and mark order as finished"
-					},
-					"response": []
-				}
-			],
-			"description": "Driver management endpoints for driver registration, status updates, and order handling"
-		},
-		{
-			"name": "💰 Payments",
-			"item": [
-				{
-					"name": "Get Payment Methods",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/api/payments/methods",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"payments",
-								"methods"
-							]
-						},
-						"description": "Get available payment methods"
-					},
-					"response": []
-				},
-				{
-					"name": "Process Payment",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"orderId\": \"{{order_id}}\",\n  \"method\": \"card\",\n  \"cardToken\": \"card_token_here\",\n  \"amount\": 15.50\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/payments/process",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"payments",
-								"process"
-							]
-						},
-						"description": "Process payment for an order"
-					},
-					"response": []
-				},
-				{
-					"name": "Get Payment History",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/api/payments/history",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"payments",
-								"history"
-							]
-						},
-						"description": "Get user's payment history"
-					},
-					"response": []
-				}
-			],
-			"description": "Payment processing and management endpoints"
-		},
-		{
-			"name": "🔔 Notifications",
-			"item": [
-				{
-					"name": "Update FCM Token",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"fcmToken\": \"fcm_token_here\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/auth/fcm-token",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"auth",
-								"fcm-token"
-							]
-						},
-						"description": "Update FCM token for push notifications"
-					},
-					"response": []
-				},
-				{
-					"name": "Get Notifications",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/api/notifications",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"notifications"
-							]
-						},
-						"description": "Get user's notifications"
-					},
-					"response": []
-				},
-				{
-					"name": "Mark Notification as Read",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{auth_token}}"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/api/notifications/{{notification_id}}/read",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"notifications",
-								"{{notification_id}}",
-								"read"
-							]
-						},
-						"description": "Mark a notification as read"
-					},
-					"response": []
-				}
-			],
-			"description": "Push notification and notification management endpoints"
-		},
-		{
-			"name": "👥 Users",
-			"item": [
-				{
-					"name": "Get All Users (Admin)",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{admin_token}}"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/api/users",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"users"
-							]
-						},
-						"description": "Get all users (admin only)"
-					},
-					"response": []
-				},
-				{
-					"name": "Update User Role",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{admin_token}}"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"role\": \"operator\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/users/{{user_id}}/role",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"users",
-								"{{user_id}}",
-								"role"
-							]
-						},
-						"description": "Update user role (admin only)"
-					},
-					"response": []
-				}
-			],
-			"description": "User management endpoints (admin only)"
-		}
-	],
-	"event": [
-		{
-			"listen": "prerequest",
-			"script": {
-				"type": "text/javascript",
-				"exec": [
-					""
-				]
-			}
-		},
-		{
-			"listen": "test",
-			"script": {
-				"type": "text/javascript",
-				"exec": [
-					""
-				]
-			}
-		}
-	],
-	"variable": [
-		{
-			"key": "base_url",
-			"value": "http://localhost:3000",
-			"type": "string"
-		},
-		{
-			"key": "auth_token",
-			"value": "your_jwt_token_here",
-			"type": "string"
-		},
-		{
-			"key": "operator_token",
-			"value": "your_operator_jwt_token_here",
-			"type": "string"
-		},
-		{
-			"key": "driver_token",
-			"value": "your_driver_jwt_token_here",
-			"type": "string"
-		},
-		{
-			"key": "admin_token",
-			"value": "your_admin_jwt_token_here",
-			"type": "string"
-		},
-		{
-			"key": "order_id",
-			"value": "order_id_here",
-			"type": "string"
-		},
-		{
-			"key": "user_id",
-			"value": "user_id_here",
-			"type": "string"
-		},
-		{
-			"key": "driver_id",
-			"value": "driver_id_here",
-			"type": "string"
-		},
-		{
-			"key": "notification_id",
-			"value": "notification_id_here",
-			"type": "string"
-		}
-	]
+  "info": {
+    "_postman_id": "ayiq-surucu-api-collection",
+    "name": "Ayiq Sürücü API",
+    "description": "Ayiq Sürücü taxi ordering system API collection with all endpoints and examples",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "ayiq-surucu"
+  },
+  "item": [
+    {
+      "name": "🔐 Authentication",
+      "item": [
+        {
+          "name": "Send OTP",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"phone\": \"+994501234567\"\n}"},
+            "url": {"raw": "{{base_url}}/api/auth/send-otp", "host": ["{{base_url}}"], "path": ["api", "auth", "send-otp"]},
+            "description": "Send OTP code to phone number for authentication"
+          }
+        },
+        {
+          "name": "Verify OTP & Login",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"phone\": \"+994501234567\",\n  \"otp\": \"123456\",\n  \"name\": \"Test User\"\n}"},
+            "url": {"raw": "{{base_url}}/api/auth/verify-otp", "host": ["{{base_url}}"], "path": ["api", "auth", "verify-otp"]},
+            "description": "Verify OTP and login/register user"
+          }
+        },
+        {
+          "name": "Operator Login",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"username\": \"operator\",\n  \"password\": \"operator123\"\n}"},
+            "url": {"raw": "{{base_url}}/api/auth/operator-login", "host": ["{{base_url}}"], "path": ["api", "auth", "operator-login"]},
+            "description": "Login for operators and admins using username/password"
+          }
+        },
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{auth_token}}"}],
+            "url": {"raw": "{{base_url}}/api/auth/me", "host": ["{{base_url}}"], "path": ["api", "auth", "me"]},
+            "description": "Get current user profile information"
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{auth_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"name\": \"Updated Name\",\n  \"email\": \"user@example.com\"\n}"},
+            "url": {"raw": "{{base_url}}/api/auth/profile", "host": ["{{base_url}}"], "path": ["api", "auth", "profile"]},
+            "description": "Update user profile information"
+          }
+        },
+        {
+          "name": "Update FCM Token",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{auth_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"fcmToken\": \"fcm_token_here\"\n}"},
+            "url": {"raw": "{{base_url}}/api/auth/fcm-token", "host": ["{{base_url}}"], "path": ["api", "auth", "fcm-token"]},
+            "description": "Update FCM token for push notifications"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{auth_token}}"}],
+            "url": {"raw": "{{base_url}}/api/auth/logout", "host": ["{{base_url}}"], "path": ["api", "auth", "logout"]},
+            "description": "Logout user and clear FCM token"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🚗 Orders",
+      "item": [
+        {
+          "name": "Create Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{auth_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"pickup\": {\n    \"coordinates\": [49.8516, 40.3777],\n    \"address\": \"Bakı şəhəri, Nərimanov rayonu\",\n    \"instructions\": \"Körpü yaxınlığında\"\n  },\n  \"destination\": {\n    \"coordinates\": [49.8516, 40.3777],\n    \"address\": \"Bakı şəhəri, Yasamal rayonu\",\n    \"instructions\": \"Mərmər bina\"\n  },\n  \"payment\": {\n    \"method\": \"cash\"\n  },\n  \"notes\": \"Təcili sifariş\"\n}"},
+            "url": {"raw": "{{base_url}}/api/orders", "host": ["{{base_url}}"], "path": ["api", "orders"]},
+            "description": "Create a new taxi order"
+          }
+        },
+        {
+          "name": "Get My Orders",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{auth_token}}"}],
+            "url": {"raw": "{{base_url}}/api/orders/my-orders", "host": ["{{base_url}}"], "path": ["api", "orders", "my-orders"]},
+            "description": "Get current user's orders"
+          }
+        },
+        {
+          "name": "Get Order Details",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{auth_token}}"}],
+            "url": {"raw": "{{base_url}}/api/orders/{{order_id}}", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}"]},
+            "description": "Get detailed information about a specific order"
+          }
+        },
+        {
+          "name": "Cancel Order",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{auth_token}}"}],
+            "url": {"raw": "{{base_url}}/api/orders/{{order_id}}/cancel", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "cancel"]},
+            "description": "Cancel an existing order"
+          }
+        },
+        {
+          "name": "Rate Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{auth_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"rating\": 5,\n  \"comment\": \"Əla xidmət!\"\n}"},
+            "url": {"raw": "{{base_url}}/api/orders/{{order_id}}/rate", "host": ["{{base_url}}"], "path": ["api", "orders", "{{order_id}}", "rate"]},
+            "description": "Rate and comment on a completed order"
+          }
+        }
+      ]
+    },
+    {
+      "name": "👨‍💼 Operator Panel",
+      "item": [
+        {
+          "name": "Get Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{operator_token}}"}],
+            "url": {"raw": "{{base_url}}/api/operator/dashboard", "host": ["{{base_url}}"], "path": ["api", "operator", "dashboard"]},
+            "description": "Get operator dashboard statistics and recent orders"
+          }
+        },
+        {
+          "name": "Create Enhanced Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{operator_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"customerPhone\": \"+994501234567\",\n  \"customerName\": \"Test Customer\",\n  \"pickup\": {\n    \"coordinates\": [49.8516, 40.3777],\n    \"address\": \"Bakı şəhəri, Nərimanov rayonu\",\n    \"instructions\": \"Körpü yaxınlığında\"\n  },\n  \"destination\": {\n    \"coordinates\": [49.8516, 40.3777],\n    \"address\": \"Bakı şəhəri, Yasamal rayonu\",\n    \"instructions\": \"Mərmər bina\"\n  },\n  \"payment\": {\n    \"method\": \"cash\"\n  },\n  \"scheduledTime\": \"2024-01-15T14:30:00.000Z\",\n  \"manualFare\": 25.50,\n  \"notes\": \"Operator tərəfindən yaradıldı\"\n}"},
+            "url": {"raw": "{{base_url}}/api/operator/orders", "host": ["{{base_url}}"], "path": ["api", "operator", "orders"]},
+            "description": "Create enhanced order with customer info, scheduling, and manual fare"
+          }
+        },
+        {
+          "name": "Get All Orders",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{operator_token}}"}],
+            "url": {"raw": "{{base_url}}/api/operator/orders?status=pending&page=1&limit=10", "host": ["{{base_url}}"], "path": ["api", "operator", "orders"], "query": [{"key": "status", "value": "pending"}, {"key": "page", "value": "1"}, {"key": "limit", "value": "10"}]},
+            "description": "Get all orders with filtering and pagination"
+          }
+        },
+        {
+          "name": "Update Order",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{operator_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"status\": \"accepted\",\n  \"notes\": \"Updated notes\"\n}"},
+            "url": {"raw": "{{base_url}}/api/operator/orders/{{order_id}}", "host": ["{{base_url}}"], "path": ["api", "operator", "orders", "{{order_id}}"]},
+            "description": "Update order status and details"
+          }
+        },
+        {
+          "name": "Assign Driver to Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{operator_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"driverId\": \"{{driver_id}}\"\n}"},
+            "url": {"raw": "{{base_url}}/api/operator/orders/{{order_id}}/assign-driver", "host": ["{{base_url}}"], "path": ["api", "operator", "orders", "{{order_id}}", "assign-driver"]},
+            "description": "Assign a driver to an order"
+          }
+        },
+        {
+          "name": "Get Nearby Drivers",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{operator_token}}"}],
+            "url": {"raw": "{{base_url}}/api/operator/nearby-drivers?lat=40.3777&lng=49.8920&radius=5000", "host": ["{{base_url}}"], "path": ["api", "operator", "nearby-drivers"], "query": [{"key": "lat", "value": "40.3777"}, {"key": "lng", "value": "49.8920"}, {"key": "radius", "value": "5000"}]},
+            "description": "Get nearby available drivers"
+          }
+        },
+        {
+          "name": "Get Customers",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{operator_token}}"}],
+            "url": {"raw": "{{base_url}}/api/operator/customers", "host": ["{{base_url}}"], "path": ["api", "operator", "customers"]},
+            "description": "Get all customers with their order history"
+          }
+        },
+        {
+          "name": "Search Customers",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{operator_token}}"}],
+            "url": {"raw": "{{base_url}}/api/operator/customers/search?q=test", "host": ["{{base_url}}"], "path": ["api", "operator", "customers", "search"], "query": [{"key": "q", "value": "test"}]},
+            "description": "Search customers by name or phone"
+          }
+        },
+        {
+          "name": "Create Customer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{operator_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"name\": \"New Customer\",\n  \"phone\": \"+994501234567\",\n  \"email\": \"customer@example.com\"\n}"},
+            "url": {"raw": "{{base_url}}/api/operator/customers", "host": ["{{base_url}}"], "path": ["api", "operator", "customers"]},
+            "description": "Create a new customer"
+          }
+        },
+        {
+          "name": "Update Customer",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{operator_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"name\": \"Updated Customer Name\",\n  \"email\": \"updated@example.com\"\n}"},
+            "url": {"raw": "{{base_url}}/api/operator/customers/{{customer_id}}", "host": ["{{base_url}}"], "path": ["api", "operator", "customers", "{{customer_id}}"]},
+            "description": "Update customer information"
+          }
+        },
+        {
+          "name": "Delete Customer",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "Authorization", "value": "Bearer {{operator_token}}"}],
+            "url": {"raw": "{{base_url}}/api/operator/customers/{{customer_id}}", "host": ["{{base_url}}"], "path": ["api", "operator", "customers", "{{customer_id}}"]},
+            "description": "Delete a customer (if no active orders)"
+          }
+        },
+        {
+          "name": "Get Customer Orders",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{operator_token}}"}],
+            "url": {"raw": "{{base_url}}/api/operator/customers/{{customer_id}}/orders", "host": ["{{base_url}}"], "path": ["api", "operator", "customers", "{{customer_id}}", "orders"]},
+            "description": "Get all orders for a specific customer"
+          }
+        },
+        {
+          "name": "Get Customer Addresses",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{operator_token}}"}],
+            "url": {"raw": "{{base_url}}/api/operator/customers/{{customer_id}}/addresses", "host": ["{{base_url}}"], "path": ["api", "operator", "customers", "{{customer_id}}", "addresses"]},
+            "description": "Get customer's previous addresses from orders"
+          }
+        },
+        {
+          "name": "Get Customer Order Count",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{operator_token}}"}],
+            "url": {"raw": "{{base_url}}/api/operator/customers/{{customer_id}}/order-count", "host": ["{{base_url}}"], "path": ["api", "operator", "customers", "{{customer_id}}", "order-count"]},
+            "description": "Get customer's total order count"
+          }
+        },
+        {
+          "name": "Get Drivers",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{operator_token}}"}],
+            "url": {"raw": "{{base_url}}/api/operator/drivers", "host": ["{{base_url}}"], "path": ["api", "operator", "drivers"]},
+            "description": "Get all drivers with their status and location"
+          }
+        },
+        {
+          "name": "Create Driver",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{operator_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"name\": \"New Driver\",\n  \"phone\": \"+994501234567\",\n  \"email\": \"driver@example.com\",\n  \"licenseNumber\": \"AZ123456789\",\n  \"vehicleInfo\": {\n    \"make\": \"Toyota\",\n    \"model\": \"Camry\",\n    \"year\": 2020,\n    \"color\": \"Ağ\",\n    \"plateNumber\": \"10-AA-123\"\n  }\n}"},
+            "url": {"raw": "{{base_url}}/api/operator/drivers", "host": ["{{base_url}}"], "path": ["api", "operator", "drivers"]},
+            "description": "Create a new driver (vehicle info optional for sober drivers)"
+          }
+        },
+        {
+          "name": "Update Driver",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{operator_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"name\": \"Updated Driver Name\",\n  \"email\": \"updated@example.com\",\n  \"isOnline\": true,\n  \"isAvailable\": true\n}"},
+            "url": {"raw": "{{base_url}}/api/operator/drivers/{{driver_id}}", "host": ["{{base_url}}"], "path": ["api", "operator", "drivers", "{{driver_id}}"]},
+            "description": "Update driver information"
+          }
+        },
+        {
+          "name": "Delete Driver",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "Authorization", "value": "Bearer {{operator_token}}"}],
+            "url": {"raw": "{{base_url}}/api/operator/drivers/{{driver_id}}", "host": ["{{base_url}}"], "path": ["api", "operator", "drivers", "{{driver_id}}"]},
+            "description": "Delete a driver (if no active orders)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🚕 Driver Management",
+      "item": [
+        {
+          "name": "Driver Registration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{auth_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"licenseNumber\": \"AZ123456789\",\n  \"vehicleInfo\": {\n    \"make\": \"Toyota\",\n    \"model\": \"Camry\",\n    \"year\": 2020,\n    \"color\": \"Ağ\",\n    \"plateNumber\": \"10-AA-123\"\n  },\n  \"documents\": {\n    \"license\": \"license_file_url\",\n    \"insurance\": \"insurance_file_url\",\n    \"vehicleRegistration\": \"registration_file_url\"\n  }\n}"},
+            "url": {"raw": "{{base_url}}/api/drivers/register", "host": ["{{base_url}}"], "path": ["api", "drivers", "register"]},
+            "description": "Register as a driver with vehicle and document information"
+          }
+        },
+        {
+          "name": "Get Driver Profile",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{driver_token}}"}],
+            "url": {"raw": "{{base_url}}/api/drivers/profile", "host": ["{{base_url}}"], "path": ["api", "drivers", "profile"]},
+            "description": "Get driver profile with earnings and rating information"
+          }
+        },
+        {
+          "name": "Update Driver Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{driver_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"isOnline\": true,\n  \"isAvailable\": true,\n  \"currentLocation\": {\n    \"coordinates\": [49.8516, 40.3777],\n    \"address\": \"Bakı şəhəri, Nərimanov rayonu\"\n  }\n}"},
+            "url": {"raw": "{{base_url}}/api/drivers/profile", "host": ["{{base_url}}"], "path": ["api", "drivers", "profile"]},
+            "description": "Update driver online status and current location"
+          }
+        },
+        {
+          "name": "Get Nearby Orders",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{driver_token}}"}],
+            "url": {"raw": "{{base_url}}/api/drivers/nearby-orders?lat=40.3777&lng=49.8920&radius=5000", "host": ["{{base_url}}"], "path": ["api", "drivers", "nearby-orders"], "query": [{"key": "lat", "value": "40.3777"}, {"key": "lng", "value": "49.8920"}, {"key": "radius", "value": "5000"}]},
+            "description": "Get nearby available orders for driver"
+          }
+        },
+        {
+          "name": "Accept Order",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{driver_token}}"}],
+            "url": {"raw": "{{base_url}}/api/drivers/orders/{{order_id}}/accept", "host": ["{{base_url}}"], "path": ["api", "drivers", "orders", "{{order_id}}", "accept"]},
+            "description": "Accept an assigned order"
+          }
+        },
+        {
+          "name": "Reject Order",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{driver_token}}"}],
+            "url": {"raw": "{{base_url}}/api/drivers/orders/{{order_id}}/reject", "host": ["{{base_url}}"], "path": ["api", "drivers", "orders", "{{order_id}}", "reject"]},
+            "description": "Reject an assigned order"
+          }
+        },
+        {
+          "name": "Get Driver Earnings",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{driver_token}}"}],
+            "url": {"raw": "{{base_url}}/api/drivers/earnings?startDate=2024-01-01&endDate=2024-01-31", "host": ["{{base_url}}"], "path": ["api", "drivers", "earnings"], "query": [{"key": "startDate", "value": "2024-01-01"}, {"key": "endDate", "value": "2024-01-31"}]},
+            "description": "Get driver earnings for a date range"
+          }
+        }
+      ]
+    },
+    {
+      "name": "💰 Payments",
+      "item": [
+        {
+          "name": "Get Payment Info",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{auth_token}}"}],
+            "url": {"raw": "{{base_url}}/api/payments/order/{{order_id}}", "host": ["{{base_url}}"], "path": ["api", "payments", "order", "{{order_id}}"]},
+            "description": "Get payment information for an order"
+          }
+        },
+        {
+          "name": "Process Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{auth_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"method\": \"card\",\n  \"cardToken\": \"card_token_here\",\n  \"amount\": 15.50\n}"},
+            "url": {"raw": "{{base_url}}/api/payments/order/{{order_id}}/process", "host": ["{{base_url}}"], "path": ["api", "payments", "order", "{{order_id}}", "process"]},
+            "description": "Process payment for an order"
+          }
+        },
+        {
+          "name": "Refund Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{auth_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"reason\": \"Customer request\",\n  \"amount\": 15.50\n}"},
+            "url": {"raw": "{{base_url}}/api/payments/order/{{order_id}}/refund", "host": ["{{base_url}}"], "path": ["api", "payments", "order", "{{order_id}}", "refund"]},
+            "description": "Refund payment for an order"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔔 Notifications",
+      "item": [
+        {
+          "name": "Get Notifications",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{auth_token}}"}],
+            "url": {"raw": "{{base_url}}/api/notifications", "host": ["{{base_url}}"], "path": ["api", "notifications"]},
+            "description": "Get user's notifications"
+          }
+        },
+        {
+          "name": "Mark Notification as Read",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{auth_token}}"}],
+            "url": {"raw": "{{base_url}}/api/notifications/mark-read", "host": ["{{base_url}}"], "path": ["api", "notifications", "mark-read"]},
+            "description": "Mark notifications as read"
+          }
+        }
+      ]
+    },
+    {
+      "name": "👥 Users (Admin)",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+            "url": {"raw": "{{base_url}}/api/users", "host": ["{{base_url}}"], "path": ["api", "users"]},
+            "description": "Get all users (admin only)"
+          }
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+            "url": {"raw": "{{base_url}}/api/users/{{user_id}}", "host": ["{{base_url}}"], "path": ["api", "users", "{{user_id}}"]},
+            "description": "Get specific user details (admin only)"
+          }
+        },
+        {
+          "name": "Update User Role",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{admin_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"role\": \"operator\"\n}"},
+            "url": {"raw": "{{base_url}}/api/users/{{user_id}}/role", "host": ["{{base_url}}"], "path": ["api", "users", "{{user_id}}", "role"]},
+            "description": "Update user role (admin only)"
+          }
+        },
+        {
+          "name": "Deactivate User",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+            "url": {"raw": "{{base_url}}/api/users/{{user_id}}/deactivate", "host": ["{{base_url}}"], "path": ["api", "users", "{{user_id}}", "deactivate"]},
+            "description": "Deactivate a user (admin only)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "👨‍💼 Admin Panel",
+      "item": [
+        {
+          "name": "Get Admin Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+            "url": {"raw": "{{base_url}}/api/admin/dashboard", "host": ["{{base_url}}"], "path": ["api", "admin", "dashboard"]},
+            "description": "Get admin dashboard statistics"
+          }
+        },
+        {
+          "name": "Get Admin Users",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+            "url": {"raw": "{{base_url}}/api/admin/users", "host": ["{{base_url}}"], "path": ["api", "admin", "users"]},
+            "description": "Get all users for admin management"
+          }
+        },
+        {
+          "name": "Get Admin Drivers",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+            "url": {"raw": "{{base_url}}/api/admin/drivers", "host": ["{{base_url}}"], "path": ["api", "admin", "drivers"]},
+            "description": "Get all drivers for admin management"
+          }
+        },
+        {
+          "name": "Update Driver Status",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{admin_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"isApproved\": true,\n  \"isActive\": true\n}"},
+            "url": {"raw": "{{base_url}}/api/admin/drivers/{{driver_id}}", "host": ["{{base_url}}"], "path": ["api", "admin", "drivers", "{{driver_id}}"]},
+            "description": "Update driver approval and active status"
+          }
+        },
+        {
+          "name": "Get Order Statistics",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+            "url": {"raw": "{{base_url}}/api/admin/orders/stats?startDate=2024-01-01&endDate=2024-01-31", "host": ["{{base_url}}"], "path": ["api", "admin", "orders", "stats"], "query": [{"key": "startDate", "value": "2024-01-01"}, {"key": "endDate", "value": "2024-01-31"}]},
+            "description": "Get order statistics for admin"
+          }
+        },
+        {
+          "name": "Get Driver Earnings",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+            "url": {"raw": "{{base_url}}/api/admin/drivers/earnings?startDate=2024-01-01&endDate=2024-01-31", "host": ["{{base_url}}"], "path": ["api", "admin", "drivers", "earnings"], "query": [{"key": "startDate", "value": "2024-01-01"}, {"key": "endDate", "value": "2024-01-31"}]},
+            "description": "Get driver earnings statistics for admin"
+          }
+        },
+        {
+          "name": "Get System Settings",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+            "url": {"raw": "{{base_url}}/api/admin/settings", "host": ["{{base_url}}"], "path": ["api", "admin", "settings"]},
+            "description": "Get system settings"
+          }
+        },
+        {
+          "name": "Update System Settings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{admin_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"baseFare\": 5.00,\n  \"perKmRate\": 2.50,\n  \"perMinuteRate\": 0.50\n}"},
+            "url": {"raw": "{{base_url}}/api/admin/settings", "host": ["{{base_url}}"], "path": ["api", "admin", "settings"]},
+            "description": "Update system settings"
+          }
+        },
+        {
+          "name": "Get Admin Orders",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{admin_token}}"}],
+            "url": {"raw": "{{base_url}}/api/admin/orders?status=completed&page=1&limit=20", "host": ["{{base_url}}"], "path": ["api", "admin", "orders"], "query": [{"key": "status", "value": "completed"}, {"key": "page", "value": "1"}, {"key": "limit", "value": "20"}]},
+            "description": "Get all orders for admin management"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📞 Dispatcher Panel",
+      "item": [
+        {
+          "name": "Get Dispatcher Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{dispatcher_token}}"}],
+            "url": {"raw": "{{base_url}}/api/dispatcher/dashboard", "host": ["{{base_url}}"], "path": ["api", "dispatcher", "dashboard"]},
+            "description": "Get dispatcher dashboard with active orders and drivers"
+          }
+        },
+        {
+          "name": "Get Active Orders",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{dispatcher_token}}"}],
+            "url": {"raw": "{{base_url}}/api/dispatcher/active-orders", "host": ["{{base_url}}"], "path": ["api", "dispatcher", "active-orders"]},
+            "description": "Get all active orders for dispatcher"
+          }
+        },
+        {
+          "name": "Get Online Drivers",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{dispatcher_token}}"}],
+            "url": {"raw": "{{base_url}}/api/dispatcher/online-drivers", "host": ["{{base_url}}"], "path": ["api", "dispatcher", "online-drivers"]},
+            "description": "Get all online drivers for dispatcher"
+          }
+        },
+        {
+          "name": "Assign Driver to Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{dispatcher_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {"mode": "raw", "raw": "{\n  \"driverId\": \"{{driver_id}}\"\n}"},
+            "url": {"raw": "{{base_url}}/api/dispatcher/orders/{{order_id}}/assign-driver", "host": ["{{base_url}}"], "path": ["api", "dispatcher", "orders", "{{order_id}}", "assign-driver"]},
+            "description": "Assign driver to order (dispatcher)"
+          }
+        },
+        {
+          "name": "Get Order Details",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{dispatcher_token}}"}],
+            "url": {"raw": "{{base_url}}/api/dispatcher/orders/{{order_id}}", "host": ["{{base_url}}"], "path": ["api", "dispatcher", "orders", "{{order_id}}"]},
+            "description": "Get detailed order information for dispatcher"
+          }
+        },
+        {
+          "name": "Get Driver Details",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{dispatcher_token}}"}],
+            "url": {"raw": "{{base_url}}/api/dispatcher/drivers/{{driver_id}}", "host": ["{{base_url}}"], "path": ["api", "dispatcher", "drivers", "{{driver_id}}"]},
+            "description": "Get detailed driver information for dispatcher"
+          }
+        },
+        {
+          "name": "Get Map Data",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{dispatcher_token}}"}],
+            "url": {"raw": "{{base_url}}/api/dispatcher/map-data", "host": ["{{base_url}}"], "path": ["api", "dispatcher", "map-data"]},
+            "description": "Get map data with orders and drivers locations"
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {"type": "text/javascript", "exec": [""]}
+    },
+    {
+      "listen": "test",
+      "script": {"type": "text/javascript", "exec": [""]}
+    }
+  ],
+  "variable": [
+    {"key": "base_url", "value": "http://localhost:3000", "type": "string"},
+    {"key": "auth_token", "value": "your_jwt_token_here", "type": "string"},
+    {"key": "operator_token", "value": "your_operator_jwt_token_here", "type": "string"},
+    {"key": "driver_token", "value": "your_driver_jwt_token_here", "type": "string"},
+    {"key": "admin_token", "value": "your_admin_jwt_token_here", "type": "string"},
+    {"key": "dispatcher_token", "value": "your_dispatcher_jwt_token_here", "type": "string"},
+    {"key": "order_id", "value": "order_id_here", "type": "string"},
+    {"key": "user_id", "value": "user_id_here", "type": "string"},
+    {"key": "customer_id", "value": "customer_id_here", "type": "string"},
+    {"key": "driver_id", "value": "driver_id_here", "type": "string"},
+    {"key": "notification_id", "value": "notification_id_here", "type": "string"}
+  ]
 } 
