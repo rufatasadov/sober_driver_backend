@@ -721,9 +721,9 @@ router.post('/drivers', auth, authorize('operator'), [
   body('name').notEmpty().withMessage('Ad tələb olunur'),
   body('phone').notEmpty().withMessage('Telefon nömrəsi tələb olunur'),
   body('licenseNumber').notEmpty().withMessage('Sürücülük vəsiqəsi tələb olunur'),
-  body('vehicleMake').notEmpty().withMessage('Avtomobil markası tələb olunur'),
-  body('vehicleModel').notEmpty().withMessage('Avtomobil modeli tələb olunur'),
-  body('plateNumber').notEmpty().withMessage('Nömrə nişanı tələb olunur'),
+  body('vehicleMake').optional().notEmpty().withMessage('Avtomobil markası boş ola bilməz'),
+  body('vehicleModel').optional().notEmpty().withMessage('Avtomobil modeli boş ola bilməz'),
+  body('plateNumber').optional().notEmpty().withMessage('Nömrə nişanı boş ola bilməz'),
   body('email').optional().isEmail().withMessage('Düzgün email daxil edin')
 ], async (req, res) => {
   try {
@@ -766,18 +766,24 @@ router.post('/drivers', auth, authorize('operator'), [
     });
 
     // Sürücü yarat
-    const driver = await Driver.create({
+    const driverData = {
       userId: user.id,
       licenseNumber,
-      vehicleInfo: {
-        make: vehicleMake,
-        model: vehicleModel,
-        plateNumber: plateNumber.toUpperCase()
-      },
       isOnline: false,
       isAvailable: false,
       status: 'approved'
-    });
+    };
+
+    // Əgər avtomobil məlumatları verilibsə, əlavə et
+    if (vehicleMake && vehicleModel && plateNumber) {
+      driverData.vehicleInfo = {
+        make: vehicleMake,
+        model: vehicleModel,
+        plateNumber: plateNumber.toUpperCase()
+      };
+    }
+
+    const driver = await Driver.create(driverData);
 
     res.status(201).json({
       message: 'Sürücü uğurla əlavə edildi',
@@ -790,7 +796,7 @@ router.post('/drivers', auth, authorize('operator'), [
           email: user.email
         },
         licenseNumber: driver.licenseNumber,
-        vehicleInfo: driver.vehicleInfo
+        vehicleInfo: driver.vehicleInfo || null
       }
     });
   } catch (error) {

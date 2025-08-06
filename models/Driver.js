@@ -23,8 +23,8 @@ const Driver = sequelize.define('Driver', {
   },
   vehicleInfo: {
     type: DataTypes.JSONB,
-    allowNull: false,
-    defaultValue: {}
+    allowNull: true,
+    defaultValue: null
   },
   documents: {
     type: DataTypes.JSONB,
