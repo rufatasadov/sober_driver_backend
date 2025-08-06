@@ -110,111 +110,6 @@ router.get('/dashboard', auth, authorize('operator'), async (req, res) => {
   }
 });
 
-// Yeni sifariş əlavə et (manual)
-router.post('/orders', auth, authorize('operator'), [
-  body('customerPhone').isMobilePhone('az-AZ').withMessage('Düzgün telefon nömrəsi daxil edin'),
-  body('customerName').notEmpty().withMessage('Müştəri adı tələb olunur'),
-  body('pickup.coordinates').isArray({ min: 2, max: 2 }).withMessage('Pickup koordinatları tələb olunur'),
-  body('pickup.address').notEmpty().withMessage('Pickup ünvanı tələb olunur'),
-  body('destination.coordinates').isArray({ min: 2, max: 2 }).withMessage('Təyinat koordinatları tələb olunur'),
-  body('destination.address').notEmpty().withMessage('Təyinat ünvanı tələb olunur'),
-  body('payment.method').isIn(['cash', 'card', 'online']).withMessage('Düzgün ödəniş üsulu seçin')
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { 
-      customerPhone, 
-      customerName, 
-      pickup, 
-      destination, 
-      payment, 
-      notes 
-    } = req.body;
-
-    // Müştərini tap və ya yarat
-    let customer = await User.findOne({ where: { phone: customerPhone } });
-    if (!customer) {
-      customer = await User.create({
-        phone: customerPhone,
-        name: customerName,
-        role: 'customer',
-        isVerified: true
-      });
-    }
-
-    // Məsafə və vaxt hesabla
-    const distance = calculateDistance(
-      pickup.coordinates[1], pickup.coordinates[0],
-      destination.coordinates[1], destination.coordinates[0]
-    );
-
-    const estimatedTime = estimateTravelTime(distance);
-    const fare = calculateFare(distance, estimatedTime);
-
-    // Yeni sifariş yarat
-    const order = await Order.create({
-      customerId: customer.id,
-      pickup: {
-        location: {
-          type: 'Point',
-          coordinates: pickup.coordinates
-        },
-        address: pickup.address,
-        instructions: pickup.instructions
-      },
-      destination: {
-        location: {
-          type: 'Point',
-          coordinates: destination.coordinates
-        },
-        address: destination.address,
-        instructions: destination.instructions
-      },
-      estimatedTime,
-      estimatedDistance: distance,
-      fare,
-      payment: {
-        method: payment.method,
-        status: 'pending'
-      },
-      notes,
-      timeline: [{
-        status: 'pending',
-        timestamp: new Date(),
-        location: {
-          type: 'Point',
-          coordinates: pickup.coordinates
-        }
-      }]
-    });
-
-    res.status(201).json({
-      message: 'Sifariş uğurla əlavə edildi',
-      order: {
-        id: order.id,
-        orderNumber: order.orderNumber,
-        customer: {
-          name: customer.name,
-          phone: customer.phone
-        },
-        pickup: order.pickup,
-        destination: order.destination,
-        estimatedTime,
-        estimatedDistance: Math.round(distance * 100) / 100,
-        fare,
-        status: order.status
-      }
-    });
-  } catch (error) {
-    console.error('Manual sifariş əlavə etmə xətası:', error);
-    res.status(500).json({ error: 'Server xətası' });
-  }
-});
-
 // Sifarişi sürücüyə təyin et
 router.post('/orders/:orderId/assign-driver', auth, authorize('operator'), [
   body('driverId').notEmpty().withMessage('Sürücü ID tələb olunur')
@@ -566,7 +461,43 @@ router.get('/customers', auth, authorize('operator'), async (req, res) => {
   }
 });
 
-// Yeni müştəri əlavə etmə
+// Sürücü silmə
+router.delete('/drivers/:driverId', auth, authorize('operator'), async (req, res) => {
+  try {
+    const { driverId } = req.params;
+
+    const driver = await Driver.findByPk(driverId, {
+      include: [{ model: User, as: 'user' }]
+    });
+
+    if (!driver) {
+      return res.status(404).json({ error: 'Sürücü tapılmadı' });
+    }
+
+    // Sürücünün aktiv sifarişi varsa silməyə icazə vermə
+    const activeOrder = await Order.findOne({
+      where: {
+        driverId: driverId,
+        status: { [Op.in]: ['pending', 'accepted', 'driver_assigned', 'driver_arrived', 'in_progress'] }
+      }
+    });
+
+    if (activeOrder) {
+      return res.status(400).json({ error: 'Sürücünün aktiv sifarişi var, silinə bilməz' });
+    }
+
+    // Sürücü və istifadəçini sil
+    await driver.destroy();
+    await driver.user.destroy();
+
+    res.json({ message: 'Sürücü uğurla silindi' });
+  } catch (error) {
+    console.error('Driver deletion error:', error);
+    res.status(500).json({ error: 'Server xətası' });
+  }
+});
+
+// Müştəri əlavə etmə
 router.post('/customers', auth, authorize('operator'), [
   body('name').notEmpty().withMessage('Ad tələb olunur'),
   body('phone').notEmpty().withMessage('Telefon nömrəsi tələb olunur'),
@@ -589,7 +520,8 @@ router.post('/customers', auth, authorize('operator'), [
       return res.status(400).json({ error: 'Bu telefon nömrəsi artıq mövcuddur' });
     }
 
-    const customer = await User.create({
+    // Müştəri yarat
+    const user = await User.create({
       name,
       phone: phone.replace(/\s/g, ''),
       email,
@@ -601,10 +533,11 @@ router.post('/customers', auth, authorize('operator'), [
     res.status(201).json({
       message: 'Müştəri uğurla əlavə edildi',
       customer: {
-        id: customer.id,
-        name: customer.name,
-        phone: customer.phone,
-        email: customer.email
+        id: user.id,
+        name: user.name,
+        phone: user.phone,
+        email: user.email,
+        createdAt: user.createdAt
       }
     });
   } catch (error) {
@@ -628,13 +561,14 @@ router.put('/customers/:customerId', auth, authorize('operator'), [
     const { customerId } = req.params;
     const { name, phone, email } = req.body;
 
-    const customer = await User.findByPk(customerId);
-    if (!customer || customer.role !== 'customer') {
+    const user = await User.findByPk(customerId);
+
+    if (!user || user.role !== 'customer') {
       return res.status(404).json({ error: 'Müştəri tapılmadı' });
     }
 
     // Telefon nömrəsi dəyişdirilərsə, yeni nömrənin mövcudluğunu yoxla
-    if (phone && phone !== customer.phone) {
+    if (phone && phone !== user.phone) {
       const existingUser = await User.findOne({
         where: { 
           phone: phone.replace(/\s/g, ''),
@@ -647,23 +581,294 @@ router.put('/customers/:customerId', auth, authorize('operator'), [
       }
     }
 
-    await customer.update({
-      name: name || customer.name,
-      phone: phone ? phone.replace(/\s/g, '') : customer.phone,
-      email: email || customer.email
+    // Müştəri məlumatlarını yenilə
+    await user.update({
+      name: name || user.name,
+      phone: phone ? phone.replace(/\s/g, '') : user.phone,
+      email: email || user.email
     });
 
     res.json({
       message: 'Müştəri məlumatları yeniləndi',
       customer: {
-        id: customer.id,
-        name: customer.name,
-        phone: customer.phone,
-        email: customer.email
+        id: user.id,
+        name: user.name,
+        phone: user.phone,
+        email: user.email,
+        createdAt: user.createdAt
       }
     });
   } catch (error) {
     console.error('Customer update error:', error);
+    res.status(500).json({ error: 'Server xətası' });
+  }
+});
+
+// Müştəri silmə
+router.delete('/customers/:customerId', auth, authorize('operator'), async (req, res) => {
+  try {
+    const { customerId } = req.params;
+
+    const user = await User.findByPk(customerId);
+
+    if (!user || user.role !== 'customer') {
+      return res.status(404).json({ error: 'Müştəri tapılmadı' });
+    }
+
+    // Müştərinin aktiv sifarişi varsa silməyə icazə vermə
+    const activeOrder = await Order.findOne({
+      where: {
+        customerId: customerId,
+        status: { [Op.in]: ['pending', 'accepted', 'driver_assigned', 'driver_arrived', 'in_progress'] }
+      }
+    });
+
+    if (activeOrder) {
+      return res.status(400).json({ error: 'Müştərinin aktiv sifarişi var, silinə bilməz' });
+    }
+
+    // Müştərini sil
+    await user.destroy();
+
+    res.json({ message: 'Müştəri uğurla silindi' });
+  } catch (error) {
+    console.error('Customer deletion error:', error);
+    res.status(500).json({ error: 'Server xətası' });
+  }
+});
+
+// Müştərinin sifariş tarixçəsi
+router.get('/customers/:customerId/orders', auth, authorize('operator'), async (req, res) => {
+  try {
+    const { customerId } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+
+    const offset = (page - 1) * limit;
+
+    const orders = await Order.findAndCountAll({
+      where: { customerId },
+      include: [
+        {
+          model: Driver,
+          as: 'driver',
+          include: [{ model: User, as: 'user', attributes: ['name', 'phone'] }]
+        }
+      ],
+      order: [['createdAt', 'DESC']],
+      limit: parseInt(limit),
+      offset: offset
+    });
+
+    res.json({
+      orders: orders.rows,
+      total: orders.count,
+      page: parseInt(page),
+      totalPages: Math.ceil(orders.count / limit)
+    });
+  } catch (error) {
+    console.error('Customer orders error:', error);
+    res.status(500).json({ error: 'Server xətası' });
+  }
+});
+
+// Müştərinin əvvəlki ünvanları
+router.get('/customers/:customerId/addresses', auth, authorize('operator'), async (req, res) => {
+  try {
+    const { customerId } = req.params;
+
+    const orders = await Order.findAll({
+      where: { 
+        customerId,
+        status: { [Op.in]: ['completed', 'cancelled'] }
+      },
+      attributes: [
+        'pickup',
+        'destination',
+        'createdAt'
+      ],
+      order: [['createdAt', 'DESC']],
+      limit: 10
+    });
+
+    const addresses = [];
+    const seenAddresses = new Set();
+
+    orders.forEach(order => {
+      const pickupAddress = order.pickup?.address;
+      const destAddress = order.destination?.address;
+
+      if (pickupAddress && !seenAddresses.has(pickupAddress)) {
+        addresses.push({
+          address: pickupAddress,
+          coordinates: order.pickup?.location?.coordinates,
+          type: 'pickup',
+          lastUsed: order.createdAt
+        });
+        seenAddresses.add(pickupAddress);
+      }
+
+      if (destAddress && !seenAddresses.has(destAddress)) {
+        addresses.push({
+          address: destAddress,
+          coordinates: order.destination?.location?.coordinates,
+          type: 'destination',
+          lastUsed: order.createdAt
+        });
+        seenAddresses.add(destAddress);
+      }
+    });
+
+    res.json({ addresses });
+  } catch (error) {
+    console.error('Customer addresses error:', error);
+    res.status(500).json({ error: 'Server xətası' });
+  }
+});
+
+// Müştərinin sifariş sayı
+router.get('/customers/:customerId/order-count', auth, authorize('operator'), async (req, res) => {
+  try {
+    const { customerId } = req.params;
+
+    const totalOrders = await Order.count({
+      where: { customerId }
+    });
+
+    const completedOrders = await Order.count({
+      where: { 
+        customerId,
+        status: 'completed'
+      }
+    });
+
+    const cancelledOrders = await Order.count({
+      where: { 
+        customerId,
+        status: 'cancelled'
+      }
+    });
+
+    res.json({
+      totalOrders,
+      completedOrders,
+      cancelledOrders
+    });
+  } catch (error) {
+    console.error('Customer order count error:', error);
+    res.status(500).json({ error: 'Server xətası' });
+  }
+});
+
+// Təkmilləşdirilmiş sifariş yaratma
+router.post('/orders', auth, authorize('operator'), [
+  body('customerPhone').isMobilePhone('az-AZ').withMessage('Düzgün telefon nömrəsi daxil edin'),
+  body('customerName').notEmpty().withMessage('Müştəri adı tələb olunur'),
+  body('pickup.coordinates').isArray({ min: 2, max: 2 }).withMessage('Pickup koordinatları tələb olunur'),
+  body('pickup.address').notEmpty().withMessage('Pickup ünvanı tələb olunur'),
+  body('destination.coordinates').isArray({ min: 2, max: 2 }).withMessage('Təyinat koordinatları tələb olunur'),
+  body('destination.address').notEmpty().withMessage('Təyinat ünvanı tələb olunur'),
+  body('payment.method').isIn(['cash', 'card', 'online']).withMessage('Düzgün ödəniş üsulu seçin'),
+  body('scheduledTime').optional().isISO8601().withMessage('Düzgün vaxt formatı daxil edin'),
+  body('manualFare').optional().isFloat({ min: 0 }).withMessage('Qiymət mənfi ola bilməz'),
+  body('notes').optional().isString().withMessage('Qeydlər mətn olmalıdır')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { 
+      customerPhone, 
+      customerName, 
+      pickup, 
+      destination, 
+      payment, 
+      scheduledTime,
+      manualFare,
+      notes 
+    } = req.body;
+
+    // Müştərini tap və ya yarat
+    let customer = await User.findOne({ where: { phone: customerPhone } });
+    if (!customer) {
+      customer = await User.create({
+        phone: customerPhone,
+        name: customerName,
+        role: 'customer',
+        isVerified: true
+      });
+    }
+
+    // Məsafə və vaxt hesabla
+    const distance = calculateDistance(
+      pickup.coordinates[1], pickup.coordinates[0],
+      destination.coordinates[1], destination.coordinates[0]
+    );
+
+    const estimatedTime = estimateTravelTime(distance);
+    const calculatedFare = calculateFare(distance, estimatedTime);
+    
+    // Əgər manual qiymət verilibsə, onu istifadə et
+    const finalFare = manualFare ? parseFloat(manualFare) : calculatedFare;
+
+    // Sifariş vaxtını təyin et
+    const orderTime = scheduledTime ? new Date(scheduledTime) : new Date();
+
+    // Yeni sifariş yarat
+    const order = await Order.create({
+      customerId: customer.id,
+      pickup: {
+        location: {
+          type: 'Point',
+          coordinates: pickup.coordinates
+        },
+        address: pickup.address,
+        instructions: pickup.instructions
+      },
+      destination: {
+        location: {
+          type: 'Point',
+          coordinates: destination.coordinates
+        },
+        address: destination.address,
+        instructions: destination.instructions
+      },
+      estimatedTime,
+      estimatedDistance: distance,
+      fare: {
+        base: calculatedFare,
+        manual: manualFare ? parseFloat(manualFare) : null,
+        total: finalFare,
+        discount: manualFare ? calculatedFare - parseFloat(manualFare) : 0
+      },
+      payment: {
+        method: payment.method,
+        status: 'pending'
+      },
+      status: 'pending',
+      scheduledTime: orderTime,
+      notes: notes || null,
+      orderNumber: `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+    });
+
+    // Sifarişi müştəri ilə birlikdə qaytar
+    const orderWithCustomer = await Order.findByPk(order.id, {
+      include: [
+        {
+          model: User,
+          as: 'customer',
+          attributes: ['id', 'name', 'phone', 'email']
+        }
+      ]
+    });
+
+    res.status(201).json({
+      message: 'Sifariş uğurla yaradıldı',
+      order: orderWithCustomer
+    });
+  } catch (error) {
+    console.error('Order creation error:', error);
     res.status(500).json({ error: 'Server xətası' });
   }
 });
