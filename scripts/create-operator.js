@@ -1,5 +1,6 @@
 const { sequelize } = require('../config/database');
 const User = require('../models/User');
+require('dotenv').config();
 
 async function createDefaultOperator() {
   try {

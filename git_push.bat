@@ -15,7 +15,7 @@ git add .
 echo.
 
 :: Commit mesajı al
-set /p commit_msg="Commit mesajını daxil edin: "
+set /p commit_msg="Commit message: "
 echo.
 
 :: Commit et
@@ -35,8 +35,5 @@ echo.
 
 echo ========================================
 echo           TAMAMLANDI!
-echo ========================================
-echo.
-echo Dəyişikliklər uğurla push edildi!
-echo.
-pause 
+ 
+ 
