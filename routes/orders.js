@@ -129,47 +129,6 @@ router.post('/', auth, [
   }
 });
 
-// Sifariş məlumatlarını al
-router.get('/:orderId', auth, async (req, res) => {
-  try {
-    const order = await Order.findByPk(req.params.orderId, {
-      include: [
-        {
-          model: User,
-          as: 'customer',
-          attributes: ['name', 'phone']
-        },
-        {
-          model: Driver,
-          as: 'driver',
-          include: [
-            {
-              model: User,
-              as: 'user',
-              attributes: ['name', 'phone']
-            }
-          ]
-        }
-      ]
-    });
-
-    if (!order) {
-      return res.status(404).json({ error: 'Sifariş tapılmadı' });
-    }
-
-    // Yalnız sifariş sahibi və ya təyin edilmiş sürücü görə bilər
-    if (order.customerId !== req.user.id && 
-        (!order.driverId || order.driver.user.id !== req.user.id)) {
-      return res.status(403).json({ error: 'Bu sifarişə giriş icazəniz yoxdur' });
-    }
-
-    res.json({ order });
-  } catch (error) {
-    console.error('Sifariş məlumatları alma xətası:', error);
-    res.status(500).json({ error: 'Server xətası' });
-  }
-});
-
 // İstifadəçinin sifarişləri
 router.get('/', auth, async (req, res) => {
   try {
@@ -227,6 +186,47 @@ router.get('/', auth, async (req, res) => {
     });
   } catch (error) {
     console.error('Sifarişlər alma xətası:', error);
+    res.status(500).json({ error: 'Server xətası' });
+  }
+});
+
+// Sifariş məlumatlarını al
+router.get('/:orderId', auth, async (req, res) => {
+  try {
+    const order = await Order.findByPk(req.params.orderId, {
+      include: [
+        {
+          model: User,
+          as: 'customer',
+          attributes: ['name', 'phone']
+        },
+        {
+          model: Driver,
+          as: 'driver',
+          include: [
+            {
+              model: User,
+              as: 'user',
+              attributes: ['name', 'phone']
+            }
+          ]
+        }
+      ]
+    });
+
+    if (!order) {
+      return res.status(404).json({ error: 'Sifariş tapılmadı' });
+    }
+
+    // Yalnız sifariş sahibi və ya təyin edilmiş sürücü görə bilər
+    if (order.customerId !== req.user.id && 
+        (!order.driverId || order.driver.user.id !== req.user.id)) {
+      return res.status(403).json({ error: 'Bu sifarişə giriş icazəniz yoxdur' });
+    }
+
+    res.json({ order });
+  } catch (error) {
+    console.error('Sifariş məlumatları alma xətası:', error);
     res.status(500).json({ error: 'Server xətası' });
   }
 });
