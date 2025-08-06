@@ -495,4 +495,403 @@ router.get('/customers/:customerId/orders', auth, authorize('operator'), async (
   }
 });
 
+// Müştəri siyahısı
+router.get('/customers', auth, authorize('operator'), async (req, res) => {
+  try {
+    const { page = 1, limit = 20, search } = req.query;
+    const offset = (page - 1) * limit;
+
+    const whereClause = {};
+    if (search) {
+      whereClause[Op.or] = [
+        { name: { [Op.iLike]: `%${search}%` } },
+        { phone: { [Op.iLike]: `%${search}%` } }
+      ];
+    }
+
+    const { count, rows: customers } = await User.findAndCountAll({
+      where: {
+        ...whereClause,
+        role: 'customer'
+      },
+      attributes: [
+        'id', 'name', 'phone', 'email', 'createdAt', 'lastLogin'
+      ],
+      order: [['createdAt', 'DESC']],
+      offset: parseInt(offset),
+      limit: parseInt(limit)
+    });
+
+    // Hər müştəri üçün sifariş statistikası
+    const customersWithStats = await Promise.all(
+      customers.map(async (customer) => {
+        const totalOrders = await Order.count({
+          where: { customerId: customer.id }
+        });
+
+        const totalSpent = await Order.sum('fare.total', {
+          where: { 
+            customerId: customer.id,
+            status: 'completed'
+          }
+        });
+
+        const lastOrder = await Order.findOne({
+          where: { customerId: customer.id },
+          order: [['createdAt', 'DESC']],
+          attributes: ['createdAt']
+        });
+
+        return {
+          ...customer.toJSON(),
+          totalOrders: totalOrders || 0,
+          totalSpent: totalSpent || 0,
+          lastOrder: lastOrder?.createdAt
+        };
+      })
+    );
+
+    res.json({
+      customers: customersWithStats,
+      pagination: {
+        current: parseInt(page),
+        total: Math.ceil(count / limit),
+        hasNext: page * limit < count,
+        hasPrev: page > 1
+      }
+    });
+  } catch (error) {
+    console.error('Customers load error:', error);
+    res.status(500).json({ error: 'Server xətası' });
+  }
+});
+
+// Yeni müştəri əlavə etmə
+router.post('/customers', auth, authorize('operator'), [
+  body('name').notEmpty().withMessage('Ad tələb olunur'),
+  body('phone').notEmpty().withMessage('Telefon nömrəsi tələb olunur'),
+  body('email').optional().isEmail().withMessage('Düzgün email daxil edin')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { name, phone, email } = req.body;
+
+    // Telefon nömrəsinin mövcudluğunu yoxla
+    const existingUser = await User.findOne({
+      where: { phone: phone.replace(/\s/g, '') }
+    });
+
+    if (existingUser) {
+      return res.status(400).json({ error: 'Bu telefon nömrəsi artıq mövcuddur' });
+    }
+
+    const customer = await User.create({
+      name,
+      phone: phone.replace(/\s/g, ''),
+      email,
+      role: 'customer',
+      isVerified: true,
+      isActive: true
+    });
+
+    res.status(201).json({
+      message: 'Müştəri uğurla əlavə edildi',
+      customer: {
+        id: customer.id,
+        name: customer.name,
+        phone: customer.phone,
+        email: customer.email
+      }
+    });
+  } catch (error) {
+    console.error('Customer creation error:', error);
+    res.status(500).json({ error: 'Server xətası' });
+  }
+});
+
+// Müştəri məlumatlarını yeniləmə
+router.put('/customers/:customerId', auth, authorize('operator'), [
+  body('name').optional().notEmpty().withMessage('Ad boş ola bilməz'),
+  body('phone').optional().notEmpty().withMessage('Telefon nömrəsi boş ola bilməz'),
+  body('email').optional().isEmail().withMessage('Düzgün email daxil edin')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { customerId } = req.params;
+    const { name, phone, email } = req.body;
+
+    const customer = await User.findByPk(customerId);
+    if (!customer || customer.role !== 'customer') {
+      return res.status(404).json({ error: 'Müştəri tapılmadı' });
+    }
+
+    // Telefon nömrəsi dəyişdirilərsə, yeni nömrənin mövcudluğunu yoxla
+    if (phone && phone !== customer.phone) {
+      const existingUser = await User.findOne({
+        where: { 
+          phone: phone.replace(/\s/g, ''),
+          id: { [Op.ne]: customerId }
+        }
+      });
+
+      if (existingUser) {
+        return res.status(400).json({ error: 'Bu telefon nömrəsi artıq mövcuddur' });
+      }
+    }
+
+    await customer.update({
+      name: name || customer.name,
+      phone: phone ? phone.replace(/\s/g, '') : customer.phone,
+      email: email || customer.email
+    });
+
+    res.json({
+      message: 'Müştəri məlumatları yeniləndi',
+      customer: {
+        id: customer.id,
+        name: customer.name,
+        phone: customer.phone,
+        email: customer.email
+      }
+    });
+  } catch (error) {
+    console.error('Customer update error:', error);
+    res.status(500).json({ error: 'Server xətası' });
+  }
+});
+
+// Sürücü siyahısı
+router.get('/drivers', auth, authorize('operator'), async (req, res) => {
+  try {
+    const { page = 1, limit = 20, status } = req.query;
+    const offset = (page - 1) * limit;
+
+    const whereClause = {};
+    if (status && status !== 'all') {
+      if (status === 'online') {
+        whereClause.isOnline = true;
+        whereClause.isAvailable = true;
+      } else if (status === 'offline') {
+        whereClause.isOnline = false;
+      } else if (status === 'busy') {
+        whereClause.isOnline = true;
+        whereClause.isAvailable = false;
+      }
+    }
+
+    const { count, rows: drivers } = await Driver.findAndCountAll({
+      where: whereClause,
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['name', 'phone', 'email']
+        }
+      ],
+      order: [['createdAt', 'DESC']],
+      offset: parseInt(offset),
+      limit: parseInt(limit)
+    });
+
+    res.json({
+      drivers,
+      pagination: {
+        current: parseInt(page),
+        total: Math.ceil(count / limit),
+        hasNext: page * limit < count,
+        hasPrev: page > 1
+      }
+    });
+  } catch (error) {
+    console.error('Drivers load error:', error);
+    res.status(500).json({ error: 'Server xətası' });
+  }
+});
+
+// Yeni sürücü əlavə etmə
+router.post('/drivers', auth, authorize('operator'), [
+  body('name').notEmpty().withMessage('Ad tələb olunur'),
+  body('phone').notEmpty().withMessage('Telefon nömrəsi tələb olunur'),
+  body('licenseNumber').notEmpty().withMessage('Sürücülük vəsiqəsi tələb olunur'),
+  body('vehicleMake').notEmpty().withMessage('Avtomobil markası tələb olunur'),
+  body('vehicleModel').notEmpty().withMessage('Avtomobil modeli tələb olunur'),
+  body('plateNumber').notEmpty().withMessage('Nömrə nişanı tələb olunur'),
+  body('email').optional().isEmail().withMessage('Düzgün email daxil edin')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { 
+      name, phone, email, licenseNumber, 
+      vehicleMake, vehicleModel, plateNumber 
+    } = req.body;
+
+    // Telefon nömrəsinin mövcudluğunu yoxla
+    const existingUser = await User.findOne({
+      where: { phone: phone.replace(/\s/g, '') }
+    });
+
+    if (existingUser) {
+      return res.status(400).json({ error: 'Bu telefon nömrəsi artıq mövcuddur' });
+    }
+
+    // Vəsiqə nömrəsinin mövcudluğunu yoxla
+    const existingDriver = await Driver.findOne({
+      where: { licenseNumber }
+    });
+
+    if (existingDriver) {
+      return res.status(400).json({ error: 'Bu sürücülük vəsiqəsi artıq mövcuddur' });
+    }
+
+    // İstifadəçi yarat
+    const user = await User.create({
+      name,
+      phone: phone.replace(/\s/g, ''),
+      email,
+      role: 'driver',
+      isVerified: true,
+      isActive: true
+    });
+
+    // Sürücü yarat
+    const driver = await Driver.create({
+      userId: user.id,
+      licenseNumber,
+      vehicleInfo: {
+        make: vehicleMake,
+        model: vehicleModel,
+        plateNumber: plateNumber.toUpperCase()
+      },
+      isOnline: false,
+      isAvailable: false,
+      status: 'approved'
+    });
+
+    res.status(201).json({
+      message: 'Sürücü uğurla əlavə edildi',
+      driver: {
+        id: driver.id,
+        user: {
+          id: user.id,
+          name: user.name,
+          phone: user.phone,
+          email: user.email
+        },
+        licenseNumber: driver.licenseNumber,
+        vehicleInfo: driver.vehicleInfo
+      }
+    });
+  } catch (error) {
+    console.error('Driver creation error:', error);
+    res.status(500).json({ error: 'Server xətası' });
+  }
+});
+
+// Sürücü məlumatlarını yeniləmə
+router.put('/drivers/:driverId', auth, authorize('operator'), [
+  body('name').optional().notEmpty().withMessage('Ad boş ola bilməz'),
+  body('phone').optional().notEmpty().withMessage('Telefon nömrəsi boş ola bilməz'),
+  body('email').optional().isEmail().withMessage('Düzgün email daxil edin'),
+  body('licenseNumber').optional().notEmpty().withMessage('Sürücülük vəsiqəsi boş ola bilməz'),
+  body('vehicleMake').optional().notEmpty().withMessage('Avtomobil markası boş ola bilməz'),
+  body('vehicleModel').optional().notEmpty().withMessage('Avtomobil modeli boş ola bilməz'),
+  body('plateNumber').optional().notEmpty().withMessage('Nömrə nişanı boş ola bilməz')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { driverId } = req.params;
+    const { 
+      name, phone, email, licenseNumber, 
+      vehicleMake, vehicleModel, plateNumber 
+    } = req.body;
+
+    const driver = await Driver.findByPk(driverId, {
+      include: [{ model: User, as: 'user' }]
+    });
+
+    if (!driver) {
+      return res.status(404).json({ error: 'Sürücü tapılmadı' });
+    }
+
+    // Telefon nömrəsi dəyişdirilərsə, yeni nömrənin mövcudluğunu yoxla
+    if (phone && phone !== driver.user.phone) {
+      const existingUser = await User.findOne({
+        where: { 
+          phone: phone.replace(/\s/g, ''),
+          id: { [Op.ne]: driver.userId }
+        }
+      });
+
+      if (existingUser) {
+        return res.status(400).json({ error: 'Bu telefon nömrəsi artıq mövcuddur' });
+      }
+    }
+
+    // Vəsiqə nömrəsi dəyişdirilərsə, yeni nömrənin mövcudluğunu yoxla
+    if (licenseNumber && licenseNumber !== driver.licenseNumber) {
+      const existingDriver = await Driver.findOne({
+        where: { 
+          licenseNumber,
+          id: { [Op.ne]: driverId }
+        }
+      });
+
+      if (existingDriver) {
+        return res.status(400).json({ error: 'Bu sürücülük vəsiqəsi artıq mövcuddur' });
+      }
+    }
+
+    // İstifadəçi məlumatlarını yenilə
+    await driver.user.update({
+      name: name || driver.user.name,
+      phone: phone ? phone.replace(/\s/g, '') : driver.user.phone,
+      email: email || driver.user.email
+    });
+
+    // Sürücü məlumatlarını yenilə
+    await driver.update({
+      licenseNumber: licenseNumber || driver.licenseNumber,
+      vehicleInfo: {
+        make: vehicleMake || driver.vehicleInfo.make,
+        model: vehicleModel || driver.vehicleInfo.model,
+        plateNumber: plateNumber ? plateNumber.toUpperCase() : driver.vehicleInfo.plateNumber
+      }
+    });
+
+    res.json({
+      message: 'Sürücü məlumatları yeniləndi',
+      driver: {
+        id: driver.id,
+        user: {
+          id: driver.user.id,
+          name: driver.user.name,
+          phone: driver.user.phone,
+          email: driver.user.email
+        },
+        licenseNumber: driver.licenseNumber,
+        vehicleInfo: driver.vehicleInfo
+      }
+    });
+  } catch (error) {
+    console.error('Driver update error:', error);
+    res.status(500).json({ error: 'Server xətası' });
+  }
+});
+
 module.exports = router; 
