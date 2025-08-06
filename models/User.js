@@ -16,6 +16,21 @@ const User = sequelize.define('User', {
       notEmpty: true
     }
   },
+  username: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    unique: true,
+    validate: {
+      notEmpty: true
+    }
+  },
+  password: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    validate: {
+      notEmpty: true
+    }
+  },
   name: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -64,10 +79,16 @@ const User = sequelize.define('User', {
       if (user.phone) {
         user.phone = user.phone.replace(/\s/g, '');
       }
+      if (user.password) {
+        user.password = await bcrypt.hash(user.password, 10);
+      }
     },
     beforeUpdate: async (user) => {
       if (user.phone) {
         user.phone = user.phone.replace(/\s/g, '');
+      }
+      if (user.changed('password')) {
+        user.password = await bcrypt.hash(user.password, 10);
       }
     }
   }

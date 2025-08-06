@@ -69,6 +69,35 @@
 					"response": []
 				},
 				{
+					"name": "Operator Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"operator\",\n  \"password\": \"operator123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/operator-login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"operator-login"
+							]
+						},
+						"description": "Login for operators and admins using username/password"
+					},
+					"response": []
+				},
+				{
 					"name": "Get Profile",
 					"request": {
 						"method": "GET",

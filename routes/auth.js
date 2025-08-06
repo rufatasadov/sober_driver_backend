@@ -46,6 +46,68 @@ router.post('/send-otp', [
   }
 });
 
+// Operator login (username/password)
+router.post('/operator-login', [
+  body('username').notEmpty().withMessage('İstifadəçi adı tələb olunur'),
+  body('password').notEmpty().withMessage('Şifrə tələb olunur')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { username, password } = req.body;
+
+    // İstifadəçini tap
+    const user = await User.findOne({ 
+      where: { 
+        username: username,
+        role: ['operator', 'admin'] // Yalnız operator və admin istifadəçiləri
+      } 
+    });
+
+    if (!user) {
+      return res.status(401).json({ error: 'İstifadəçi adı və ya şifrə yanlışdır' });
+    }
+
+    // Şifrəni yoxla
+    const bcrypt = require('bcryptjs');
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: 'İstifadəçi adı və ya şifrə yanlışdır' });
+    }
+
+    // Son giriş vaxtını yenilə
+    await user.update({
+      lastLogin: new Date()
+    });
+
+    // JWT token yarat
+    const token = jwt.sign(
+      { userId: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      message: 'Uğurla daxil oldunuz',
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        username: user.username,
+        role: user.role,
+        phone: user.phone
+      }
+    });
+  } catch (error) {
+    console.error('Operator login xətası:', error);
+    res.status(500).json({ error: 'Server xətası' });
+  }
+});
+
 // OTP ilə login/qeydiyyat
 router.post('/verify-otp', [
   body('phone').isMobilePhone('az-AZ').withMessage('Düzgün telefon nömrəsi daxil edin'),

@@ -5,7 +5,8 @@ Bu layihə taxi sifariş sistemi üçün tam funksional backend API-dir. Sistem 
 ## 🚀 Xüsusiyyətlər
 
 ### 🔐 Authentication & Authorization
-- OTP ilə telefon nömrəsi yoxlaması
+- OTP ilə telefon nömrəsi yoxlaması (müştərilər üçün)
+- Username/password ilə giriş (operator və admin üçün)
 - JWT token əsaslı authentication
 - Role-based access control (RBAC)
 - İstifadəçi rolları: customer, driver, operator, dispatcher, admin
@@ -113,7 +114,17 @@ FIREBASE_CLIENT_EMAIL=your-firebase-client-email
 GOOGLE_MAPS_API_KEY=your-google-maps-api-key
 ```
 
-5. **Serveri başladın**
+5. **Default operator istifadəçisini yaradın**
+```bash
+npm run create-operator
+```
+
+Bu əmr default operator istifadəçisini yaradacaq:
+- **Username:** operator
+- **Password:** operator123
+- **Role:** operator
+
+6. **Serveri başladın**
 ```bash
 # Development
 npm run dev
@@ -145,6 +156,17 @@ Content-Type: application/json
   "phone": "+994501234567",
   "otp": "123456",
   "name": "John Doe" // yeni istifadəçi üçün
+}
+```
+
+#### Operator login (username/password)
+```
+POST /api/auth/operator-login
+Content-Type: application/json
+
+{
+  "username": "operator",
+  "password": "operator123"
 }
 ```
 
