@@ -129,6 +129,58 @@ router.post('/', auth, [
   }
 });
 
+// Müştərinin öz sifarişləri
+router.get('/my-orders', auth, async (req, res) => {
+  try {
+    const { page = 1, limit = 10, status } = req.query;
+    const offset = (page - 1) * limit;
+
+    const whereClause = { customerId: req.user.id };
+    
+    if (status) {
+      whereClause.status = status;
+    }
+
+    const { count, rows: orders } = await Order.findAndCountAll({
+      where: whereClause,
+      include: [
+        {
+          model: User,
+          as: 'customer',
+          attributes: ['name', 'phone']
+        },
+        {
+          model: Driver,
+          as: 'driver',
+          include: [
+            {
+              model: User,
+              as: 'user',
+              attributes: ['name', 'phone']
+            }
+          ]
+        }
+      ],
+      order: [['createdAt', 'DESC']],
+      offset: parseInt(offset),
+      limit: parseInt(limit)
+    });
+
+    res.json({
+      orders,
+      pagination: {
+        current: parseInt(page),
+        total: Math.ceil(count / limit),
+        hasNext: page * limit < count,
+        hasPrev: page > 1
+      }
+    });
+  } catch (error) {
+    console.error('Müştəri sifarişləri alma xətası:', error);
+    res.status(500).json({ error: 'Server xətası' });
+  }
+});
+
 // İstifadəçinin sifarişləri
 router.get('/', auth, async (req, res) => {
   try {
