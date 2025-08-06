@@ -347,49 +347,6 @@ router.get('/customers/search', auth, authorize('operator'), async (req, res) =>
   }
 });
 
-// Müştəri sifarişləri
-router.get('/customers/:customerId/orders', auth, authorize('operator'), async (req, res) => {
-  try {
-    const { page = 1, limit = 10 } = req.query;
-    const skip = (page - 1) * limit;
-
-    const orders = await Order.findAll({
-      where: { customerId: req.params.customerId },
-      include: [
-        {
-          model: Driver,
-          as: 'driver',
-          include: [
-            {
-              model: User,
-              as: 'user',
-              attributes: ['name', 'phone']
-            }
-          ]
-        }
-      ],
-      order: [['createdAt', 'DESC']],
-      offset: skip,
-      limit: parseInt(limit)
-    });
-
-    const total = await Order.count({ where: { customerId: req.params.customerId } });
-
-    res.json({
-      orders,
-      pagination: {
-        current: parseInt(page),
-        total: Math.ceil(total / limit),
-        hasNext: page * limit < total,
-        hasPrev: page > 1
-      }
-    });
-  } catch (error) {
-    console.error('Müştəri sifarişləri alma xətası:', error);
-    res.status(500).json({ error: 'Server xətası' });
-  }
-});
-
 // Müştəri siyahısı
 router.get('/customers', auth, authorize('operator'), async (req, res) => {
   try {
@@ -424,12 +381,18 @@ router.get('/customers', auth, authorize('operator'), async (req, res) => {
           where: { customerId: customer.id }
         });
 
-        const totalSpent = await Order.sum('fare.total', {
+        const completedOrders = await Order.findAll({
           where: { 
             customerId: customer.id,
             status: 'completed'
-          }
+          },
+          attributes: ['fare']
         });
+
+        const totalSpent = completedOrders.reduce((sum, order) => {
+          const fareTotal = order.fare?.total || 0;
+          return sum + parseFloat(fareTotal);
+        }, 0);
 
         const lastOrder = await Order.findOne({
           where: { customerId: customer.id },
@@ -604,6 +567,49 @@ router.put('/customers/:customerId', auth, authorize('operator'), [
   }
 });
 
+// Müştəri sifarişləri
+router.get('/customers/:customerId/orders', auth, authorize('operator'), async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const orders = await Order.findAll({
+      where: { customerId: req.params.customerId },
+      include: [
+        {
+          model: Driver,
+          as: 'driver',
+          include: [
+            {
+              model: User,
+              as: 'user',
+              attributes: ['name', 'phone']
+            }
+          ]
+        }
+      ],
+      order: [['createdAt', 'DESC']],
+      offset: skip,
+      limit: parseInt(limit)
+    });
+
+    const total = await Order.count({ where: { customerId: req.params.customerId } });
+
+    res.json({
+      orders,
+      pagination: {
+        current: parseInt(page),
+        total: Math.ceil(total / limit),
+        hasNext: page * limit < total,
+        hasPrev: page > 1
+      }
+    });
+  } catch (error) {
+    console.error('Müştəri sifarişləri alma xətası:', error);
+    res.status(500).json({ error: 'Server xətası' });
+  }
+});
+
 // Müştəri silmə
 router.delete('/customers/:customerId', auth, authorize('operator'), async (req, res) => {
   try {
@@ -637,39 +643,7 @@ router.delete('/customers/:customerId', auth, authorize('operator'), async (req,
   }
 });
 
-// Müştərinin sifariş tarixçəsi
-router.get('/customers/:customerId/orders', auth, authorize('operator'), async (req, res) => {
-  try {
-    const { customerId } = req.params;
-    const { page = 1, limit = 20 } = req.query;
 
-    const offset = (page - 1) * limit;
-
-    const orders = await Order.findAndCountAll({
-      where: { customerId },
-      include: [
-        {
-          model: Driver,
-          as: 'driver',
-          include: [{ model: User, as: 'user', attributes: ['name', 'phone'] }]
-        }
-      ],
-      order: [['createdAt', 'DESC']],
-      limit: parseInt(limit),
-      offset: offset
-    });
-
-    res.json({
-      orders: orders.rows,
-      total: orders.count,
-      page: parseInt(page),
-      totalPages: Math.ceil(orders.count / limit)
-    });
-  } catch (error) {
-    console.error('Customer orders error:', error);
-    res.status(500).json({ error: 'Server xətası' });
-  }
-});
 
 // Müştərinin əvvəlki ünvanları
 router.get('/customers/:customerId/addresses', auth, authorize('operator'), async (req, res) => {

@@ -299,42 +299,47 @@ router.get('/orders/stats', auth, authorize('admin'), async (req, res) => {
     ]);
 
     // Günlük qazanc
-    const dailyRevenue = await Order.aggregate([
-      {
-        $match: {
-          ...filter,
-          status: 'completed'
-        }
+    const completedOrders = await Order.findAll({
+      where: {
+        ...filter,
+        status: 'completed'
       },
-      {
-        $group: {
-          _id: {
-            $dateToString: { format: '%Y-%m-%d', date: '$createdAt' }
-          },
-          revenue: { $sum: '$fare.total' },
-          count: { $sum: 1 }
-        }
-      },
-      { $sort: { _id: -1 } },
-      { $limit: 30 }
-    ]);
+      attributes: [
+        'createdAt',
+        'fare'
+      ],
+      order: [['createdAt', 'DESC']],
+      limit: 1000 // Get more data for grouping
+    });
+
+    // Group by date and calculate daily revenue
+    const dailyRevenueMap = {};
+    completedOrders.forEach(order => {
+      const date = order.createdAt.toISOString().split('T')[0];
+      if (!dailyRevenueMap[date]) {
+        dailyRevenueMap[date] = { revenue: 0, count: 0 };
+      }
+      dailyRevenueMap[date].revenue += parseFloat(order.fare?.total || 0);
+      dailyRevenueMap[date].count += 1;
+    });
+
+    const dailyRevenue = Object.entries(dailyRevenueMap)
+      .map(([date, data]) => ({
+        _id: date,
+        revenue: data.revenue,
+        count: data.count
+      }))
+      .sort((a, b) => b._id.localeCompare(a._id))
+      .slice(0, 30);
 
     // Ümumi qazanc
-    const totalRevenue = await Order.aggregate([
-      {
-        $match: {
-          ...filter,
-          status: 'completed'
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: '$fare.total' },
-          count: { $sum: 1 }
-        }
-      }
-    ]);
+    const totalRevenueData = completedOrders.reduce((acc, order) => {
+      acc.total += parseFloat(order.fare?.total || 0);
+      acc.count += 1;
+      return acc;
+    }, { total: 0, count: 0 });
+
+    const totalRevenue = [totalRevenueData];
 
     res.json({
       statusStats,
@@ -364,31 +369,51 @@ router.get('/drivers/earnings', auth, authorize('admin'), async (req, res) => {
       filter.driver = driverId;
     }
 
-    const earnings = await Order.aggregate([
-      { $match: filter },
-      {
-        $lookup: {
-          from: 'drivers',
-          localField: 'driver',
-          foreignField: '_id',
-          as: 'driverInfo'
+    const completedOrders = await Order.findAll({
+      where: filter,
+      include: [
+        {
+          model: Driver,
+          as: 'driver',
+          include: [
+            {
+              model: User,
+              as: 'user',
+              attributes: ['name']
+            }
+          ]
         }
-      },
-      {
-        $unwind: '$driverInfo'
-      },
-      {
-        $group: {
-          _id: '$driver',
-          driverName: { $first: '$driverInfo.userId.name' },
-          totalOrders: { $sum: 1 },
-          totalRevenue: { $sum: '$fare.total' },
-          commission: { $sum: { $multiply: ['$fare.total', { $divide: ['$driverInfo.commission', 100] }] } },
-          netEarnings: { $sum: { $subtract: ['$fare.total', { $multiply: ['$fare.total', { $divide: ['$driverInfo.commission', 100] }] }] } }
-        }
-      },
-      { $sort: { totalRevenue: -1 } }
-    ]);
+      ],
+      attributes: ['fare', 'driverId']
+    });
+
+    // Group by driver and calculate earnings
+    const earningsMap = {};
+    completedOrders.forEach(order => {
+      const driverId = order.driverId;
+      if (!earningsMap[driverId]) {
+        earningsMap[driverId] = {
+          _id: driverId,
+          driverName: order.driver?.user?.name || 'Unknown',
+          totalOrders: 0,
+          totalRevenue: 0,
+          commission: 0,
+          netEarnings: 0
+        };
+      }
+      
+      const fareTotal = parseFloat(order.fare?.total || 0);
+      const commissionRate = order.driver?.commission || 20; // Default 20%
+      const commission = fareTotal * (commissionRate / 100);
+      
+      earningsMap[driverId].totalOrders += 1;
+      earningsMap[driverId].totalRevenue += fareTotal;
+      earningsMap[driverId].commission += commission;
+      earningsMap[driverId].netEarnings += (fareTotal - commission);
+    });
+
+    const earnings = Object.values(earningsMap)
+      .sort((a, b) => b.totalRevenue - a.totalRevenue);
 
     res.json({ earnings });
   } catch (error) {

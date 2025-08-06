@@ -1,6 +1,7 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { auth, authorize } = require('../middleware/auth');
+const { Op } = require('sequelize');
 const Driver = require('../models/Driver');
 const User = require('../models/User');
 const Order = require('../models/Order');
@@ -359,7 +360,7 @@ router.post('/orders/:orderId/reject', auth, authorize('driver'), async (req, re
 router.get('/earnings', auth, authorize('driver'), async (req, res) => {
   try {
     const { period = 'today' } = req.query;
-    const driver = await Driver.findOne({ userId: req.user._id });
+    const driver = await Driver.findOne({ where: { userId: req.user.id } });
 
     if (!driver) {
       return res.status(404).json({ error: 'Sürücü məlumatları tapılmadı' });
@@ -389,13 +390,18 @@ router.get('/earnings', auth, authorize('driver'), async (req, res) => {
     }
 
     // Tamamlanmış sifarişləri al
-    const completedOrders = await Order.find({
-      driver: driver._id,
-      status: 'completed',
-      createdAt: { $gte: startDate, $lt: endDate }
+    const completedOrders = await Order.findAll({
+      where: {
+        driverId: driver.id,
+        status: 'completed',
+        createdAt: {
+          [Op.gte]: startDate,
+          [Op.lt]: endDate
+        }
+      }
     });
 
-    const totalEarnings = completedOrders.reduce((sum, order) => sum + order.fare.total, 0);
+    const totalEarnings = completedOrders.reduce((sum, order) => sum + parseFloat(order.fare?.total || 0), 0);
     const commission = totalEarnings * (driver.commission / 100);
     const netEarnings = totalEarnings - commission;
 
@@ -406,7 +412,7 @@ router.get('/earnings', auth, authorize('driver'), async (req, res) => {
       commission,
       netEarnings,
       orders: completedOrders.map(order => ({
-        id: order._id,
+        id: order.id,
         orderNumber: order.orderNumber,
         fare: order.fare,
         createdAt: order.createdAt
@@ -428,13 +434,21 @@ router.get('/', auth, authorize('admin', 'dispatcher'), async (req, res) => {
     if (status) filter.status = status;
     if (isOnline !== undefined) filter.isOnline = isOnline === 'true';
 
-    const drivers = await Driver.find(filter)
-      .populate('userId', 'name phone email')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+    const { count, rows: drivers } = await Driver.findAndCountAll({
+      where: filter,
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['name', 'phone', 'email']
+        }
+      ],
+      order: [['createdAt', 'DESC']],
+      offset: skip,
+      limit: parseInt(limit)
+    });
 
-    const total = await Driver.countDocuments(filter);
+    const total = count;
 
     res.json({
       drivers,
