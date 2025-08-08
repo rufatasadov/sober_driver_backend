@@ -741,6 +741,9 @@ router.post('/orders', auth, authorize('operator'), [
   body('pickup.address').notEmpty().withMessage('Pickup ünvanı tələb olunur'),
   body('destination.coordinates').isArray({ min: 2, max: 2 }).withMessage('Təyinat koordinatları tələb olunur'),
   body('destination.address').notEmpty().withMessage('Təyinat ünvanı tələb olunur'),
+  body('stops').optional().isArray().withMessage('Stops massiv olmalıdır'),
+  body('stops.*.coordinates').optional().isArray({ min: 2, max: 2 }).withMessage('Stop koordinatları düzgün deyil'),
+  body('stops.*.address').optional().isString(),
   body('payment.method').isIn(['cash', 'card', 'online']).withMessage('Düzgün ödəniş üsulu seçin'),
   body('scheduledTime').optional().isISO8601().withMessage('Düzgün vaxt formatı daxil edin'),
   body('manualFare').optional().isFloat({ min: 0 }).withMessage('Qiymət mənfi ola bilməz'),
@@ -757,6 +760,7 @@ router.post('/orders', auth, authorize('operator'), [
       customerName, 
       pickup, 
       destination, 
+      stops = [],
       payment, 
       scheduledTime,
       manualFare,
@@ -775,10 +779,17 @@ router.post('/orders', auth, authorize('operator'), [
     }
 
     // Məsafə və vaxt hesabla
-    const distance = calculateDistance(
-      pickup.coordinates[1], pickup.coordinates[0],
-      destination.coordinates[1], destination.coordinates[0]
-    );
+    // Multi-leg distance: pickup -> stops... -> destination
+    const legs = [pickup, ...stops, destination];
+    let distance = 0;
+    for (let i = 0; i < legs.length - 1; i++) {
+      const from = legs[i];
+      const to = legs[i + 1];
+      distance += calculateDistance(
+        from.coordinates[1], from.coordinates[0],
+        to.coordinates[1], to.coordinates[0]
+      );
+    }
 
     const estimatedTime = estimateTravelTime(distance);
     const calculatedFare = calculateFare(distance, estimatedTime);
@@ -808,6 +819,14 @@ router.post('/orders', auth, authorize('operator'), [
         address: destination.address,
         instructions: destination.instructions
       },
+      stops: stops.map((s) => ({
+        location: {
+          type: 'Point',
+          coordinates: s.coordinates
+        },
+        address: s.address,
+        instructions: s.instructions
+      })),
       estimatedTime,
       estimatedDistance: distance,
       fare: {

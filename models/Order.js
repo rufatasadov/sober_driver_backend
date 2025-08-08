@@ -46,6 +46,12 @@ const Order = sequelize.define('Order', {
     type: DataTypes.JSONB,
     allowNull: false
   },
+  // Optional intermediate stops between pickup and destination
+  stops: {
+    type: DataTypes.JSONB,
+    allowNull: true,
+    defaultValue: []
+  },
   status: {
     type: DataTypes.ENUM(
       'pending', 
