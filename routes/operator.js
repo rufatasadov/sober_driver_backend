@@ -328,8 +328,7 @@ router.put('/orders/:orderId', auth, authorize('operator'), [
         timestamp: new Date(),
         by: { id: req.user?.id, role: req.user?.role || 'operator' }
       });
-      fresh.timeline = tl;
-      await fresh.save();
+      await Order.update({ timeline: tl }, { where: { id: req.params.orderId } });
     }
 
     // If status moved to completed/cancelled -> free up driver
