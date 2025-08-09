@@ -281,7 +281,11 @@ router.get('/orders', auth, authorize('operator'), async (req, res) => {
 router.put('/orders/:orderId', auth, authorize('operator'), [
   body('pickup.address').optional().notEmpty().withMessage('Pickup ünvanı boş ola bilməz'),
   body('destination.address').optional().notEmpty().withMessage('Təyinat ünvanı boş ola bilməz'),
-  body('notes').optional().isString().withMessage('Qeydlər string olmalıdır')
+  body('notes').optional().isString().withMessage('Qeydlər string olmalıdır'),
+  body('status')
+    .optional()
+    .isIn(['pending','accepted','driver_assigned','driver_arrived','in_progress','completed','cancelled'])
+    .withMessage('Yanlış status dəyəri')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -289,7 +293,7 @@ router.put('/orders/:orderId', auth, authorize('operator'), [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { pickup, destination, notes } = req.body;
+    const { pickup, destination, notes, status } = req.body;
     const order = await Order.findByPk(req.params.orderId);
 
     if (!order) {
@@ -305,6 +309,9 @@ router.put('/orders/:orderId', auth, authorize('operator'), [
     }
     if (notes !== undefined) {
       updates.notes = notes;
+    }
+    if (status) {
+      updates.status = status;
     }
 
     const updatedOrder = await Order.update(
