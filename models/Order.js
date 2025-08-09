@@ -141,11 +141,15 @@ Order.belongsTo(Driver, { foreignKey: 'driverId', as: 'driver' });
 User.hasMany(Order, { foreignKey: 'customerId', as: 'orders' });
 Driver.hasMany(Order, { foreignKey: 'driverId', as: 'orders' });
 
-// Instance methods
+// Instance methods: keep createdAt/updatedAt so clients can display timestamps
 Order.prototype.toJSON = function() {
   const values = Object.assign({}, this.get());
-  delete values.createdAt;
-  delete values.updatedAt;
+  if (values.createdAt instanceof Date) {
+    values.createdAt = values.createdAt.toISOString();
+  }
+  if (values.updatedAt instanceof Date) {
+    values.updatedAt = values.updatedAt.toISOString();
+  }
   return values;
 };
 

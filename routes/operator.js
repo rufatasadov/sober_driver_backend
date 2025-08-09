@@ -294,7 +294,7 @@ router.put('/orders/:orderId', auth, authorize('operator'), [
     }
 
     const { pickup, destination, notes, status } = req.body;
-    const order = await Order.findByPk(req.params.orderId);
+    const order = await Order.findByPk(req.params.orderId, { include: [{ model: Driver, as: 'driver' }] });
 
     if (!order) {
       return res.status(404).json({ error: 'Sifariş tapılmadı' });
@@ -318,6 +318,16 @@ router.put('/orders/:orderId', auth, authorize('operator'), [
       updates,
       { where: { id: req.params.orderId }, returning: true }
     );
+
+    // If status moved to completed/cancelled -> free up driver
+    const newStatus = updates.status || order.status;
+    if ((newStatus === 'completed' || newStatus === 'cancelled') && order.driverId) {
+      const driver = await Driver.findByPk(order.driverId);
+      if (driver) {
+        driver.isAvailable = true;
+        await driver.save();
+      }
+    }
 
     res.json({
       message: 'Sifariş uğurla yeniləndi',
