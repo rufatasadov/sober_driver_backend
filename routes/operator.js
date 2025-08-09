@@ -319,6 +319,19 @@ router.put('/orders/:orderId', auth, authorize('operator'), [
       { where: { id: req.params.orderId }, returning: true }
     );
 
+    // Append to timeline when status changes
+    if (status) {
+      const fresh = await Order.findByPk(req.params.orderId);
+      const tl = Array.isArray(fresh.timeline) ? fresh.timeline : [];
+      tl.push({
+        status,
+        timestamp: new Date(),
+        by: { id: req.user?.id, role: req.user?.role || 'operator' }
+      });
+      fresh.timeline = tl;
+      await fresh.save();
+    }
+
     // If status moved to completed/cancelled -> free up driver
     const newStatus = updates.status || order.status;
     if ((newStatus === 'completed' || newStatus === 'cancelled') && order.driverId) {
@@ -859,7 +872,14 @@ router.post('/orders', auth, authorize('operator'), [
       status: 'pending',
       scheduledTime: orderTime,
       notes: notes || null,
-      orderNumber: `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+      orderNumber: `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      timeline: [
+        {
+          status: 'pending',
+          timestamp: new Date(),
+          by: { id: req.user?.id, role: req.user?.role || 'operator' }
+        }
+      ]
     });
 
     // Sifarişi müştəri ilə birlikdə qaytar
