@@ -320,7 +320,7 @@ router.put('/orders/:orderId', auth, authorize('operator'), [
     );
 
     // Append to timeline when status changes
-    if (status) {
+    if (status && status !== order.status) {
       const fresh = await Order.findByPk(req.params.orderId);
       const tl = Array.isArray(fresh.timeline) ? fresh.timeline : [];
       tl.push({
@@ -342,9 +342,17 @@ router.put('/orders/:orderId', auth, authorize('operator'), [
       }
     }
 
+    // Return fresh order with associations and updated timeline
+    const result = await Order.findByPk(req.params.orderId, {
+      include: [
+        { model: User, as: 'customer', attributes: ['name', 'phone'] },
+        { model: Driver, as: 'driver', include: [{ model: User, as: 'user', attributes: ['name', 'phone'] }] }
+      ]
+    });
+
     res.json({
       message: 'Sifariş uğurla yeniləndi',
-      order: updatedOrder[1][0]
+      order: result
     });
   } catch (error) {
     console.error('Sifariş yeniləmə xətası:', error);
