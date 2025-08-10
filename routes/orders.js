@@ -14,12 +14,16 @@ const {
 const router = express.Router();
 
 // Yeni sifariş yarat
+// Əgər customerPhone və customerName verilibsə, yeni müştəri yaradılacaq
+// Əgər customerPhone verilməzsə, cari istifadəçi müştəri kimi istifadə olunacaq
 router.post('/', auth, [
   body('pickup.coordinates').isArray({ min: 2, max: 2 }).withMessage('Pickup koordinatları tələb olunur'),
   body('pickup.address').notEmpty().withMessage('Pickup ünvanı tələb olunur'),
   body('destination.coordinates').isArray({ min: 2, max: 2 }).withMessage('Təyinat koordinatları tələb olunur'),
   body('destination.address').notEmpty().withMessage('Təyinat ünvanı tələb olunur'),
-  body('payment.method').isIn(['cash', 'card', 'online']).withMessage('Düzgün ödəniş üsulu seçin')
+  body('payment.method').isIn(['cash', 'card', 'online']).withMessage('Düzgün ödəniş üsulu seçin'),
+  body('customerPhone').optional().isMobilePhone('az-AZ').withMessage('Düzgün telefon nömrəsi daxil edin'),
+  body('customerName').optional().notEmpty().withMessage('Müştəri adı tələb olunur')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -27,7 +31,49 @@ router.post('/', auth, [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { pickup, destination, payment, notes } = req.body;
+    const { pickup, destination, payment, notes, customerPhone, customerName } = req.body;
+
+    // Müştərini müəyyən et
+    let customerId = req.user.id;
+    
+    // Əgər telefon nömrəsi verilibsə, müştərini tap və ya yarat
+    if (customerPhone) {
+      // Telefon nömrəsini təmizlə (boşluqları sil)
+      const cleanPhone = customerPhone.replace(/\s/g, '');
+      
+      let customer = await User.findOne({ where: { phone: cleanPhone } });
+      if (!customer) {
+        // Yeni müştəri yarat - əgər telefon nömrəsi customer cədvəlində yoxdursa
+        if (!customerName) {
+          return res.status(400).json({ 
+            error: 'Yeni müştəri yaratmaq üçün ad tələb olunur',
+            details: 'customerPhone verildiyi halda customerName də tələb olunur'
+          });
+        }
+        
+        try {
+          customer = await User.create({
+            phone: cleanPhone,
+            name: customerName,
+            role: 'customer',
+            isVerified: true
+          });
+          
+          console.log('Yeni müştəri yaradıldı:', {
+            id: customer.id,
+            name: customer.name,
+            phone: customer.phone
+          });
+        } catch (customerError) {
+          console.error('Müştəri yaratma xətası:', customerError);
+          return res.status(500).json({ 
+            error: 'Müştəri yaradıla bilmədi',
+            details: customerError.message 
+          });
+        }
+      }
+      customerId = customer.id;
+    }
 
     // Məsafə və vaxt hesabla
     const distance = calculateDistance(
@@ -51,12 +97,13 @@ router.post('/', auth, [
     // Yeni sifariş yarat
     console.log('Creating order with user:', {
       userId: req.user.id,
-      userRole: req.user.role
+      userRole: req.user.role,
+      customerId: customerId
     });
     
     const orderData = {
       orderNumber: generateOrderNumber(), // Manual order number yarat
-      customerId: req.user.id, // Sequelize üçün customerId istifadə et
+      customerId: customerId, // Müəyyən edilmiş müştəri ID-si
       pickup: {
         location: {
           type: 'Point',
@@ -101,16 +148,28 @@ router.post('/', auth, [
       pickup.coordinates[0]
     );
 
+    // Sifarişi müştəri məlumatları ilə birlikdə qaytar
+    const orderWithCustomer = await Order.findByPk(order.id, {
+      include: [
+        {
+          model: User,
+          as: 'customer',
+          attributes: ['id', 'name', 'phone']
+        }
+      ]
+    });
+
     res.status(201).json({
       message: 'Sifariş uğurla yaradıldı',
       order: {
-        id: order.id, // Sequelize üçün id istifadə et
+        id: order.id,
         orderNumber: order.orderNumber,
         status: order.status,
         estimatedTime,
         estimatedDistance: Math.round(distance * 100) / 100,
         fare,
-        nearbyDrivers: nearbyDrivers.length
+        nearbyDrivers: nearbyDrivers.length,
+        customer: orderWithCustomer.customer
       }
     });
   } catch (error) {
