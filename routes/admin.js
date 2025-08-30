@@ -1,543 +1,423 @@
 const express = require('express');
-const { body, validationResult } = require('express-validator');
-const { auth, authorize } = require('../middleware/auth');
-const User = require('../models/User');
-const Driver = require('../models/Driver');
-const Order = require('../models/Order');
-const { Op } = require('sequelize');
-
 const router = express.Router();
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { body, validationResult } = require('express-validator');
+const auth = require('../middleware/auth');
+const db = require('../config/database');
 
-// Admin dashboard
-router.get('/dashboard', auth, authorize('admin'), async (req, res) => {
+// Middleware to check if user has admin privileges
+const requireAdmin = async (req, res, next) => {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    // Ümumi statistika
-    const totalUsers = await User.count({ where: { role: 'customer' } });
-    const totalDrivers = await Driver.count();
-    const totalOrders = await Order.count();
-    const totalCompletedOrders = await Order.count({ where: { status: 'completed' } });
-
-    // Bugünkü statistika
-    const todayOrders = await Order.count({
-      where: {
-        createdAt: {
-          [Op.gte]: today,
-          [Op.lt]: tomorrow
-        }
-      }
-    });
-
-    const todayCompleted = await Order.count({
-      where: {
-        status: 'completed',
-        createdAt: {
-          [Op.gte]: today,
-          [Op.lt]: tomorrow
-        }
-      }
-    });
-
-    // Bugünkü gəlir (Sequelize-də aggregate əvəzinə)
-    const todayCompletedOrders = await Order.findAll({
-      where: {
-        status: 'completed',
-        createdAt: {
-          [Op.gte]: today,
-          [Op.lt]: tomorrow
-        }
-      },
-      attributes: ['fare']
-    });
-
-    const todayRevenue = todayCompletedOrders.reduce((sum, order) => {
-      return sum + (order.fare?.total || 0);
-    }, 0);
-
-    // Online sürücülər
-    const onlineDrivers = await Driver.count({
-      where: {
-        isOnline: true,
-        isAvailable: true
-      }
-    });
-
-    // Son sifarişlər
-    const recentOrders = await Order.findAll({
-      include: [
-        {
-          model: User,
-          as: 'customer',
-          attributes: ['name', 'phone']
-        },
-        {
-          model: Driver,
-          as: 'driver',
-          include: [
-            {
-              model: User,
-              as: 'user',
-              attributes: ['name', 'phone']
-            }
-          ]
-        }
-      ],
-      order: [['createdAt', 'DESC']],
-      limit: 10
-    });
-
-    // Son qeydiyyatdan keçən sürücülər
-    const recentDrivers = await Driver.findAll({
-      include: [
-        {
-          model: User,
-          as: 'user',
-          attributes: ['name', 'phone']
-        }
-      ],
-      order: [['createdAt', 'DESC']],
-      limit: 5
-    });
-
-    res.json({
-      stats: {
-        totalUsers,
-        totalDrivers,
-        totalOrders,
-        totalCompletedOrders,
-        todayOrders,
-        todayCompleted,
-        todayRevenue,
-        onlineDrivers
-      },
-      recentOrders,
-      recentDrivers
-    });
+    if (!req.user.role || !req.user.role.privileges.includes('admin.access')) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+    next();
   } catch (error) {
-    console.error('Admin dashboard xətası:', error);
-    res.status(500).json({ error: 'Server xətası' });
+    res.status(500).json({ error: 'Server error' });
   }
-});
+};
 
-// İstifadəçiləri idarə et
-router.get('/users', auth, authorize('admin'), async (req, res) => {
+// Get all roles
+router.get('/roles', auth, requireAdmin, async (req, res) => {
   try {
-    const { page = 1, limit = 20, role, search } = req.query;
-    const skip = (page - 1) * limit;
-
-    const filter = {};
-    if (role) filter.role = role;
-    if (search) {
-      filter.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } }
-      ];
-    }
-
-    const users = await User.find(filter)
-      .select('-__v')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    const total = await User.countDocuments(filter);
-
-    res.json({
-      users,
-      pagination: {
-        current: parseInt(page),
-        total: Math.ceil(total / limit),
-        hasNext: page * limit < total,
-        hasPrev: page > 1
-      }
-    });
-  } catch (error) {
-    console.error('İstifadəçilər alma xətası:', error);
-    res.status(500).json({ error: 'Server xətası' });
-  }
-});
-
-// İstifadəçi məlumatlarını yenilə
-router.put('/users/:userId', auth, authorize('admin'), [
-  body('name').optional().isLength({ min: 2 }).withMessage('Ad minimum 2 simvol olmalıdır'),
-  body('email').optional().isEmail().withMessage('Düzgün email daxil edin'),
-  body('role').optional().isIn(['customer', 'driver', 'operator', 'dispatcher', 'admin']).withMessage('Düzgün rol seçin'),
-  body('isActive').optional().isBoolean().withMessage('Active status boolean olmalıdır')
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { name, email, role, isActive } = req.body;
-    const updates = {};
-
-    if (name) updates.name = name;
-    if (email) updates.email = email;
-    if (role) updates.role = role;
-    if (isActive !== undefined) updates.isActive = isActive;
-
-    const user = await User.findByIdAndUpdate(
-      req.params.userId,
-      updates,
-      { new: true, runValidators: true }
-    ).select('-__v');
-
-    if (!user) {
-      return res.status(404).json({ error: 'İstifadəçi tapılmadı' });
-    }
-
-    res.json({
-      message: 'İstifadəçi uğurla yeniləndi',
-      user
-    });
-  } catch (error) {
-    console.error('İstifadəçi yeniləmə xətası:', error);
-    res.status(500).json({ error: 'Server xətası' });
-  }
-});
-
-// Sürücüləri idarə et
-router.get('/drivers', auth, authorize('admin'), async (req, res) => {
-  try {
-    const { page = 1, limit = 20, status, isOnline } = req.query;
-    const skip = (page - 1) * limit;
-
-    const filter = {};
-    if (status) filter.status = status;
-    if (isOnline !== undefined) filter.isOnline = isOnline === 'true';
-
-    const drivers = await Driver.find(filter)
-      .populate('userId', 'name phone email')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    const total = await Driver.countDocuments(filter);
-
-    res.json({
-      drivers,
-      pagination: {
-        current: parseInt(page),
-        total: Math.ceil(total / limit),
-        hasNext: page * limit < total,
-        hasPrev: page > 1
-      }
-    });
-  } catch (error) {
-    console.error('Sürücülər alma xətası:', error);
-    res.status(500).json({ error: 'Server xətası' });
-  }
-});
-
-// Sürücü statusunu yenilə
-router.put('/drivers/:driverId', auth, authorize('admin'), [
-  body('status').isIn(['pending', 'approved', 'rejected', 'suspended']).withMessage('Düzgün status seçin'),
-  body('commission').optional().isFloat({ min: 0, max: 100 }).withMessage('Komissiya 0-100 arasında olmalıdır')
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { status, commission } = req.body;
-    const updates = { status };
-
-    if (commission !== undefined) {
-      updates.commission = commission;
-    }
-
-    const driver = await Driver.findByIdAndUpdate(
-      req.params.driverId,
-      updates,
-      { new: true, runValidators: true }
-    ).populate('userId', 'name phone email');
-
-    if (!driver) {
-      return res.status(404).json({ error: 'Sürücü tapılmadı' });
-    }
-
-    res.json({
-      message: 'Sürücü uğurla yeniləndi',
-      driver
-    });
-  } catch (error) {
-    console.error('Sürücü yeniləmə xətası:', error);
-    res.status(500).json({ error: 'Server xətası' });
-  }
-});
-
-// Sifarişlər statistikası
-router.get('/orders/stats', auth, authorize('admin'), async (req, res) => {
-  try {
-    const { startDate, endDate } = req.query;
-    const filter = {};
-
-    if (startDate && endDate) {
-      filter.createdAt = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      };
-    }
-
-    // Status-a görə qruplaşdır
-    const statusStats = await Order.aggregate([
-      { $match: filter },
-      {
-        $group: {
-          _id: '$status',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-
-    // Günlük qazanc
-    const completedOrders = await Order.findAll({
-      where: {
-        ...filter,
-        status: 'completed'
-      },
-      attributes: [
-        'createdAt',
-        'fare'
-      ],
-      order: [['createdAt', 'DESC']],
-      limit: 1000 // Get more data for grouping
-    });
-
-    // Group by date and calculate daily revenue
-    const dailyRevenueMap = {};
-    completedOrders.forEach(order => {
-      const date = order.createdAt.toISOString().split('T')[0];
-      if (!dailyRevenueMap[date]) {
-        dailyRevenueMap[date] = { revenue: 0, count: 0 };
-      }
-      dailyRevenueMap[date].revenue += parseFloat(order.fare?.total || 0);
-      dailyRevenueMap[date].count += 1;
-    });
-
-    const dailyRevenue = Object.entries(dailyRevenueMap)
-      .map(([date, data]) => ({
-        _id: date,
-        revenue: data.revenue,
-        count: data.count
-      }))
-      .sort((a, b) => b._id.localeCompare(a._id))
-      .slice(0, 30);
-
-    // Ümumi qazanc
-    const totalRevenueData = completedOrders.reduce((acc, order) => {
-      acc.total += parseFloat(order.fare?.total || 0);
-      acc.count += 1;
-      return acc;
-    }, { total: 0, count: 0 });
-
-    const totalRevenue = [totalRevenueData];
-
-    res.json({
-      statusStats,
-      dailyRevenue,
-      totalRevenue: totalRevenue[0] || { total: 0, count: 0 }
-    });
-  } catch (error) {
-    console.error('Sifariş statistikası xətası:', error);
-    res.status(500).json({ error: 'Server xətası' });
-  }
-});
-
-// Sürücü qazanc statistikası
-router.get('/drivers/earnings', auth, authorize('admin'), async (req, res) => {
-  try {
-    const { startDate, endDate, driverId } = req.query;
-    const filter = { status: 'completed' };
-
-    if (startDate && endDate) {
-      filter.createdAt = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      };
-    }
-
-    if (driverId) {
-      filter.driver = driverId;
-    }
-
-    const completedOrders = await Order.findAll({
-      where: filter,
-      include: [
-        {
-          model: Driver,
-          as: 'driver',
-          include: [
-            {
-              model: User,
-              as: 'user',
-              attributes: ['name']
-            }
-          ]
-        }
-      ],
-      attributes: ['fare', 'driverId']
-    });
-
-    // Group by driver and calculate earnings
-    const earningsMap = {};
-    completedOrders.forEach(order => {
-      const driverId = order.driverId;
-      if (!earningsMap[driverId]) {
-        earningsMap[driverId] = {
-          _id: driverId,
-          driverName: order.driver?.user?.name || 'Unknown',
-          totalOrders: 0,
-          totalRevenue: 0,
-          commission: 0,
-          netEarnings: 0
-        };
-      }
-      
-      const fareTotal = parseFloat(order.fare?.total || 0);
-      const commissionRate = order.driver?.commission || 20; // Default 20%
-      const commission = fareTotal * (commissionRate / 100);
-      
-      earningsMap[driverId].totalOrders += 1;
-      earningsMap[driverId].totalRevenue += fareTotal;
-      earningsMap[driverId].commission += commission;
-      earningsMap[driverId].netEarnings += (fareTotal - commission);
-    });
-
-    const earnings = Object.values(earningsMap)
-      .sort((a, b) => b.totalRevenue - a.totalRevenue);
-
-    res.json({ earnings });
-  } catch (error) {
-    console.error('Sürücü qazanc statistikası xətası:', error);
-    res.status(500).json({ error: 'Server xətası' });
-  }
-});
-
-// Sistem parametrlərini idarə et
-router.get('/settings', auth, authorize('admin'), async (req, res) => {
-  try {
-    // Sistem parametrləri (sadə versiya)
-    const settings = {
-      baseFare: 2,
-      perKmRate: 0.5,
-      perMinuteRate: 0.1,
-      defaultCommission: 20,
-      maxDistance: 5,
-      orderTimeout: 300 // 5 dəqiqə
-    };
-
-    res.json({ settings });
-  } catch (error) {
-    console.error('Parametrlər alma xətası:', error);
-    res.status(500).json({ error: 'Server xətası' });
-  }
-});
-
-// Sistem parametrlərini yenilə
-router.put('/settings', auth, authorize('admin'), [
-  body('baseFare').optional().isFloat({ min: 0 }).withMessage('Əsas qiymət müsbət olmalıdır'),
-  body('perKmRate').optional().isFloat({ min: 0 }).withMessage('Km başına qiymət müsbət olmalıdır'),
-  body('perMinuteRate').optional().isFloat({ min: 0 }).withMessage('Dəqiqə başına qiymət müsbət olmalıdır'),
-  body('defaultCommission').optional().isFloat({ min: 0, max: 100 }).withMessage('Komissiya 0-100 arasında olmalıdır'),
-  body('maxDistance').optional().isFloat({ min: 0 }).withMessage('Maksimum məsafə müsbət olmalıdır'),
-  body('orderTimeout').optional().isInt({ min: 60 }).withMessage('Sifariş vaxtı minimum 60 saniyə olmalıdır')
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    // Burada parametrləri database-də saxlayıb yeniləyə bilərsiniz
-    // Sadəlik üçün yalnız response qaytarırıq
-
-    res.json({
-      message: 'Sistem parametrləri uğurla yeniləndi',
-      settings: req.body
-    });
-  } catch (error) {
-    console.error('Parametrlər yeniləmə xətası:', error);
-    res.status(500).json({ error: 'Server xətası' });
-  }
-});
-
-// Sifarişlər siyahısı (admin üçün)
-router.get('/orders', auth, authorize('admin'), async (req, res) => {
-  try {
-    const { 
-      page = 1, 
-      limit = 20, 
-      status, 
-      startDate, 
-      endDate,
-      customerPhone,
-      driverPhone
-    } = req.query;
+    const [roles] = await db.query(`
+      SELECT r.*, 
+             JSON_ARRAYAGG(p.name) as privileges
+      FROM roles r
+      LEFT JOIN role_privileges rp ON r.id = rp.role_id
+      LEFT JOIN privileges p ON rp.privilege_id = p.id
+      GROUP BY r.id
+    `);
     
-    const skip = (page - 1) * limit;
-    const filter = {};
-
-    if (status) filter.status = status;
-    if (startDate && endDate) {
-      filter.createdAt = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      };
-    }
-
-    if (customerPhone) {
-      const customer = await User.findOne({ phone: customerPhone });
-      if (customer) {
-        filter.customer = customer._id;
-      }
-    }
-
-    if (driverPhone) {
-      const driver = await Driver.findOne().populate({
-        path: 'userId',
-        match: { phone: driverPhone }
-      });
-      if (driver) {
-        filter.driver = driver._id;
-      }
-    }
-
-    const orders = await Order.find(filter)
-      .populate('customer', 'name phone')
-      .populate({
-        path: 'driver',
-        populate: {
-          path: 'userId',
-          select: 'name phone'
-        }
-      })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    const total = await Order.countDocuments(filter);
-
-    res.json({
-      orders,
-      pagination: {
-        current: parseInt(page),
-        total: Math.ceil(total / limit),
-        hasNext: page * limit < total,
-        hasPrev: page > 1
-      }
-    });
+    res.json({ roles });
   } catch (error) {
-    console.error('Sifarişlər alma xətası:', error);
-    res.status(500).json({ error: 'Server xətası' });
+    console.error('Error fetching roles:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Create new role
+router.post('/roles', auth, requireAdmin, [
+  body('name').notEmpty().withMessage('Role name is required'),
+  body('description').notEmpty().withMessage('Description is required'),
+  body('privileges').isArray().withMessage('Privileges must be an array'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { name, description, privileges } = req.body;
+
+    // Check if role already exists
+    const [existingRole] = await db.query('SELECT id FROM roles WHERE name = ?', [name]);
+    if (existingRole.length > 0) {
+      return res.status(400).json({ error: 'Role with this name already exists' });
+    }
+
+    // Create role
+    const [result] = await db.query(
+      'INSERT INTO roles (name, description) VALUES (?, ?)',
+      [name, description]
+    );
+
+    const roleId = result.insertId;
+
+    // Add privileges
+    for (const privilege of privileges) {
+      await db.query(
+        'INSERT INTO role_privileges (role_id, privilege_id) VALUES (?, ?)',
+        [roleId, privilege]
+      );
+    }
+
+    res.status(201).json({ message: 'Role created successfully', roleId });
+  } catch (error) {
+    console.error('Error creating role:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update role
+router.put('/roles/:id', auth, requireAdmin, [
+  body('name').notEmpty().withMessage('Role name is required'),
+  body('description').notEmpty().withMessage('Description is required'),
+  body('privileges').isArray().withMessage('Privileges must be an array'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { id } = req.params;
+    const { name, description, privileges } = req.body;
+
+    // Check if role exists
+    const [existingRole] = await db.query('SELECT id FROM roles WHERE id = ?', [id]);
+    if (existingRole.length === 0) {
+      return res.status(404).json({ error: 'Role not found' });
+    }
+
+    // Update role
+    await db.query(
+      'UPDATE roles SET name = ?, description = ? WHERE id = ?',
+      [name, description, id]
+    );
+
+    // Remove existing privileges
+    await db.query('DELETE FROM role_privileges WHERE role_id = ?', [id]);
+
+    // Add new privileges
+    for (const privilege of privileges) {
+      await db.query(
+        'INSERT INTO role_privileges (role_id, privilege_id) VALUES (?, ?)',
+        [id, privilege]
+      );
+    }
+
+    res.json({ message: 'Role updated successfully' });
+  } catch (error) {
+    console.error('Error updating role:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete role
+router.delete('/roles/:id', auth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if role is assigned to any users
+    const [usersWithRole] = await db.query('SELECT id FROM users WHERE role_id = ?', [id]);
+    if (usersWithRole.length > 0) {
+      return res.status(400).json({ error: 'Cannot delete role that is assigned to users' });
+    }
+
+    // Remove privileges
+    await db.query('DELETE FROM role_privileges WHERE role_id = ?', [id]);
+
+    // Delete role
+    await db.query('DELETE FROM roles WHERE id = ?', [id]);
+
+    res.json({ message: 'Role deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting role:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get all users
+router.get('/users', auth, requireAdmin, async (req, res) => {
+  try {
+    const [users] = await db.query(`
+      SELECT u.*, r.name as role_name, r.id as role_id
+      FROM users u
+      LEFT JOIN roles r ON u.role_id = r.id
+      ORDER BY u.created_at DESC
+    `);
+    
+    res.json({ users });
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Create new user
+router.post('/users', auth, requireAdmin, [
+  body('name').notEmpty().withMessage('Name is required'),
+  body('email').isEmail().withMessage('Valid email is required'),
+  body('phone').notEmpty().withMessage('Phone is required'),
+  body('roleId').notEmpty().withMessage('Role is required'),
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { name, email, phone, roleId, password } = req.body;
+
+    // Check if user already exists
+    const [existingUser] = await db.query('SELECT id FROM users WHERE email = ? OR phone = ?', [email, phone]);
+    if (existingUser.length > 0) {
+      return res.status(400).json({ error: 'User with this email or phone already exists' });
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    // Create user
+    const [result] = await db.query(
+      'INSERT INTO users (name, email, phone, password, role_id) VALUES (?, ?, ?, ?, ?)',
+      [name, email, phone, hashedPassword, roleId]
+    );
+
+    res.status(201).json({ message: 'User created successfully', userId: result.insertId });
+  } catch (error) {
+    console.error('Error creating user:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update user
+router.put('/users/:id', auth, requireAdmin, [
+  body('name').notEmpty().withMessage('Name is required'),
+  body('email').isEmail().withMessage('Valid email is required'),
+  body('phone').notEmpty().withMessage('Phone is required'),
+  body('roleId').notEmpty().withMessage('Role is required'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { id } = req.params;
+    const { name, email, phone, roleId } = req.body;
+
+    // Check if user exists
+    const [existingUser] = await db.query('SELECT id FROM users WHERE id = ?', [id]);
+    if (existingUser.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if email/phone is already taken by another user
+    const [duplicateUser] = await db.query(
+      'SELECT id FROM users WHERE (email = ? OR phone = ?) AND id != ?',
+      [email, phone, id]
+    );
+    if (duplicateUser.length > 0) {
+      return res.status(400).json({ error: 'Email or phone already taken by another user' });
+    }
+
+    // Update user
+    await db.query(
+      'UPDATE users SET name = ?, email = ?, phone = ?, role_id = ? WHERE id = ?',
+      [name, email, phone, roleId, id]
+    );
+
+    res.json({ message: 'User updated successfully' });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete user
+router.delete('/users/:id', auth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if user exists
+    const [existingUser] = await db.query('SELECT id FROM users WHERE id = ?', [id]);
+    if (existingUser.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Delete user
+    await db.query('DELETE FROM users WHERE id = ?', [id]);
+
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get all parametric tables
+router.get('/parametric-tables', auth, requireAdmin, async (req, res) => {
+  try {
+    const [tables] = await db.query(`
+      SELECT pt.*, 
+             JSON_ARRAYAGG(
+               JSON_OBJECT(
+                 'name', ptc.name,
+                 'type', ptc.type,
+                 'required', ptc.required,
+                 'unique', ptc.unique,
+                 'options', ptc.options
+               )
+             ) as columns
+      FROM parametric_tables pt
+      LEFT JOIN parametric_table_columns ptc ON pt.id = ptc.table_id
+      GROUP BY pt.id
+    `);
+    
+    res.json({ tables });
+  } catch (error) {
+    console.error('Error fetching parametric tables:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Create new parametric table
+router.post('/parametric-tables', auth, requireAdmin, [
+  body('name').notEmpty().withMessage('Table name is required'),
+  body('description').notEmpty().withMessage('Description is required'),
+  body('columns').isArray().withMessage('Columns must be an array'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { name, description, columns } = req.body;
+
+    // Check if table already exists
+    const [existingTable] = await db.query('SELECT id FROM parametric_tables WHERE name = ?', [name]);
+    if (existingTable.length > 0) {
+      return res.status(400).json({ error: 'Table with this name already exists' });
+    }
+
+    // Create table
+    const [result] = await db.query(
+      'INSERT INTO parametric_tables (name, description) VALUES (?, ?)',
+      [name, description]
+    );
+
+    const tableId = result.insertId;
+
+    // Add columns
+    for (const column of columns) {
+      await db.query(
+        'INSERT INTO parametric_table_columns (table_id, name, type, required, unique, options) VALUES (?, ?, ?, ?, ?, ?)',
+        [
+          tableId,
+          column.name,
+          column.type,
+          column.required || false,
+          column.unique || false,
+          column.options ? JSON.stringify(column.options) : null
+        ]
+      );
+    }
+
+    res.status(201).json({ message: 'Parametric table created successfully', tableId });
+  } catch (error) {
+    console.error('Error creating parametric table:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update parametric table
+router.put('/parametric-tables/:id', auth, requireAdmin, [
+  body('name').notEmpty().withMessage('Table name is required'),
+  body('description').notEmpty().withMessage('Description is required'),
+  body('columns').isArray().withMessage('Columns must be an array'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { id } = req.params;
+    const { name, description, columns } = req.body;
+
+    // Check if table exists
+    const [existingTable] = await db.query('SELECT id FROM parametric_tables WHERE id = ?', [id]);
+    if (existingTable.length === 0) {
+      return res.status(404).json({ error: 'Table not found' });
+    }
+
+    // Update table
+    await db.query(
+      'UPDATE parametric_tables SET name = ?, description = ? WHERE id = ?',
+      [name, description, id]
+    );
+
+    // Remove existing columns
+    await db.query('DELETE FROM parametric_table_columns WHERE table_id = ?', [id]);
+
+    // Add new columns
+    for (const column of columns) {
+      await db.query(
+        'INSERT INTO parametric_table_columns (table_id, name, type, required, unique, options) VALUES (?, ?, ?, ?, ?, ?)',
+        [
+          id,
+          column.name,
+          column.type,
+          column.required || false,
+          column.unique || false,
+          column.options ? JSON.stringify(column.options) : null
+        ]
+      );
+    }
+
+    res.json({ message: 'Parametric table updated successfully' });
+  } catch (error) {
+    console.error('Error updating parametric table:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete parametric table
+router.delete('/parametric-tables/:id', auth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if table exists
+    const [existingTable] = await db.query('SELECT id FROM parametric_tables WHERE id = ?', [id]);
+    if (existingTable.length === 0) {
+      return res.status(404).json({ error: 'Table not found' });
+    }
+
+    // Remove columns
+    await db.query('DELETE FROM parametric_table_columns WHERE table_id = ?', [id]);
+
+    // Delete table
+    await db.query('DELETE FROM parametric_tables WHERE id = ?', [id]);
+
+    res.json({ message: 'Parametric table deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting parametric table:', error);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
