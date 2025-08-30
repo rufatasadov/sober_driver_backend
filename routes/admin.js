@@ -7,7 +7,7 @@ const auth = require('../middleware/auth');
 const db = require('../config/database');
 
 // Middleware to check if user has admin privileges
-const requireAdmin = async (req, res, next) => {
+const requireAdmin = (req, res, next) => {
   try {
     if (!req.user.role || !req.user.role.privileges.includes('admin.access')) {
       return res.status(403).json({ error: 'Admin access required' });
