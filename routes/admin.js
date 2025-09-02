@@ -3,7 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
-const auth = require('../middleware/auth');
+const { auth, authorize } = require('../middleware/auth');
 const db = require('../config/database');
 
 // Middleware to check if user has admin privileges
