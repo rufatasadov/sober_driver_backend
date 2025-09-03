@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const db = require('../config/database');
 
 const auth = async (req, res, next) => {
   try {
@@ -11,18 +12,37 @@ const auth = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // Sequelize ilə istifadəçini tap
-    const user = await User.findByPk(decoded.userId);
+    // Get user with role and privileges
+    const [users] = await db.query(`
+      SELECT u.*, r.name as role_name, r.id as role_id,
+             JSON_ARRAYAGG(p.name) as privileges
+      FROM users u
+      LEFT JOIN roles r ON u.role_id = r.id
+      LEFT JOIN role_privileges rp ON r.id = rp.role_id
+      LEFT JOIN privileges p ON rp.privilege_id = p.id
+      WHERE u.id = ?
+      GROUP BY u.id
+    `, [decoded.userId]);
 
-    if (!user) {
+    if (users.length === 0) {
       return res.status(401).json({ error: 'Invalid token. User not found.' });
     }
+
+    const user = users[0];
 
     if (!user.isActive) {
       return res.status(401).json({ error: 'Account is deactivated.' });
     }
 
-    req.user = user;
+    // Structure user data for admin routes
+    req.user = {
+      ...user,
+      role: {
+        id: user.role_id,
+        name: user.role_name,
+        privileges: user.privileges || []
+      }
+    };
     req.token = token;
     next();
   } catch (error) {
@@ -37,7 +57,7 @@ const authorize = (...roles) => {
       return res.status(401).json({ error: 'Access denied. No token provided.' });
     }
 
-    if (!roles.includes(req.user.role)) {
+    if (!roles.includes(req.user.role?.name)) {
       return res.status(403).json({ 
         error: 'Access denied. Insufficient permissions.' 
       });
