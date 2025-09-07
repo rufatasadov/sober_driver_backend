@@ -1,6 +1,7 @@
+
+require('dotenv').config();
 const { sequelize } = require('./config/database');
 const bcrypt = require('bcryptjs');
-require('dotenv').config();
 
 async function setupAdminSystem() {
   try {
