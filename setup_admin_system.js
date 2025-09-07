@@ -43,8 +43,8 @@ async function setupAdminSystem() {
     }
 
     // 3. Check if admin role exists
-    const adminRoles = await sequelize.query('SELECT id FROM roles WHERE name = $1', {
-      replacements: ['admin'],
+    const adminRoles = await sequelize.query('SELECT id FROM roles WHERE name = \'admin\'', {
+      
       type: sequelize.QueryTypes.SELECT
     });
     
@@ -66,8 +66,8 @@ async function setupAdminSystem() {
       
       // Assign admin role to the first user (you can modify this logic)
       const firstUser = usersWithoutRole[0];
-      await sequelize.query('UPDATE users SET role_id = $1 WHERE id = $2', {
-        replacements: [adminRoleId, firstUser.id],
+      await sequelize.query('UPDATE users SET role_id = ${adminRoleId} WHERE id =${firstUser.id}', {
+        //replacements: [adminRoleId, firstUser.id],
         type: sequelize.QueryTypes.UPDATE
       });
       console.log(`✅ Assigned admin role to user: ${firstUser.name} (${firstUser.email || firstUser.phone})`);
