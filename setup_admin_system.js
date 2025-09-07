@@ -108,7 +108,7 @@ async function setupAdminSystem() {
       
       const result = await sequelize.query(`
         INSERT INTO users (id,name, email, phone, password, role_id, "isActive") 
-        VALUES (\'440c299e-95bf-43e0-9b44-d24899f2ac62\',\'Admin User\', \'admin@example.com\', \'+1234567890\', \'${hashedPassword}\', \'${adminRoleId}\', \'${true}\')
+        VALUES (\'ac42f19f-e8ea-42c5-af24-7e3ca27d3f1f\',\'Admin User\', \'admin@example.com\', \'+1234567890\', \'${hashedPassword}\', \'${adminRoleId}\', \'${true}\')
         RETURNING id
       `, {
      //   replacements: ['Admin User', 'admin@example.com', '+1234567890', hashedPassword, adminRoleId, true],
@@ -148,7 +148,7 @@ async function setupAdminSystem() {
         
         const result = await sequelize.query(`
           INSERT INTO users (id,name, email, phone, password, role_id, "isActive") 
-          VALUES (\'24353923-667e-4774-9782-57b153824s24\',\'Dispatcher User\', \'dispatcher@example.com\', \'+1234567891\', \'${hashedPassword}\', \'${dispatcherRoleId}\', \'${true}\')
+          VALUES (\'95b5ab76-b5de-4c54-90f6-9a79f9e7aa06\',\'Dispatcher User\', \'dispatcher@example.com\', \'+1234567891\', \'${hashedPassword}\', \'${dispatcherRoleId}\', \'${true}\')
           RETURNING id
         `, {
           //replacements: ['Dispatcher User', 'dispatcher@example.com', '+1234567891', hashedPassword, dispatcherRoleId, true],
