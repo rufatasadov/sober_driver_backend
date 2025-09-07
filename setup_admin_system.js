@@ -66,7 +66,7 @@ async function setupAdminSystem() {
       
       // Assign admin role to the first user (you can modify this logic)
       const firstUser = usersWithoutRole[0];
-      await sequelize.query(`UPDATE users SET role_id = ${adminRoleId} WHERE id =${firstUser.id}`, {
+      await sequelize.query(`UPDATE users SET role_id = \'${adminRoleId}\' WHERE id =\'${firstUser.id}\'`, {
         //replacements: [adminRoleId, firstUser.id],
         type: sequelize.QueryTypes.UPDATE
       });
@@ -81,7 +81,7 @@ async function setupAdminSystem() {
         const operatorRoleId = operatorRoles[0].id;
         for (let i = 1; i < usersWithoutRole.length; i++) {
           const user = usersWithoutRole[i];
-          await sequelize.query(`UPDATE users SET role_id = ${operatorRoleId} WHERE id = ${user.id}`, {
+          await sequelize.query(`UPDATE users SET role_id = \'${operatorRoleId}\' WHERE id = \'${user.id}\'`, {
           //  replacements: [operatorRoleId, user.id],
             type: sequelize.QueryTypes.UPDATE
           });
@@ -108,7 +108,7 @@ async function setupAdminSystem() {
       
       const result = await sequelize.query(`
         INSERT INTO users (name, email, phone, password, role_id, "isActive") 
-        VALUES (\'Admin User\', \'admin@example.com\', \'+1234567890\', ${hashedPassword}, ${adminRoleId}, ${true})
+        VALUES (\'Admin User\', \'admin@example.com\', \'+1234567890\', \'${hashedPassword}\', \'${adminRoleId}\', \'${true}\')
         RETURNING id
       `, {
      //   replacements: ['Admin User', 'admin@example.com', '+1234567890', hashedPassword, adminRoleId, true],
@@ -148,7 +148,7 @@ async function setupAdminSystem() {
         
         const result = await sequelize.query(`
           INSERT INTO users (name, email, phone, password, role_id, "isActive") 
-          VALUES (\'Dispatcher User\', \'dispatcher@example.com\', \'+1234567891\', ${hashedPassword}, ${dispatcherRoleId}, ${true})
+          VALUES (\'Dispatcher User\', \'dispatcher@example.com\', \'+1234567891\', \'${hashedPassword}\', \'${dispatcherRoleId}\', \'${true}\')
           RETURNING id
         `, {
           //replacements: ['Dispatcher User', 'dispatcher@example.com', '+1234567891', hashedPassword, dispatcherRoleId, true],
