@@ -89,8 +89,8 @@ async function setupAdminSystem() {
         }
         
         if (roleId) {
-          await sequelize.query('UPDATE users SET role_id = $1 WHERE id = $2', {
-            replacements: [roleId, user.id],
+          await sequelize.query(`UPDATE users SET role_id = $1 WHERE id = '${user.id}'`, {
+            replacements: [roleId],
             type: sequelize.QueryTypes.UPDATE
           });
           console.log(`✅ Assigned role_id ${roleId} to user: ${user.name} (${user.email || user.phone}) - role: ${user.role}`);

@@ -9,4 +9,3 @@ git push
 
 echo.
 echo Push tamamlandı!
-pause 
