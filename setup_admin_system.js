@@ -66,14 +66,14 @@ async function setupAdminSystem() {
       
       // Assign admin role to the first user (you can modify this logic)
       const firstUser = usersWithoutRole[0];
-      await sequelize.query('UPDATE users SET role_id = ${adminRoleId} WHERE id =${firstUser.id}', {
+      await sequelize.query(`UPDATE users SET role_id = ${adminRoleId} WHERE id =${firstUser.id}`, {
         //replacements: [adminRoleId, firstUser.id],
         type: sequelize.QueryTypes.UPDATE
       });
       console.log(`✅ Assigned admin role to user: ${firstUser.name} (${firstUser.email || firstUser.phone})`);
       
       // Assign operator role to other users
-      const operatorRoles = await sequelize.query('SELECT id FROM roles WHERE name = $1', {
+      const operatorRoles = await sequelize.query('SELECT id FROM roles WHERE name = \'operator\'', {
         replacements: ['operator'],
         type: sequelize.QueryTypes.SELECT
       });
@@ -81,8 +81,8 @@ async function setupAdminSystem() {
         const operatorRoleId = operatorRoles[0].id;
         for (let i = 1; i < usersWithoutRole.length; i++) {
           const user = usersWithoutRole[i];
-          await sequelize.query('UPDATE users SET role_id = $1 WHERE id = $2', {
-            replacements: [operatorRoleId, user.id],
+          await sequelize.query(`UPDATE users SET role_id = ${operatorRoleId} WHERE id = ${user.id}`, {
+          //  replacements: [operatorRoleId, user.id],
             type: sequelize.QueryTypes.UPDATE
           });
           console.log(`✅ Assigned operator role to user: ${user.name} (${user.email || user.phone})`);
@@ -96,9 +96,9 @@ async function setupAdminSystem() {
     const adminUsers = await sequelize.query(`
       SELECT u.id FROM users u 
       JOIN roles r ON u.role_id = r.id 
-      WHERE r.name = $1
+      WHERE r.name = \'admin\'
     `, {
-      replacements: ['admin'],
+    //  replacements: ['admin'],
       type: sequelize.QueryTypes.SELECT
     });
     
@@ -108,10 +108,10 @@ async function setupAdminSystem() {
       
       const result = await sequelize.query(`
         INSERT INTO users (name, email, phone, password, role_id, "isActive") 
-        VALUES ($1, $2, $3, $4, $5, $6)
+        VALUES (\'Admin User\', \'admin@example.com\', \'+1234567890\', ${hashedPassword}, ${adminRoleId}, ${true})
         RETURNING id
       `, {
-        replacements: ['Admin User', 'admin@example.com', '+1234567890', hashedPassword, adminRoleId, true],
+     //   replacements: ['Admin User', 'admin@example.com', '+1234567890', hashedPassword, adminRoleId, true],
         type: sequelize.QueryTypes.INSERT
       });
       
@@ -127,9 +127,9 @@ async function setupAdminSystem() {
     const dispatcherUsers = await sequelize.query(`
       SELECT u.id FROM users u 
       JOIN roles r ON u.role_id = r.id 
-      WHERE r.name = $1
+      WHERE r.name = \'dispatcher\'
     `, {
-      replacements: ['dispatcher'],
+    //  replacements: ['dispatcher'],
       type: sequelize.QueryTypes.SELECT
     });
     
@@ -138,8 +138,8 @@ async function setupAdminSystem() {
       const hashedPassword = await bcrypt.hash('dispatcher123', 12);
       
       // Get dispatcher role ID
-      const dispatcherRoles = await sequelize.query('SELECT id FROM roles WHERE name = $1', {
-        replacements: ['dispatcher'],
+      const dispatcherRoles = await sequelize.query('SELECT id FROM roles WHERE name = \'dispatcher\'', {
+       // replacements: ['dispatcher'],
         type: sequelize.QueryTypes.SELECT
       });
       
@@ -148,10 +148,10 @@ async function setupAdminSystem() {
         
         const result = await sequelize.query(`
           INSERT INTO users (name, email, phone, password, role_id, "isActive") 
-          VALUES ($1, $2, $3, $4, $5, $6)
+          VALUES (\'Dispatcher User\', \'dispatcher@example.com\', \'+1234567891\', ${hashedPassword}, ${dispatcherRoleId}, ${true})
           RETURNING id
         `, {
-          replacements: ['Dispatcher User', 'dispatcher@example.com', '+1234567891', hashedPassword, dispatcherRoleId, true],
+          //replacements: ['Dispatcher User', 'dispatcher@example.com', '+1234567891', hashedPassword, dispatcherRoleId, true],
           type: sequelize.QueryTypes.INSERT
         });
         
