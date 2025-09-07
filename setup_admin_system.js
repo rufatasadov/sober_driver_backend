@@ -1,9 +1,23 @@
 const { sequelize } = require('./config/database');
 const bcrypt = require('bcryptjs');
+require('dotenv').config();
 
 async function setupAdminSystem() {
   try {
     console.log('🚀 Setting up admin system...');
+
+    // Check if DATABASE_URL is set
+    if (!process.env.DATABASE_URL) {
+      console.error('❌ DATABASE_URL environment variable is not set!');
+      console.log('\n📋 Please create a .env file with the following content:');
+      console.log('DATABASE_URL=postgresql://username:password@localhost:5432/ayiqsurucu');
+      console.log('JWT_SECRET=your-super-secret-jwt-key-here');
+      console.log('NODE_ENV=development');
+      console.log('\nOr copy from env.example:');
+      console.log('copy env.example .env');
+      console.log('\nThen edit the .env file with your actual database credentials.');
+      process.exit(1);
+    }
 
     // 1. Connect to database
     await sequelize.authenticate();
