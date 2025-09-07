@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const db = require('../config/database');
+const { sequelize } = require('../config/database');
 
 const auth = async (req, res, next) => {
   try {
@@ -12,17 +12,23 @@ const auth = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // Get user with role and privileges
-    const [users] = await db.query(`
+    // Get user with role and privileges using Sequelize
+    const users = await sequelize.query(`
       SELECT u.*, r.name as role_name, r.id as role_id,
-             JSON_ARRAYAGG(p.name) as privileges
+             COALESCE(
+               JSON_AGG(p.name) FILTER (WHERE p.name IS NOT NULL), 
+               '[]'::json
+             ) as privileges
       FROM users u
       LEFT JOIN roles r ON u.role_id = r.id
       LEFT JOIN role_privileges rp ON r.id = rp.role_id
       LEFT JOIN privileges p ON rp.privilege_id = p.id
-      WHERE u.id = ?
-      GROUP BY u.id
-    `, [decoded.userId]);
+      WHERE u.id = $1
+      GROUP BY u.id, r.id, r.name
+    `, {
+      replacements: [decoded.userId],
+      type: sequelize.QueryTypes.SELECT
+    });
 
     if (users.length === 0) {
       return res.status(401).json({ error: 'Invalid token. User not found.' });
