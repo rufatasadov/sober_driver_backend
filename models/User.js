@@ -51,6 +51,14 @@ const User = sequelize.define('User', {
     defaultValue: 'customer',
     allowNull: false
   },
+  role_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'roles',
+      key: 'id'
+    }
+  },
   isVerified: {
     type: DataTypes.BOOLEAN,
     defaultValue: false

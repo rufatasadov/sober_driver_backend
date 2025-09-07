@@ -35,7 +35,12 @@ Or if you have a different PostgreSQL setup, run the SQL file in your preferred 
 
 **Note:** Make sure your PostgreSQL database is running and accessible before running the setup script.
 
-### 4. Run Admin System Setup
+### 4. Run Migration (if you have existing users)
+```bash
+node migrate_add_role_id.js
+```
+
+### 5. Run Admin System Setup
 ```bash
 node setup_admin_system.js
 ```
