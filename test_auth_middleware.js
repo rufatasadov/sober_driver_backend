@@ -40,7 +40,7 @@ async function testAuthMiddleware() {
       LEFT JOIN roles r ON u.role_id = r.id
       LEFT JOIN role_privileges rp ON r.id = rp.role_id
       LEFT JOIN privileges p ON rp.privilege_id = p.id
-      WHERE u.id = $1
+      WHERE u.id = 1
       GROUP BY u.id, r.id, r.name
     `, {
       replacements: [1], // Test with user ID 1

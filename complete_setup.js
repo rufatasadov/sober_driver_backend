@@ -93,8 +93,8 @@ async function completeSetup() {
         }
         
         if (roleId) {
-          await sequelize.query(`UPDATE users SET role_id = $1 WHERE id = '${user.id}'`, {
-            replacements: [roleId],
+          await sequelize.query(`UPDATE users SET role_id = ${roleId} WHERE id = '${user.id}'`, {
+            //replacements: [roleId],
             type: sequelize.QueryTypes.UPDATE
           });
           console.log(`✅ Assigned role_id ${roleId} to user: ${user.name} (${user.email || user.phone}) - role: ${user.role}`);
@@ -108,7 +108,7 @@ async function completeSetup() {
     const adminUsers = await sequelize.query(`
       SELECT u.id FROM users u 
       JOIN roles r ON u.role_id = r.id 
-      WHERE r.name = $1
+      WHERE r.name = 'admin'
     `, {
       replacements: ['admin'],
       type: sequelize.QueryTypes.SELECT
@@ -122,10 +122,10 @@ async function completeSetup() {
       if (adminRoleId) {
         const result = await sequelize.query(`
           INSERT INTO users (name, email, phone, password, role_id, "isActive", role) 
-          VALUES ($1, $2, $3, $4, $5, $6, $7)
+          VALUES ('Admin User', 'admin@example.com', '+1234567890', '${hashedPassword}', ${adminRoleId}, ${true}, 'admin')
           RETURNING id
         `, {
-          replacements: ['Admin User', 'admin@example.com', '+1234567890', hashedPassword, adminRoleId, true, 'admin'],
+          //replacements: ['Admin User', 'admin@example.com', '+1234567890', hashedPassword, adminRoleId, true, 'admin'],
           type: sequelize.QueryTypes.INSERT
         });
         
@@ -142,9 +142,9 @@ async function completeSetup() {
     const dispatcherUsers = await sequelize.query(`
       SELECT u.id FROM users u 
       JOIN roles r ON u.role_id = r.id 
-      WHERE r.name = $1
+      WHERE r.name = 'dispatcher'
     `, {
-      replacements: ['dispatcher'],
+      //replacements: ['dispatcher'],
       type: sequelize.QueryTypes.SELECT
     });
     
@@ -156,10 +156,10 @@ async function completeSetup() {
       if (dispatcherRoleId) {
         const result = await sequelize.query(`
           INSERT INTO users (name, email, phone, password, role_id, "isActive", role) 
-          VALUES ($1, $2, $3, $4, $5, $6, $7)
+          VALUES ('Dispatcher User', 'dispatcher@example.com', '+1234567891', '${hashedPassword}', ${dispatcherRoleId}, ${true}, 'dispatcher')
           RETURNING id
         `, {
-          replacements: ['Dispatcher User', 'dispatcher@example.com', '+1234567891', hashedPassword, dispatcherRoleId, true, 'dispatcher'],
+          //replacements: ['Dispatcher User', 'dispatcher@example.com', '+1234567891', hashedPassword, dispatcherRoleId, true, 'dispatcher'],
           type: sequelize.QueryTypes.INSERT
         });
         

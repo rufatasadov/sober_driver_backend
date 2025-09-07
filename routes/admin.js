@@ -57,7 +57,7 @@ router.post('/roles', auth, requireAdmin, [
     const { name, description, privileges } = req.body;
 
     // Check if role already exists
-    const existingRole = await sequelize.query('SELECT id FROM roles WHERE name = $1', {
+    const existingRole = await sequelize.query('SELECT id FROM roles WHERE name = \'${name}\'', {
       replacements: [name],
       type: sequelize.QueryTypes.SELECT
     });
@@ -67,7 +67,7 @@ router.post('/roles', auth, requireAdmin, [
 
     // Create role
     const result = await sequelize.query(
-      'INSERT INTO roles (name, description) VALUES ($1, $2) RETURNING id',
+      'INSERT INTO roles (name, description) VALUES (\'${name}\', \'${description}\') RETURNING id',
       {
         replacements: [name, description],
         type: sequelize.QueryTypes.INSERT
@@ -79,9 +79,9 @@ router.post('/roles', auth, requireAdmin, [
     // Add privileges
     for (const privilege of privileges) {
       await sequelize.query(
-        'INSERT INTO role_privileges (role_id, privilege_id) VALUES ($1, $2)',
+        'INSERT INTO role_privileges (role_id, privilege_id) VALUES (\'${roleId}\', \'${privilege}\')',
         {
-          replacements: [roleId, privilege],
+          //replacements: [roleId, privilege],
           type: sequelize.QueryTypes.INSERT
         }
       );
@@ -110,7 +110,7 @@ router.put('/roles/:id', auth, requireAdmin, [
     const { name, description, privileges } = req.body;
 
     // Check if role exists
-    const existingRole = await sequelize.query('SELECT id FROM roles WHERE id = $1', {
+    const existingRole = await sequelize.query('SELECT id FROM roles WHERE id = \'${id}\'', {
       replacements: [id],
       type: sequelize.QueryTypes.SELECT
     });
@@ -120,25 +120,25 @@ router.put('/roles/:id', auth, requireAdmin, [
 
     // Update role
     await sequelize.query(
-      'UPDATE roles SET name = $1, description = $2 WHERE id = $3',
+      'UPDATE roles SET name = \'${name}\', description = \'${description}\' WHERE id = \'${id}\'',
       {
-        replacements: [name, description, id],
+        //replacements: [name, description, id],
         type: sequelize.QueryTypes.UPDATE
       }
     );
 
     // Remove existing privileges
-    await sequelize.query('DELETE FROM role_privileges WHERE role_id = $1', {
-      replacements: [id],
+    await sequelize.query('DELETE FROM role_privileges WHERE role_id = \'${id}\'', {
+      //replacements: [id],
       type: sequelize.QueryTypes.DELETE
     });
 
     // Add new privileges
     for (const privilege of privileges) {
       await sequelize.query(
-        'INSERT INTO role_privileges (role_id, privilege_id) VALUES ($1, $2)',
+        'INSERT INTO role_privileges (role_id, privilege_id) VALUES (\'${id}\', \'${privilege}\')',
         {
-          replacements: [id, privilege],
+          //replacements: [id, privilege],
           type: sequelize.QueryTypes.INSERT
         }
       );
@@ -157,8 +157,9 @@ router.delete('/roles/:id', auth, requireAdmin, async (req, res) => {
     const { id } = req.params;
 
     // Check if role is assigned to any users
-    const usersWithRole = await sequelize.query('SELECT id FROM users WHERE role_id = $1', {
-      replacements: [id],
+      const usersWithRole = await sequelize.query('SELECT id FROM users WHERE role_id = \'${id}\'', {
+      //replacements: [id],
+      //replacements: [id],
       type: sequelize.QueryTypes.SELECT
     });
     if (usersWithRole.length > 0) {
@@ -166,14 +167,14 @@ router.delete('/roles/:id', auth, requireAdmin, async (req, res) => {
     }
 
     // Remove privileges
-    await sequelize.query('DELETE FROM role_privileges WHERE role_id = $1', {
-      replacements: [id],
+    await sequelize.query('DELETE FROM role_privileges WHERE role_id = \'${id}\'', {
+      //replacements: [id],
       type: sequelize.QueryTypes.DELETE
     });
 
     // Delete role
-    await sequelize.query('DELETE FROM roles WHERE id = $1', {
-      replacements: [id],
+    await sequelize.query('DELETE FROM roles WHERE id = \'${id}\'', {
+      //replacements: [id],
       type: sequelize.QueryTypes.DELETE
     });
 
@@ -220,7 +221,7 @@ router.post('/users', auth, requireAdmin, [
     const { name, email, phone, roleId, password } = req.body;
 
     // Check if user already exists
-    const existingUser = await sequelize.query('SELECT id FROM users WHERE email = $1 OR phone = $2', {
+    const existingUser = await sequelize.query('SELECT id FROM users WHERE email = \'${email}\' OR phone = \'${phone}\'', {
       replacements: [email, phone],
       type: sequelize.QueryTypes.SELECT
     });
@@ -233,9 +234,9 @@ router.post('/users', auth, requireAdmin, [
 
     // Create user
     const result = await sequelize.query(
-      'INSERT INTO users (name, email, phone, password, role_id) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+      'INSERT INTO users (name, email, phone, password, role_id) VALUES (\'${name}\', \'${email}\', \'${phone}\', \'${hashedPassword}\', \'${roleId}\') RETURNING id',
       {
-        replacements: [name, email, phone, hashedPassword, roleId],
+        //replacements: [name, email, phone, hashedPassword, roleId],
         type: sequelize.QueryTypes.INSERT
       }
     );
@@ -264,7 +265,7 @@ router.put('/users/:id', auth, requireAdmin, [
     const { name, email, phone, roleId } = req.body;
 
     // Check if user exists
-    const existingUser = await sequelize.query('SELECT id FROM users WHERE id = $1', {
+    const existingUser = await sequelize.query('SELECT id FROM users WHERE id = \'${id}\'', {
       replacements: [id],
       type: sequelize.QueryTypes.SELECT
     });
@@ -274,9 +275,9 @@ router.put('/users/:id', auth, requireAdmin, [
 
     // Check if email/phone is already taken by another user
     const duplicateUser = await sequelize.query(
-      'SELECT id FROM users WHERE (email = $1 OR phone = $2) AND id != $3',
+      'SELECT id FROM users WHERE (email = \'${email}\' OR phone = \'${phone}\') AND id != \'${id}\'',
       {
-        replacements: [email, phone, id],
+        //replacements: [email, phone, id],
         type: sequelize.QueryTypes.SELECT
       }
     );
@@ -286,9 +287,9 @@ router.put('/users/:id', auth, requireAdmin, [
 
     // Update user
     await sequelize.query(
-      'UPDATE users SET name = $1, email = $2, phone = $3, role_id = $4 WHERE id = $5',
+        'UPDATE users SET name = \'${name}\', email = \'${email}\', phone = \'${phone}\', role_id = \'${roleId}\' WHERE id = \'${id}\'',
       {
-        replacements: [name, email, phone, roleId, id],
+        //replacements: [name, email, phone, roleId, id],
         type: sequelize.QueryTypes.UPDATE
       }
     );
@@ -306,7 +307,7 @@ router.delete('/users/:id', auth, requireAdmin, async (req, res) => {
     const { id } = req.params;
 
     // Check if user exists
-    const existingUser = await sequelize.query('SELECT id FROM users WHERE id = $1', {
+    const existingUser = await sequelize.query('SELECT id FROM users WHERE id = \'${id}\'', {
       replacements: [id],
       type: sequelize.QueryTypes.SELECT
     });
@@ -315,7 +316,7 @@ router.delete('/users/:id', auth, requireAdmin, async (req, res) => {
     }
 
     // Delete user
-    await sequelize.query('DELETE FROM users WHERE id = $1', {
+      await sequelize.query('DELETE FROM users WHERE id = \'${id}\'', {
       replacements: [id],
       type: sequelize.QueryTypes.DELETE
     });

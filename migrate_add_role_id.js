@@ -63,10 +63,10 @@ async function migrateAddRoleId() {
     for (const role of roles) {
       const result = await sequelize.query(`
         UPDATE users 
-        SET role_id = $1 
-        WHERE role = $2 AND role_id IS NULL
+        SET role_id = ${role.id} 
+        WHERE role = '${role.name}' AND role_id IS NULL
       `, {
-        replacements: [role.id, role.name],
+        //replacements: [role.id, role.name],
         type: sequelize.QueryTypes.UPDATE
       });
 
