@@ -23,7 +23,7 @@ const auth = async (req, res, next) => {
       LEFT JOIN roles r ON u.role_id = r.id
       LEFT JOIN role_privileges rp ON r.id = rp.role_id
       LEFT JOIN privileges p ON rp.privilege_id = p.id
-      WHERE u.id = ${decoded.userId}
+      WHERE u.id = '${decoded.userId}'
       GROUP BY u.id, r.id, r.name
     `, {
       
