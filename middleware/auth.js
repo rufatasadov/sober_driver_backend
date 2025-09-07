@@ -65,7 +65,7 @@ const authorize = (...roles) => {
 
     if (!roles.includes(req.user.role?.name)) {
       return res.status(403).json({ 
-        error: 'Access denied. Insufficient permissions X.' 
+        error: `Access denied. Insufficient permissions X. roles = ${roles} , req.user.role.name = ${req.user.role.name}` 
       });
     }
 
