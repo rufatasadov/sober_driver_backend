@@ -24,7 +24,25 @@ async function setupAdminSystem() {
     await sequelize.authenticate();
     console.log('✅ Database connected successfully');
 
-    // 2. Check if admin role exists
+    // 2. Check if roles table exists
+    const tableExists = await sequelize.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'roles'
+      );
+    `, {
+      type: sequelize.QueryTypes.SELECT
+    });
+    
+    if (!tableExists[0].exists) {
+      console.log('❌ Roles table not found. Please run admin_database_setup_postgresql.sql first.');
+      console.log('\n📋 To fix this, run:');
+      console.log('psql -U your_username -d ayiqsurucu -f admin_database_setup_postgresql.sql');
+      return;
+    }
+
+    // 3. Check if admin role exists
     const adminRoles = await sequelize.query('SELECT id FROM roles WHERE name = $1', {
       replacements: ['admin'],
       type: sequelize.QueryTypes.SELECT
@@ -38,7 +56,7 @@ async function setupAdminSystem() {
     const adminRoleId = adminRoles[0].id;
     console.log('✅ Admin role found with ID:', adminRoleId);
 
-    // 3. Check if there are any users without role_id
+    // 4. Check if there are any users without role_id
     const usersWithoutRole = await sequelize.query('SELECT id, name, email, phone FROM users WHERE role_id IS NULL', {
       type: sequelize.QueryTypes.SELECT
     });
@@ -74,7 +92,7 @@ async function setupAdminSystem() {
       console.log('✅ All users already have roles assigned');
     }
 
-    // 4. Create a test admin user if none exists
+    // 5. Create a test admin user if none exists
     const adminUsers = await sequelize.query(`
       SELECT u.id FROM users u 
       JOIN roles r ON u.role_id = r.id 
@@ -105,7 +123,7 @@ async function setupAdminSystem() {
       console.log('✅ Admin users already exist');
     }
 
-    // 5. Create test dispatcher user if none exists
+    // 6. Create test dispatcher user if none exists
     const dispatcherUsers = await sequelize.query(`
       SELECT u.id FROM users u 
       JOIN roles r ON u.role_id = r.id 
