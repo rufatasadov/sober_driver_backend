@@ -107,8 +107,8 @@ async function setupAdminSystem() {
       const hashedPassword = await bcrypt.hash('admin123', 12);
       
       const result = await sequelize.query(`
-        INSERT INTO users (name, email, phone, password, role_id, "isActive") 
-        VALUES (\'Admin User\', \'admin@example.com\', \'+1234567890\', \'${hashedPassword}\', \'${adminRoleId}\', \'${true}\')
+        INSERT INTO users (id,name, email, phone, password, role_id, "isActive") 
+        VALUES (10,\'Admin User\', \'admin@example.com\', \'+1234567890\', \'${hashedPassword}\', \'${adminRoleId}\', \'${true}\')
         RETURNING id
       `, {
      //   replacements: ['Admin User', 'admin@example.com', '+1234567890', hashedPassword, adminRoleId, true],
@@ -147,8 +147,8 @@ async function setupAdminSystem() {
         const dispatcherRoleId = dispatcherRoles[0].id;
         
         const result = await sequelize.query(`
-          INSERT INTO users (name, email, phone, password, role_id, "isActive") 
-          VALUES (\'Dispatcher User\', \'dispatcher@example.com\', \'+1234567891\', \'${hashedPassword}\', \'${dispatcherRoleId}\', \'${true}\')
+          INSERT INTO users (id,name, email, phone, password, role_id, "isActive") 
+          VALUES (11,\'Dispatcher User\', \'dispatcher@example.com\', \'+1234567891\', \'${hashedPassword}\', \'${dispatcherRoleId}\', \'${true}\')
           RETURNING id
         `, {
           //replacements: ['Dispatcher User', 'dispatcher@example.com', '+1234567891', hashedPassword, dispatcherRoleId, true],
