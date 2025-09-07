@@ -33,6 +33,8 @@ psql -U username -d ayiqsurucu -f admin_database_setup_postgresql.sql
 
 Or if you have a different PostgreSQL setup, run the SQL file in your preferred database client.
 
+**Note:** Make sure your PostgreSQL database is running and accessible before running the setup script.
+
 ### 4. Run Admin System Setup
 ```bash
 node setup_admin_system.js
@@ -43,9 +45,9 @@ node setup_admin_system.js
 1. **Connects to PostgreSQL database** using Sequelize
 2. **Checks for admin role** - ensures the roles table exists
 3. **Assigns roles to existing users** - gives admin role to first user, operator role to others
-4. **Creates test admin user** if none exists:
-   - Email: admin@example.com
-   - Password: admin123
+4. **Creates test users** if none exist:
+   - **Admin User**: admin@example.com / admin123
+   - **Dispatcher User**: dispatcher@example.com / dispatcher123
 
 ## Troubleshooting
 
