@@ -6,6 +6,10 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../orders/presentation/providers/orders_provider.dart';
 import '../../../orders/presentation/screens/orders_screen.dart';
+import '../../../profile/presentation/providers/profile_provider.dart';
+import '../../../profile/presentation/screens/profile_screen.dart';
+import '../../../profile/presentation/screens/earnings_screen.dart';
+import '../providers/dashboard_provider.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -24,10 +28,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: IndexedStack(
         index: _currentIndex,
         children: const [
-          HomeScreen(),
+          HomeTabScreen(),
           OrdersTabScreen(),
-          EarningsScreen(),
-          ProfileScreen(),
+          EarningsTabScreen(),
+          ProfileTabScreen(),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -53,6 +57,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
+// Home screen with provider
+class HomeTabScreen extends StatelessWidget {
+  const HomeTabScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => DashboardProvider()..loadDashboardData(),
+      child: const HomeScreen(),
+    );
+  }
+}
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -61,250 +78,346 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  bool _isOnline = false;
-  bool _isLoading = false;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.all(16.w),
-          child: Column(
-            children: [
-              // Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: Consumer2<DashboardProvider, AuthProvider>(
+        builder: (context, dashboardProvider, authProvider, child) {
+          if (dashboardProvider.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final stats = dashboardProvider.stats ?? {};
+          final user = authProvider.user;
+          final isOnline = stats['isOnline'] ?? false;
+          final isAvailable = stats['isAvailable'] ?? false;
+
+          return SafeArea(
+            child: Padding(
+              padding: EdgeInsets.all(16.w),
+              child: Column(
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  // Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Xoş gəlmisiniz!', style: AppTheme.heading2),
-                      SizedBox(height: 4.h),
-                      Text(
-                        'Hazır olduğunuzda işə başlaya bilərsiniz',
-                        style: AppTheme.bodyMedium.copyWith(
-                          color: AppColors.textSecondary,
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Xoş gəlmisiniz, ${user?['name']?.split(' ').first ?? 'Sürücü'}!',
+                            style: AppTheme.heading2,
+                          ),
+                          SizedBox(height: 4.h),
+                          Text(
+                            isOnline
+                                ? 'Onlayn və hazırsınız'
+                                : 'Hazır olduğunuzda işə başlaya bilərsiniz',
+                            style: AppTheme.bodyMedium.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      // Profile Avatar
+                      GestureDetector(
+                        onTap: () {
+                          // Navigate to profile tab
+                          DefaultTabController.of(context)?.animateTo(3);
+                        },
+                        child: CircleAvatar(
+                          radius: 25.r,
+                          backgroundColor: AppColors.primary,
+                          backgroundImage:
+                              user?['profileImage'] != null
+                                  ? NetworkImage(user!['profileImage'])
+                                  : null,
+                          child:
+                              user?['profileImage'] == null
+                                  ? Text(
+                                    (user?['name'] ?? 'A')
+                                        .substring(0, 1)
+                                        .toUpperCase(),
+                                    style: TextStyle(
+                                      color: AppColors.textOnPrimary,
+                                      fontSize: 20.sp,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  )
+                                  : null,
                         ),
                       ),
                     ],
                   ),
-                  // Profile Avatar
-                  CircleAvatar(
-                    radius: 25.r,
-                    backgroundColor: AppColors.primary,
-                    child: Text(
-                      'A',
-                      style: TextStyle(
-                        color: AppColors.textOnPrimary,
-                        fontSize: 20.sp,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
 
-              SizedBox(height: 32.h),
+                  SizedBox(height: 32.h),
 
-              // Online/Offline Toggle
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(24.w),
-                decoration: BoxDecoration(
-                  color: _isOnline ? AppColors.success : AppColors.surface,
-                  borderRadius: BorderRadius.circular(16.r),
-                  border: Border.all(
-                    color: _isOnline ? AppColors.success : AppColors.border,
-                    width: 2.w,
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Icon(
-                      _isOnline ? Icons.check_circle : Icons.cancel,
-                      size: 60.sp,
-                      color:
-                          _isOnline
-                              ? AppColors.textOnPrimary
-                              : AppColors.textSecondary,
-                    ),
-                    SizedBox(height: 16.h),
-                    Text(
-                      _isOnline ? 'Onlayn' : 'Oflayn',
-                      style: AppTheme.heading2.copyWith(
-                        color:
-                            _isOnline
-                                ? AppColors.textOnPrimary
-                                : AppColors.textPrimary,
+                  // Online/Offline Toggle
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(24.w),
+                    decoration: BoxDecoration(
+                      color: isOnline ? AppColors.success : AppColors.surface,
+                      borderRadius: BorderRadius.circular(16.r),
+                      border: Border.all(
+                        color: isOnline ? AppColors.success : AppColors.border,
+                        width: 2.w,
                       ),
                     ),
-                    SizedBox(height: 8.h),
-                    Text(
-                      _isOnline
-                          ? 'Yeni sifarişlər alırsınız'
-                          : 'İşə başlamaq üçün düyməyə basın',
-                      style: AppTheme.bodyMedium.copyWith(
-                        color:
-                            _isOnline
-                                ? AppColors.textOnPrimary
-                                : AppColors.textSecondary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 24.h),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48.h,
-                      child: ElevatedButton(
-                        onPressed: _toggleOnlineStatus,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              _isOnline
+                    child: Column(
+                      children: [
+                        Icon(
+                          isOnline ? Icons.check_circle : Icons.cancel,
+                          size: 60.sp,
+                          color:
+                              isOnline
                                   ? AppColors.textOnPrimary
-                                  : AppColors.primary,
-                          foregroundColor:
-                              _isOnline
-                                  ? AppColors.success
-                                  : AppColors.textOnPrimary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8.r),
+                                  : AppColors.textSecondary,
+                        ),
+                        SizedBox(height: 16.h),
+                        Text(
+                          isOnline ? 'Onlayn' : 'Oflayn',
+                          style: AppTheme.heading2.copyWith(
+                            color:
+                                isOnline
+                                    ? AppColors.textOnPrimary
+                                    : AppColors.textPrimary,
                           ),
                         ),
-                        child:
-                            _isLoading
-                                ? SizedBox(
-                                  width: 20.w,
-                                  height: 20.w,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.w,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      _isOnline
-                                          ? AppColors.success
-                                          : AppColors.textOnPrimary,
-                                    ),
-                                  ),
-                                )
-                                : Text(
-                                  _isOnline ? 'Oflayn Ol' : 'Onlayn Ol',
-                                  style: TextStyle(
-                                    fontSize: 16.sp,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                        SizedBox(height: 8.h),
+                        Text(
+                          isOnline
+                              ? isAvailable
+                                  ? 'Yeni sifarişlər alırsınız'
+                                  : 'Onlayn amma məşğulsunuz'
+                              : 'İşə başlamaq üçün düyməyə basın',
+                          style: AppTheme.bodyMedium.copyWith(
+                            color:
+                                isOnline
+                                    ? AppColors.textOnPrimary
+                                    : AppColors.textSecondary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(height: 24.h),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48.h,
+                          child: ElevatedButton(
+                            onPressed:
+                                () => _toggleOnlineStatus(
+                                  dashboardProvider,
+                                  isOnline,
                                 ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              SizedBox(height: 24.h),
-
-              // Stats Cards
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard(
-                      'Bugünkü Sifarişlər',
-                      '12',
-                      Icons.assignment,
-                      AppColors.info,
-                    ),
-                  ),
-                  SizedBox(width: 16.w),
-                  Expanded(
-                    child: _buildStatCard(
-                      'Bugünkü Qazanc',
-                      '45.50 ₼',
-                      Icons.attach_money,
-                      AppColors.success,
-                    ),
-                  ),
-                ],
-              ),
-
-              SizedBox(height: 24.h),
-
-              // Recent Orders
-              Expanded(
-                child: Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.all(16.w),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(12.r),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Son Sifarişlər', style: AppTheme.heading3),
-                      SizedBox(height: 16.h),
-                      Expanded(
-                        child: ListView.builder(
-                          itemCount: 5,
-                          itemBuilder: (context, index) {
-                            return Container(
-                              margin: EdgeInsets.only(bottom: 12.h),
-                              padding: EdgeInsets.all(12.w),
-                              decoration: BoxDecoration(
-                                color: AppColors.background,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  isOnline
+                                      ? AppColors.textOnPrimary
+                                      : AppColors.primary,
+                              foregroundColor:
+                                  isOnline
+                                      ? AppColors.success
+                                      : AppColors.textOnPrimary,
+                              shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8.r),
                               ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 40.w,
-                                    height: 40.w,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primary.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(20.r),
+                            ),
+                            child:
+                                dashboardProvider.isLoading
+                                    ? SizedBox(
+                                      width: 20.w,
+                                      height: 20.w,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.w,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              isOnline
+                                                  ? AppColors.success
+                                                  : AppColors.textOnPrimary,
+                                            ),
+                                      ),
+                                    )
+                                    : Text(
+                                      isOnline ? 'Oflayn Ol' : 'Onlayn Ol',
+                                      style: TextStyle(
+                                        fontSize: 16.sp,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
-                                    child: Icon(
-                                      Icons.person,
-                                      color: AppColors.primary,
-                                      size: 20.sp,
-                                    ),
-                                  ),
-                                  SizedBox(width: 12.w),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Müştəri ${index + 1}',
-                                          style: AppTheme.bodyMedium.copyWith(
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        Text(
-                                          'Bakı şəhəri, Nərimanov',
-                                          style: AppTheme.bodySmall,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Text(
-                                    '8.50 ₼',
-                                    style: AppTheme.bodyMedium.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.success,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  SizedBox(height: 24.h),
+
+                  // Stats Cards
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildStatCard(
+                          'Bugünkü Sifarişlər',
+                          '${stats['todayOrders'] ?? 0}',
+                          Icons.assignment,
+                          AppColors.info,
+                        ),
+                      ),
+                      SizedBox(width: 16.w),
+                      Expanded(
+                        child: _buildStatCard(
+                          'Bugünkü Qazanc',
+                          '${(stats['todayEarnings'] ?? 0.0).toStringAsFixed(2)} ₼',
+                          Icons.attach_money,
+                          AppColors.success,
                         ),
                       ),
                     ],
                   ),
-                ),
+
+                  SizedBox(height: 24.h),
+
+                  // Recent Orders
+                  Expanded(
+                    child: Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.all(16.w),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Son Sifarişlər', style: AppTheme.heading3),
+                              IconButton(
+                                onPressed: () => dashboardProvider.refresh(),
+                                icon: Icon(
+                                  Icons.refresh,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 16.h),
+                          Expanded(
+                            child:
+                                dashboardProvider.recentOrders.isEmpty
+                                    ? Center(
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.assignment_outlined,
+                                            size: 64.sp,
+                                            color: AppColors.textSecondary,
+                                          ),
+                                          SizedBox(height: 16.h),
+                                          Text(
+                                            'Hələ sifariş yoxdur',
+                                            style: AppTheme.bodyMedium.copyWith(
+                                              color: AppColors.textSecondary,
+                                            ),
+                                          ),
+                                          SizedBox(height: 8.h),
+                                          Text(
+                                            'Onlayn olduqda yeni sifarişlər görünəcək',
+                                            style: AppTheme.bodySmall.copyWith(
+                                              color: AppColors.textSecondary,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ],
+                                      ),
+                                    )
+                                    : ListView.builder(
+                                      itemCount:
+                                          dashboardProvider.recentOrders.length,
+                                      itemBuilder: (context, index) {
+                                        final order =
+                                            dashboardProvider
+                                                .recentOrders[index];
+                                        return Container(
+                                          margin: EdgeInsets.only(bottom: 12.h),
+                                          padding: EdgeInsets.all(12.w),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.background,
+                                            borderRadius: BorderRadius.circular(
+                                              8.r,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Container(
+                                                width: 40.w,
+                                                height: 40.w,
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.primary
+                                                      .withOpacity(0.1),
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                        20.r,
+                                                      ),
+                                                ),
+                                                child: Icon(
+                                                  Icons.person,
+                                                  color: AppColors.primary,
+                                                  size: 20.sp,
+                                                ),
+                                              ),
+                                              SizedBox(width: 12.w),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      'Sifariş #${order['orderNumber'] ?? 'N/A'}',
+                                                      style: AppTheme.bodyMedium
+                                                          .copyWith(
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                          ),
+                                                    ),
+                                                    Text(
+                                                      '${order['pickup']?['address'] ?? 'Məlumat yoxdur'}',
+                                                      style: AppTheme.bodySmall,
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Text(
+                                                '${(order['fare'] ?? 0.0).toStringAsFixed(2)} ₼',
+                                                style: AppTheme.bodyMedium
+                                                    .copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: AppColors.success,
+                                                    ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -332,24 +445,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Future<void> _toggleOnlineStatus() async {
-    setState(() => _isLoading = true);
-
-    try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final success = await authProvider.updateDriverStatus(
-        isOnline: !_isOnline,
-        isAvailable: !_isOnline,
-      );
-
-      if (success) {
-        setState(() => _isOnline = !_isOnline);
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
+  Future<void> _toggleOnlineStatus(
+    DashboardProvider dashboardProvider,
+    bool isOnline,
+  ) async {
+    await dashboardProvider.updateDriverStatus(
+      isOnline: !isOnline,
+      isAvailable: !isOnline,
+    );
   }
 }
 
@@ -366,34 +469,28 @@ class OrdersTabScreen extends StatelessWidget {
   }
 }
 
-class EarningsScreen extends StatelessWidget {
-  const EarningsScreen({super.key});
+// Earnings screen with provider
+class EarningsTabScreen extends StatelessWidget {
+  const EarningsTabScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Qazanc'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.textOnPrimary,
-      ),
-      body: const Center(child: Text('Qazanc səhifəsi hazırlanır...')),
+    return ChangeNotifierProvider(
+      create: (_) => ProfileProvider(),
+      child: const EarningsScreen(),
     );
   }
 }
 
-class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+// Profile screen with provider
+class ProfileTabScreen extends StatelessWidget {
+  const ProfileTabScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profil'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.textOnPrimary,
-      ),
-      body: const Center(child: Text('Profil səhifəsi hazırlanır...')),
+    return ChangeNotifierProvider(
+      create: (_) => ProfileProvider(),
+      child: const ProfileScreen(),
     );
   }
 }

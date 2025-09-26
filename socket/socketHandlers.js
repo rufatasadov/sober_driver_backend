@@ -13,13 +13,13 @@ const setupSocketHandlers = (io) => {
       }
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await User.findById(decoded.userId);
+      const user = await User.findByPk(decoded.userId);
       
       if (!user || !user.isActive) {
         return next(new Error('User not found or inactive'));
       }
 
-      socket.userId = user._id;
+      socket.userId = user.id;
       socket.userRole = user.role;
       next();
     } catch (error) {
@@ -51,17 +51,17 @@ const setupSocketHandlers = (io) => {
       try {
         const { latitude, longitude, address } = data;
         
-        await Driver.findOneAndUpdate(
-          { userId: socket.userId },
-          {
+        const driver = await Driver.findOne({ where: { userId: socket.userId } });
+        if (driver) {
+          await driver.update({
             currentLocation: {
               type: 'Point',
               coordinates: [longitude, latitude],
               address: address || ''
             },
             lastActive: new Date()
-          }
-        );
+          });
+        }
 
         // Digər sürücülərə yer yeniləməsini bildir
         socket.to('drivers').emit('driver_location_updated', {
@@ -84,10 +84,10 @@ const setupSocketHandlers = (io) => {
       try {
         const { isOnline, isAvailable } = data;
         
-        await Driver.findOneAndUpdate(
-          { userId: socket.userId },
-          { isOnline, isAvailable, lastActive: new Date() }
-        );
+        const driver = await Driver.findOne({ where: { userId: socket.userId } });
+        if (driver) {
+          await driver.update({ isOnline, isAvailable, lastActive: new Date() });
+        }
 
         // Operator və dispetçerlərə bildir
         socket.to('operators').emit('driver_status_updated', {
@@ -110,16 +110,19 @@ const setupSocketHandlers = (io) => {
     socket.on('new_order', async (data) => {
       try {
         const { orderId } = data;
-        const order = await Order.findById(orderId)
-          .populate('customer', 'name phone')
-          .populate('driver', 'userId');
+        const order = await Order.findByPk(orderId, {
+          include: [
+            { model: User, as: 'customer', attributes: ['name', 'phone'] },
+            { model: Driver, as: 'driver', include: [{ model: User, attributes: ['id'] }] }
+          ]
+        });
 
         if (!order) return;
 
         // Yaxın sürücülərə bildir
         socket.to('drivers').emit('new_order_available', {
           order: {
-            id: order._id,
+            id: order.id,
             orderNumber: order.orderNumber,
             pickup: order.pickup,
             destination: order.destination,
@@ -142,23 +145,26 @@ const setupSocketHandlers = (io) => {
     socket.on('order_status_updated', async (data) => {
       try {
         const { orderId, status } = data;
-        const order = await Order.findById(orderId)
-          .populate('customer', 'name phone')
-          .populate('driver', 'userId');
+        const order = await Order.findByPk(orderId, {
+          include: [
+            { model: User, as: 'customer', attributes: ['name', 'phone'] },
+            { model: Driver, as: 'driver', include: [{ model: User, attributes: ['id'] }] }
+          ]
+        });
 
         if (!order) return;
 
         // Müştəriyə bildir
-        socket.to(`user_${order.customer._id}`).emit('order_status_changed', {
-          orderId: order._id,
+        socket.to(`user_${order.customerId}`).emit('order_status_changed', {
+          orderId: order.id,
           status,
           order
         });
 
         // Sürücüyə bildir (əgər varsa)
         if (order.driver) {
-          socket.to(`user_${order.driver.userId._id}`).emit('order_status_changed', {
-            orderId: order._id,
+          socket.to(`user_${order.driver.userId}`).emit('order_status_changed', {
+            orderId: order.id,
             status,
             order
           });
@@ -176,15 +182,18 @@ const setupSocketHandlers = (io) => {
     socket.on('order_accepted', async (data) => {
       try {
         const { orderId, driverId } = data;
-        const order = await Order.findById(orderId)
-          .populate('customer', 'name phone')
-          .populate('driver', 'userId');
+        const order = await Order.findByPk(orderId, {
+          include: [
+            { model: User, as: 'customer', attributes: ['name', 'phone'] },
+            { model: Driver, as: 'driver', include: [{ model: User, attributes: ['id'] }] }
+          ]
+        });
 
         if (!order) return;
 
         // Müştəriyə bildir
-        socket.to(`user_${order.customer._id}`).emit('driver_assigned', {
-          orderId: order._id,
+        socket.to(`user_${order.customerId}`).emit('driver_assigned', {
+          orderId: order.id,
           driver: order.driver,
           order
         });
@@ -201,14 +210,17 @@ const setupSocketHandlers = (io) => {
     socket.on('order_rejected', async (data) => {
       try {
         const { orderId, driverId, reason } = data;
-        const order = await Order.findById(orderId)
-          .populate('customer', 'name phone');
+        const order = await Order.findByPk(orderId, {
+          include: [
+            { model: User, as: 'customer', attributes: ['name', 'phone'] }
+          ]
+        });
 
         if (!order) return;
 
         // Müştəriyə bildir
-        socket.to(`user_${order.customer._id}`).emit('driver_rejected_order', {
-          orderId: order._id,
+        socket.to(`user_${order.customerId}`).emit('driver_rejected_order', {
+          orderId: order.id,
           reason
         });
 
@@ -224,16 +236,19 @@ const setupSocketHandlers = (io) => {
     socket.on('order_cancelled', async (data) => {
       try {
         const { orderId, reason } = data;
-        const order = await Order.findById(orderId)
-          .populate('customer', 'name phone')
-          .populate('driver', 'userId');
+        const order = await Order.findByPk(orderId, {
+          include: [
+            { model: User, as: 'customer', attributes: ['name', 'phone'] },
+            { model: Driver, as: 'driver', include: [{ model: User, attributes: ['id'] }] }
+          ]
+        });
 
         if (!order) return;
 
         // Sürücüyə bildir (əgər varsa)
         if (order.driver) {
-          socket.to(`user_${order.driver.userId._id}`).emit('order_cancelled', {
-            orderId: order._id,
+          socket.to(`user_${order.driver.userId}`).emit('order_cancelled', {
+            orderId: order.id,
             reason
           });
         }
@@ -250,22 +265,25 @@ const setupSocketHandlers = (io) => {
     socket.on('order_completed', async (data) => {
       try {
         const { orderId } = data;
-        const order = await Order.findById(orderId)
-          .populate('customer', 'name phone')
-          .populate('driver', 'userId');
+        const order = await Order.findByPk(orderId, {
+          include: [
+            { model: User, as: 'customer', attributes: ['name', 'phone'] },
+            { model: Driver, as: 'driver', include: [{ model: User, attributes: ['id'] }] }
+          ]
+        });
 
         if (!order) return;
 
         // Müştəriyə bildir
-        socket.to(`user_${order.customer._id}`).emit('order_completed', {
-          orderId: order._id,
+        socket.to(`user_${order.customerId}`).emit('order_completed', {
+          orderId: order.id,
           order
         });
 
         // Sürücüyə bildir
         if (order.driver) {
-          socket.to(`user_${order.driver.userId._id}`).emit('order_completed', {
-            orderId: order._id,
+          socket.to(`user_${order.driver.userId}`).emit('order_completed', {
+            orderId: order.id,
             order
           });
         }
@@ -282,7 +300,7 @@ const setupSocketHandlers = (io) => {
     socket.on('track_order', async (data) => {
       try {
         const { orderId } = data;
-        const order = await Order.findById(orderId);
+        const order = await Order.findByPk(orderId);
 
         if (!order) return;
 
@@ -290,8 +308,8 @@ const setupSocketHandlers = (io) => {
         socket.join(`track_order_${orderId}`);
 
         // Mövcud tracking məlumatlarını göndər
-        if (order.driver) {
-          const driver = await Driver.findById(order.driver);
+        if (order.driverId) {
+          const driver = await Driver.findByPk(order.driverId);
           if (driver && driver.currentLocation) {
             socket.emit('driver_location', {
               orderId,
@@ -317,10 +335,10 @@ const setupSocketHandlers = (io) => {
       // Sürücü offline olduğunda statusu yenilə
       if (socket.userRole === 'driver') {
         try {
-          await Driver.findOneAndUpdate(
-            { userId: socket.userId },
-            { isOnline: false, isAvailable: false }
-          );
+          const driver = await Driver.findOne({ where: { userId: socket.userId } });
+          if (driver) {
+            await driver.update({ isOnline: false, isAvailable: false });
+          }
 
           // Operator və dispetçerlərə bildir
           socket.to('operators').emit('driver_offline', { driverId: socket.userId });

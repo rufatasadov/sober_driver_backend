@@ -17,6 +17,8 @@ class AppConstants {
   static const String rejectOrderEndpoint = '/drivers/orders';
   static const String earningsEndpoint = '/drivers/earnings';
   static const String ordersEndpoint = '/orders';
+  static const String dashboardStatsEndpoint = '/drivers/dashboard-stats';
+  static const String recentOrdersEndpoint = '/drivers/recent-orders';
 
   // Socket Events
   static const String socketNewOrderEvent = 'new_order_available';

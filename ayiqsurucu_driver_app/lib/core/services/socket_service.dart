@@ -40,9 +40,14 @@ class SocketService {
 
     try {
       _socket = IO.io(AppConstants.socketUrl, <String, dynamic>{
-        'transports': ['websocket'],
+        'transports': ['websocket', 'polling'],
         'autoConnect': false,
         'auth': {'token': _authToken},
+        'timeout': 20000,
+        'forceNew': true,
+        'reconnection': true,
+        'reconnectionAttempts': 5,
+        'reconnectionDelay': 1000,
       });
 
       _setupEventListeners();
@@ -69,6 +74,26 @@ class SocketService {
 
     _socket!.onConnectError((error) {
       print('❌ Socket connection error: $error');
+      _isConnected = false;
+    });
+
+    _socket!.onConnectTimeout((_) {
+      print('⏰ Socket connection timeout');
+      _isConnected = false;
+    });
+
+    _socket!.onReconnect((_) {
+      print('🔄 Socket reconnected');
+      _isConnected = true;
+      _joinDriverRoom();
+    });
+
+    _socket!.onReconnectError((error) {
+      print('❌ Socket reconnection error: $error');
+    });
+
+    _socket!.onReconnectFailed((_) {
+      print('❌ Socket reconnection failed');
       _isConnected = false;
     });
 
