@@ -43,7 +43,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ProfileSettingsScreen(),
+                  builder:
+                      (context) => ChangeNotifierProvider.value(
+                        value: Provider.of<ProfileProvider>(
+                          context,
+                          listen: false,
+                        ),
+                        child: const ProfileSettingsScreen(),
+                      ),
                 ),
               );
             },
@@ -394,7 +401,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const EditProfileScreen(),
+                builder:
+                    (context) => ChangeNotifierProvider.value(
+                      value: Provider.of<ProfileProvider>(
+                        context,
+                        listen: false,
+                      ),
+                      child: const EditProfileScreen(),
+                    ),
               ),
             );
           },
@@ -425,7 +439,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
           () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const EarningsScreen()),
+              MaterialPageRoute(
+                builder:
+                    (context) => ChangeNotifierProvider.value(
+                      value: Provider.of<ProfileProvider>(
+                        context,
+                        listen: false,
+                      ),
+                      child: const EarningsScreen(),
+                    ),
+              ),
             );
           },
         ),

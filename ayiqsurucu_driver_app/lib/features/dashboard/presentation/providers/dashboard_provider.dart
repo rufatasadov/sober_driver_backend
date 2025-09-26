@@ -42,8 +42,17 @@ class DashboardProvider extends ChangeNotifier {
       );
       final data = _apiService.handleResponse(response);
 
-      if (data['stats'] != null) {
-        _stats = data['stats'];
+      // Map earnings data to stats format
+      if (data['earnings'] != null) {
+        final earnings = data['earnings'];
+        _stats = {
+          'todayOrders': earnings['todayOrders'] ?? 0,
+          'todayEarnings': earnings['today'] ?? 0.0,
+          'totalOrders': earnings['totalOrders'] ?? 0,
+          'totalEarnings': earnings['total'] ?? 0.0,
+          'isOnline': earnings['isOnline'] ?? false,
+          'isAvailable': earnings['isAvailable'] ?? false,
+        };
       }
     } catch (e) {
       // If stats endpoint fails, use default values
@@ -61,7 +70,9 @@ class DashboardProvider extends ChangeNotifier {
   // Load recent orders
   Future<void> _loadRecentOrders() async {
     try {
-      final response = await _apiService.get(AppConstants.recentOrdersEndpoint);
+      final response = await _apiService.get(
+        '${AppConstants.recentOrdersEndpoint}?limit=5',
+      );
       final data = _apiService.handleResponse(response);
 
       if (data['orders'] != null) {

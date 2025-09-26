@@ -124,7 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       GestureDetector(
                         onTap: () {
                           // Navigate to profile tab
-                          DefaultTabController.of(context)?.animateTo(3);
+                          DefaultTabController.of(context).animateTo(3);
                         },
                         child: CircleAvatar(
                           radius: 25.r,
@@ -314,17 +314,17 @@ class _HomeScreenState extends State<HomeScreen> {
                                         children: [
                                           Icon(
                                             Icons.assignment_outlined,
-                                            size: 64.sp,
+                                            size: 48.sp,
                                             color: AppColors.textSecondary,
                                           ),
-                                          SizedBox(height: 16.h),
+                                          SizedBox(height: 12.h),
                                           Text(
                                             'Hələ sifariş yoxdur',
                                             style: AppTheme.bodyMedium.copyWith(
                                               color: AppColors.textSecondary,
                                             ),
                                           ),
-                                          SizedBox(height: 8.h),
+                                          SizedBox(height: 4.h),
                                           Text(
                                             'Onlayn olduqda yeni sifarişlər görünəcək',
                                             style: AppTheme.bodySmall.copyWith(
@@ -336,6 +336,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                       ),
                                     )
                                     : ListView.builder(
+                                      shrinkWrap: true,
+                                      physics:
+                                          const AlwaysScrollableScrollPhysics(),
                                       itemCount:
                                           dashboardProvider.recentOrders.length,
                                       itemBuilder: (context, index) {
@@ -343,7 +346,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                             dashboardProvider
                                                 .recentOrders[index];
                                         return Container(
-                                          margin: EdgeInsets.only(bottom: 12.h),
+                                          margin: EdgeInsets.only(bottom: 8.h),
                                           padding: EdgeInsets.all(12.w),
                                           decoration: BoxDecoration(
                                             color: AppColors.background,
@@ -354,20 +357,20 @@ class _HomeScreenState extends State<HomeScreen> {
                                           child: Row(
                                             children: [
                                               Container(
-                                                width: 40.w,
-                                                height: 40.w,
+                                                width: 36.w,
+                                                height: 36.w,
                                                 decoration: BoxDecoration(
                                                   color: AppColors.primary
                                                       .withOpacity(0.1),
                                                   borderRadius:
                                                       BorderRadius.circular(
-                                                        20.r,
+                                                        18.r,
                                                       ),
                                                 ),
                                                 child: Icon(
                                                   Icons.person,
                                                   color: AppColors.primary,
-                                                  size: 20.sp,
+                                                  size: 18.sp,
                                                 ),
                                               ),
                                               SizedBox(width: 12.w),
