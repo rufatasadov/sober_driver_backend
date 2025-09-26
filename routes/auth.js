@@ -458,7 +458,10 @@ router.put('/profile', auth, [
     if (email) updates.email = email;
 
     // Sequelize ilə istifadəçini yenilə
-    await req.user.update(updates);
+    const user = await User.findByPk(req.user.id);
+    if (user) {
+      await user.update(updates);
+    }
 
     res.json({
       message: 'Profil uğurla yeniləndi',
@@ -489,7 +492,10 @@ router.put('/fcm-token', auth, [
     const { fcmToken } = req.body;
 
     // Sequelize ilə FCM token yenilə
-    await req.user.update({ fcmToken });
+    const user = await User.findByPk(req.user.id);
+    if (user) {
+      await user.update({ fcmToken });
+    }
 
     res.json({ message: 'FCM token uğurla yeniləndi' });
   } catch (error) {
@@ -502,7 +508,10 @@ router.put('/fcm-token', auth, [
 router.post('/logout', auth, async (req, res) => {
   try {
     // FCM token-i təmizlə
-    await req.user.update({ fcmToken: null });
+    const user = await User.findByPk(req.user.id);
+    if (user) {
+      await user.update({ fcmToken: null });
+    }
     
     res.json({ message: 'Uğurla çıxış edildi' });
   } catch (error) {

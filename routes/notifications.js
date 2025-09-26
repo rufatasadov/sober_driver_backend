@@ -17,7 +17,10 @@ router.post('/fcm-token', auth, [
 
     const { fcmToken } = req.body;
 
-    await req.user.update({ fcmToken });
+    const user = await User.findByPk(req.user.id);
+    if (user) {
+      await user.update({ fcmToken });
+    }
 
     res.json({ message: 'FCM token uğurla yeniləndi' });
   } catch (error) {

@@ -59,7 +59,10 @@ router.post('/register', auth, [
     });
 
     // İstifadəçi rolunu yenilə
-    await req.user.update({ role: 'driver' });
+    const user = await User.findByPk(req.user.id);
+    if (user) {
+      await user.update({ role: 'driver' });
+    }
 
     res.status(201).json({
       message: 'Sürücü qeydiyyatı uğurla tamamlandı',
@@ -125,11 +128,14 @@ router.put('/profile', auth, authorize('driver'), [
       updates.documents = documents;
     }
 
-    const driver = await Driver.findOneAndUpdate(
-      { userId: req.user._id },
-      updates,
-      { new: true, runValidators: true }
-    ).populate('userId', 'name phone email');
+    const driver = await Driver.findOne({ 
+      where: { userId: req.user.id },
+      include: [{ model: User, attributes: ['name', 'phone', 'email'] }]
+    });
+    
+    if (driver) {
+      await driver.update(updates);
+    }
 
     if (!driver) {
       return res.status(404).json({ error: 'Sürücü məlumatları tapılmadı' });
@@ -167,11 +173,11 @@ router.patch('/status', auth, authorize('driver'), [
       updates.lastActive = new Date();
     }
 
-    const driver = await Driver.findOneAndUpdate(
-      { userId: req.user._id },
-      updates,
-      { new: true }
-    );
+    const driver = await Driver.findOne({ where: { userId: req.user.id } });
+    
+    if (driver) {
+      await driver.update(updates);
+    }
 
     if (!driver) {
       return res.status(404).json({ error: 'Sürücü məlumatları tapılmadı' });
@@ -206,18 +212,18 @@ router.patch('/location', auth, authorize('driver'), [
 
     const { latitude, longitude, address } = req.body;
 
-    const driver = await Driver.findOneAndUpdate(
-      { userId: req.user._id },
-      {
+    const driver = await Driver.findOne({ where: { userId: req.user.id } });
+    
+    if (driver) {
+      await driver.update({
         currentLocation: {
           type: 'Point',
           coordinates: [longitude, latitude],
           address: address || ''
         },
         lastActive: new Date()
-      },
-      { new: true }
-    );
+      });
+    }
 
     if (!driver) {
       return res.status(404).json({ error: 'Sürücü məlumatları tapılmadı' });
@@ -243,7 +249,7 @@ router.get('/nearby-orders', auth, authorize('driver'), async (req, res) => {
     }
 
     // Sürücünün məlumatlarını al
-    const driver = await Driver.findOne({ userId: req.user._id });
+    const driver = await Driver.findOne({ userId: req.user.id });
     if (!driver || !driver.isOnline || !driver.isAvailable) {
       return res.status(400).json({ error: 'Sürücü online və available olmalıdır' });
     }
@@ -298,7 +304,7 @@ router.post('/orders/:orderId/accept', auth, authorize('driver'), async (req, re
     }
 
     // Sürücünün məlumatlarını al
-    const driver = await Driver.findOne({ userId: req.user._id });
+    const driver = await Driver.findOne({ userId: req.user.id });
     if (!driver || !driver.isOnline || !driver.isAvailable) {
       return res.status(400).json({ error: 'Sürücü online və available olmalıdır' });
     }
