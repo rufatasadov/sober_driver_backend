@@ -150,6 +150,53 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // Create user account (for direct registration)
+  Future<bool> createUserAccount({
+    required String name,
+    required String phone,
+    required String username,
+    required String password,
+  }) async {
+    try {
+      _setLoading(true);
+      _clearError();
+
+      final response = await _apiService.post(
+        AppConstants.createUserEndpoint,
+        data: {
+          'name': name,
+          'phone': phone,
+          'username': username,
+          'password': password,
+          'role': 'driver',
+        },
+      );
+
+      final data = _apiService.handleResponse(response);
+
+      if (data['token'] != null) {
+        _token = data['token'];
+        _user = data['user'];
+
+        // Store auth data
+        await _storeAuthData();
+
+        // Set token in API service
+        await _apiService.setAuthToken(_token!);
+
+        notifyListeners();
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      _setError(e.toString());
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   // Driver registration
   Future<bool> registerDriver({
     required String licenseNumber,

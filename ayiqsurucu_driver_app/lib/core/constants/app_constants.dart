@@ -1,12 +1,13 @@
 class AppConstants {
   // API Configuration
-  static const String baseUrl = 'http://localhost:3000/api';
-  static const String socketUrl = 'http://localhost:3000';
+  static const String baseUrl = 'http://65.21.25.57:14122/api';
+  static const String socketUrl = 'http://65.21.25.57:3000';
 
   // API Endpoints
   static const String sendOtpEndpoint = '/auth/send-otp';
   static const String verifyOtpEndpoint = '/auth/verify-otp';
   static const String driverLoginEndpoint = '/auth/driver-login';
+  static const String createUserEndpoint = '/auth/create-user';
   static const String driverRegisterEndpoint = '/drivers/register';
   static const String driverProfileEndpoint = '/drivers/profile';
   static const String driverStatusEndpoint = '/drivers/status';

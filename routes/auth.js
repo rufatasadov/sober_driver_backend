@@ -1,6 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
+const { Op } = require('sequelize');
 const User = require('../models/User');
 const { auth } = require('../middleware/auth');
 const { generateOTP, sendOTP, storeOTP, verifyOTP } = require('../utils/otp');
@@ -166,6 +167,81 @@ router.post('/dispatcher-login', [
     });
   } catch (error) {
     console.error('Dispatcher login xətası:', error);
+    res.status(500).json({ error: 'Server xətası' });
+  }
+});
+
+// Create user account (for direct registration)
+router.post('/create-user', [
+  body('name').notEmpty().withMessage('Ad tələb olunur'),
+  body('phone').isMobilePhone('az-AZ').withMessage('Düzgün telefon nömrəsi daxil edin'),
+  body('username').notEmpty().withMessage('İstifadəçi adı tələb olunur'),
+  body('password').isLength({ min: 6 }).withMessage('Şifrə minimum 6 simvol olmalıdır'),
+  body('role').optional().isIn(['customer', 'driver']).withMessage('Düzgün rol seçin')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { name, phone, username, password, role = 'driver' } = req.body;
+
+    // İstifadəçi adının və telefon nömrəsinin mövcudluğunu yoxla
+    const existingUser = await User.findOne({
+      where: {
+        [Op.or]: [
+          { username: username },
+          { phone: phone }
+        ]
+      }
+    });
+
+    if (existingUser) {
+      if (existingUser.username === username) {
+        return res.status(400).json({ error: 'Bu istifadəçi adı artıq mövcuddur' });
+      }
+      if (existingUser.phone === phone) {
+        return res.status(400).json({ error: 'Bu telefon nömrəsi artıq mövcuddur' });
+      }
+    }
+
+    // Şifrəni hash et
+    const bcrypt = require('bcryptjs');
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    // Yeni istifadəçi yarat
+    const user = await User.create({
+      name,
+      phone,
+      username,
+      password: hashedPassword,
+      role,
+      isVerified: true,
+      isActive: true
+    });
+
+    // JWT token yarat
+    const token = jwt.sign(
+      { userId: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.status(201).json({
+      message: 'İstifadəçi uğurla yaradıldı',
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        username: user.username,
+        phone: user.phone,
+        role: user.role,
+        isVerified: user.isVerified
+      }
+    });
+  } catch (error) {
+    console.error('İstifadəçi yaratma xətası:', error);
     res.status(500).json({ error: 'Server xətası' });
   }
 });

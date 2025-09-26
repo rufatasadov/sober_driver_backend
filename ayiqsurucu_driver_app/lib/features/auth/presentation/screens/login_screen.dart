@@ -7,6 +7,7 @@ import '../../../../shared/widgets/loading_screen.dart';
 import '../providers/auth_provider.dart';
 import 'otp_verification_screen.dart';
 import 'driver_registration_screen.dart';
+import 'direct_driver_registration_screen.dart';
 import '../../../dashboard/presentation/screens/dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -264,6 +265,50 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ],
+                  ),
+                ),
+
+                SizedBox(height: 16.h),
+
+                // Direct registration option
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12.r),
+                    border: Border.all(
+                      color: AppColors.success.withOpacity(0.3),
+                    ),
+                  ),
+                  child: ListTile(
+                    leading: Icon(Icons.person_add, color: AppColors.success),
+                    title: Text(
+                      'Yeni sürücü kimi qeydiyyat',
+                      style: AppTheme.bodyMedium.copyWith(
+                        color: AppColors.success,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'OTP olmadan birbaşa qeydiyyat',
+                      style: AppTheme.bodySmall.copyWith(
+                        color: AppColors.success.withOpacity(0.8),
+                      ),
+                    ),
+                    trailing: Icon(
+                      Icons.arrow_forward_ios,
+                      color: AppColors.success,
+                      size: 16.sp,
+                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) =>
+                                  const DirectDriverRegistrationScreen(),
+                        ),
+                      );
+                    },
                   ),
                 ),
 
