@@ -419,7 +419,7 @@ router.patch('/:orderId/status', auth, [
       (order.driverId && order.driverId === req.user.id);
 
     if (!canUpdateStatus) {
-      return res.status(403).json({ error: 'Status dəyişdirmə icazəniz yoxdur' });
+      return res.status(403).json({ error: 'Status dəyişdirmə icazəniz yoxdur req.user.role = ' + req.user.role + ' order.customerId = ' + order.customerId + ' order.driverId = ' + order.driverId + ' order.status = ' + order.status + ' status = ' + status    });
     }
 
     // Status dəyişikliyi məntiqini yoxla
