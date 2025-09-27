@@ -5,10 +5,10 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../orders/presentation/screens/orders_screen.dart';
-import '../../../orders/presentation/cubit/orders_cubit.dart';
-import '../../../profile/presentation/cubit/profile_cubit.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
 import '../../../profile/presentation/screens/earnings_screen.dart';
+import '../../../orders/presentation/screens/order_history_screen.dart';
+import '../../../notifications/presentation/screens/notifications_screen.dart';
 import '../cubit/dashboard_cubit.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -63,10 +63,12 @@ class HomeTabScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => DashboardCubit()..loadDashboardData(),
-      child: const HomeScreen(),
-    );
+    // Load dashboard data when screen is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<DashboardCubit>().loadDashboardData();
+    });
+
+    return const HomeScreen();
   }
 }
 
@@ -94,10 +96,72 @@ class _HomeScreenState extends State<HomeScreen> {
           final isAvailable = stats['isAvailable'] ?? false;
 
           return SafeArea(
-            child: Padding(
+            child: SingleChildScrollView(
               padding: EdgeInsets.all(16.w),
               child: Column(
                 children: [
+                  // Balance Display
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(16.w),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.primary,
+                          AppColors.primary.withOpacity(0.8),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12.r),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Balans',
+                              style: AppTheme.bodyMedium.copyWith(
+                                color: AppColors.textOnPrimary.withOpacity(0.8),
+                              ),
+                            ),
+                            SizedBox(height: 4.h),
+                            Text(
+                              '${stats['totalEarnings']?.toStringAsFixed(2) ?? '0.00'} AZN',
+                              style: AppTheme.heading2.copyWith(
+                                color: AppColors.textOnPrimary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: EdgeInsets.all(8.w),
+                          decoration: BoxDecoration(
+                            color: AppColors.textOnPrimary.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8.r),
+                          ),
+                          child: Icon(
+                            Icons.account_balance_wallet,
+                            color: AppColors.textOnPrimary,
+                            size: 24.sp,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  SizedBox(height: 16.h),
+
                   // Header
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -253,6 +317,63 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   SizedBox(height: 24.h),
 
+                  // Quick Actions
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildActionCard(
+                          'Sifariş Tarixçəsi',
+                          Icons.history,
+                          AppColors.info,
+                          () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (context) => const OrderHistoryScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      SizedBox(width: 16.w),
+                      Expanded(
+                        child: _buildActionCard(
+                          'Gəlir Hesabatı',
+                          Icons.account_balance_wallet,
+                          AppColors.success,
+                          () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const EarningsTabScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  SizedBox(height: 16.h),
+
+                  // Notifications Action
+                  _buildActionCard(
+                    'Bildirişlər',
+                    Icons.notifications,
+                    AppColors.warning,
+                    () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const NotificationsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+
+                  SizedBox(height: 24.h),
+
                   // Stats Cards
                   Row(
                     children: [
@@ -279,152 +400,138 @@ class _HomeScreenState extends State<HomeScreen> {
                   SizedBox(height: 24.h),
 
                   // Recent Orders
-                  Expanded(
-                    child: Container(
-                      width: double.infinity,
-                      padding: EdgeInsets.all(16.w),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(12.r),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('Son Sifarişlər', style: AppTheme.heading3),
-                              IconButton(
-                                onPressed:
-                                    () =>
-                                        context
-                                            .read<DashboardCubit>()
-                                            .refresh(),
-                                icon: Icon(
-                                  Icons.refresh,
-                                  color: AppColors.primary,
-                                ),
+                  Container(
+                    height: 300.h,
+                    width: double.infinity,
+                    padding: EdgeInsets.all(16.w),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Son Sifarişlər', style: AppTheme.heading3),
+                            IconButton(
+                              onPressed:
+                                  () =>
+                                      context.read<DashboardCubit>().refresh(),
+                              icon: Icon(
+                                Icons.refresh,
+                                color: AppColors.primary,
                               ),
-                            ],
-                          ),
-                          SizedBox(height: 16.h),
-                          Expanded(
-                            child:
-                                (state is DashboardLoaded
-                                            ? state.recentOrders
-                                            : [])
-                                        .isEmpty
-                                    ? Center(
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.assignment_outlined,
-                                            size: 48.sp,
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 16.h),
+                        Expanded(
+                          child:
+                              (state is DashboardLoaded
+                                          ? state.recentOrders
+                                          : [])
+                                      .isEmpty
+                                  ? Center(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.assignment_outlined,
+                                          size: 48.sp,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                        SizedBox(height: 12.h),
+                                        Text(
+                                          'Hələ sifariş yoxdur',
+                                          style: AppTheme.bodyMedium.copyWith(
                                             color: AppColors.textSecondary,
                                           ),
-                                          SizedBox(height: 12.h),
-                                          Text(
-                                            'Hələ sifariş yoxdur',
-                                            style: AppTheme.bodyMedium.copyWith(
-                                              color: AppColors.textSecondary,
-                                            ),
-                                          ),
-                                          // SizedBox(height: 4.h),
-                                          // Text(
-                                          //   'Onlayn olduqda yeni sifarişlər görünəcək',
-                                          //   style: AppTheme.bodySmall.copyWith(
-                                          //     color: AppColors.textSecondary,
-                                          //   ),
-                                          //   textAlign: TextAlign.center,
-                                          // ),
-                                        ],
-                                      ),
-                                    )
-                                    : ListView.builder(
-                                      shrinkWrap: true,
-                                      physics:
-                                          const AlwaysScrollableScrollPhysics(),
-                                      itemCount:
-                                          (state is DashboardLoaded
-                                                  ? state.recentOrders
-                                                  : [])
-                                              .length,
-                                      itemBuilder: (context, index) {
-                                        final order =
-                                            (state is DashboardLoaded
-                                                ? state.recentOrders
-                                                : [])[index];
-                                        return Container(
-                                          margin: EdgeInsets.only(bottom: 8.h),
-                                          padding: EdgeInsets.all(12.w),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.background,
-                                            borderRadius: BorderRadius.circular(
-                                              8.r,
-                                            ),
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              Container(
-                                                width: 36.w,
-                                                height: 36.w,
-                                                decoration: BoxDecoration(
-                                                  color: AppColors.primary
-                                                      .withOpacity(0.1),
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                        18.r,
-                                                      ),
-                                                ),
-                                                child: Icon(
-                                                  Icons.person,
-                                                  color: AppColors.primary,
-                                                  size: 18.sp,
-                                                ),
-                                              ),
-                                              SizedBox(width: 12.w),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                      'Sifariş #${order['orderNumber'] ?? 'N/A'}',
-                                                      style: AppTheme.bodyMedium
-                                                          .copyWith(
-                                                            fontWeight:
-                                                                FontWeight.w600,
-                                                          ),
-                                                    ),
-                                                    Text(
-                                                      '${order['pickup']?['address'] ?? 'Məlumat yoxdur'}',
-                                                      style: AppTheme.bodySmall,
-                                                      maxLines: 1,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                              Text(
-                                                '${(order['fare'] ?? 0.0).toStringAsFixed(2)} ₼',
-                                                style: AppTheme.bodyMedium
-                                                    .copyWith(
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      color: AppColors.success,
-                                                    ),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                      },
+                                        ),
+                                      ],
                                     ),
-                          ),
-                        ],
-                      ),
+                                  )
+                                  : ListView.builder(
+                                    shrinkWrap: true,
+                                    physics:
+                                        const AlwaysScrollableScrollPhysics(),
+                                    itemCount:
+                                        (state is DashboardLoaded
+                                                ? state.recentOrders
+                                                : [])
+                                            .length,
+                                    itemBuilder: (context, index) {
+                                      final order =
+                                          (state is DashboardLoaded
+                                              ? state.recentOrders
+                                              : [])[index];
+                                      return Container(
+                                        margin: EdgeInsets.only(bottom: 8.h),
+                                        padding: EdgeInsets.all(12.w),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.background,
+                                          borderRadius: BorderRadius.circular(
+                                            8.r,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              width: 36.w,
+                                              height: 36.w,
+                                              decoration: BoxDecoration(
+                                                color: AppColors.primary
+                                                    .withOpacity(0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(18.r),
+                                              ),
+                                              child: Icon(
+                                                Icons.person,
+                                                color: AppColors.primary,
+                                                size: 18.sp,
+                                              ),
+                                            ),
+                                            SizedBox(width: 12.w),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'Sifariş #${order['orderNumber'] ?? 'N/A'}',
+                                                    style: AppTheme.bodyMedium
+                                                        .copyWith(
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                  ),
+                                                  Text(
+                                                    '${order['pickup']?['address'] ?? 'Məlumat yoxdur'}',
+                                                    style: AppTheme.bodySmall,
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            Text(
+                                              '${(order['fare'] ?? 0.0).toStringAsFixed(2)} ₼',
+                                              style: AppTheme.bodyMedium
+                                                  .copyWith(
+                                                    fontWeight: FontWeight.w600,
+                                                    color: AppColors.success,
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -468,6 +575,40 @@ class _HomeScreenState extends State<HomeScreen> {
       isAvailable: !isOnline,
     );
   }
+
+  Widget _buildActionCard(
+    String title,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12.r),
+      child: Container(
+        padding: EdgeInsets.all(16.w),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 32.sp),
+            SizedBox(height: 8.h),
+            Text(
+              title,
+              style: AppTheme.bodyMedium.copyWith(
+                color: color,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // Orders screen with cubit
@@ -476,10 +617,7 @@ class OrdersTabScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => OrdersCubit(),
-      child: const OrdersScreen(),
-    );
+    return const OrdersScreen();
   }
 }
 
@@ -489,10 +627,7 @@ class EarningsTabScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => ProfileCubit(),
-      child: const EarningsScreen(),
-    );
+    return const EarningsScreen();
   }
 }
 
@@ -502,9 +637,6 @@ class ProfileTabScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => ProfileCubit()..loadProfile(),
-      child: const ProfileScreen(),
-    );
+    return const ProfileScreen();
   }
 }

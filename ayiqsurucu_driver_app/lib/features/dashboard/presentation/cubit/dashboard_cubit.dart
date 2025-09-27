@@ -58,26 +58,32 @@ class DashboardCubit extends Cubit<DashboardState> {
   // Load dashboard statistics
   Future<Map<String, dynamic>> _loadStats() async {
     try {
-      final response = await _apiService.get(
+      // Load earnings and driver status in parallel
+      final earningsResponse = await _apiService.get(
         AppConstants.dashboardStatsEndpoint,
       );
-      final data = _apiService.handleResponse(response);
+      final earningsData = _apiService.handleResponse(earningsResponse);
+
+      final statusResponse = await _apiService.get(
+        AppConstants.driverStatusEndpoint,
+      );
+      final statusData = _apiService.handleResponse(statusResponse);
 
       // Map earnings data to stats format
-      if (data['earnings'] != null) {
-        final earnings = data['earnings'];
+      if (earningsData.isNotEmpty) {
         return {
-          'todayOrders': earnings['todayOrders'] ?? 0,
-          'todayEarnings': earnings['today'] ?? 0.0,
-          'totalOrders': earnings['totalOrders'] ?? 0,
-          'totalEarnings': earnings['total'] ?? 0.0,
-          'isOnline': earnings['isOnline'] ?? false,
-          'isAvailable': earnings['isAvailable'] ?? false,
+          'todayOrders': earningsData['totalOrders'] ?? 0,
+          'todayEarnings': earningsData['netEarnings'] ?? 0.0,
+          'totalOrders': earningsData['totalOrders'] ?? 0,
+          'totalEarnings': earningsData['netEarnings'] ?? 0.0,
+          'isOnline': statusData['isOnline'] ?? false,
+          'isAvailable': statusData['isAvailable'] ?? false,
         };
       }
 
       return _getDefaultStats();
     } catch (e) {
+      print('DashboardCubit: Error loading stats: $e');
       // If stats endpoint fails, use default values
       return _getDefaultStats();
     }
@@ -108,6 +114,9 @@ class DashboardCubit extends Cubit<DashboardState> {
     bool? isAvailable,
   }) async {
     try {
+      print(
+        'DashboardCubit: Updating driver status - isOnline: $isOnline, isAvailable: $isAvailable',
+      );
       emit(DashboardLoading());
 
       final response = await _apiService.patch(
@@ -118,7 +127,9 @@ class DashboardCubit extends Cubit<DashboardState> {
         },
       );
 
+      print('DashboardCubit: API response: $response');
       final data = _apiService.handleResponse(response);
+      print('DashboardCubit: Parsed data: $data');
 
       if (data['success'] == true) {
         // Update current state with new status
@@ -130,6 +141,7 @@ class DashboardCubit extends Cubit<DashboardState> {
             updatedStats['isAvailable'] = isAvailable;
           }
 
+          print('DashboardCubit: Emitting new state with stats: $updatedStats');
           emit(
             DashboardLoaded(
               stats: updatedStats,
@@ -140,9 +152,11 @@ class DashboardCubit extends Cubit<DashboardState> {
         return true;
       }
 
+      print('DashboardCubit: API returned success: false');
       emit(DashboardError('Failed to update driver status'));
       return false;
     } catch (e) {
+      print('DashboardCubit: Error updating driver status: $e');
       emit(DashboardError(e.toString()));
       return false;
     }

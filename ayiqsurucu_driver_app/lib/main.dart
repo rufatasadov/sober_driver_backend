@@ -8,6 +8,10 @@ import 'core/services/socket_service.dart';
 import 'features/auth/presentation/cubit/auth_cubit.dart';
 import 'features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
+import 'features/profile/presentation/cubit/profile_cubit.dart';
+import 'features/orders/presentation/cubit/orders_cubit.dart';
+import 'features/notifications/presentation/cubit/notifications_cubit.dart';
+import 'features/dashboard/presentation/cubit/dashboard_cubit.dart';
 import 'shared/widgets/loading_screen.dart';
 
 void main() async {
@@ -24,8 +28,14 @@ class AyiqSurucuDriverApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => AuthCubit(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (context) => AuthCubit()),
+        BlocProvider(create: (context) => DashboardCubit()),
+        BlocProvider(create: (context) => ProfileCubit()),
+        BlocProvider(create: (context) => OrdersCubit()),
+        BlocProvider(create: (context) => NotificationsCubit()),
+      ],
       child: ScreenUtilInit(
         designSize: const Size(375, 812), // iPhone X design size
         minTextAdapt: true,

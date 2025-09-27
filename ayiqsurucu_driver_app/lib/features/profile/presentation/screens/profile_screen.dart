@@ -18,15 +18,16 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   @override
-  void initState() {
-    super.initState();
+  Widget build(BuildContext context) {
+    // Load profile when screen is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ProfileCubit>().loadProfile();
     });
+
+    return _buildProfileContent();
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildProfileContent() {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -37,18 +38,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
           style: AppTheme.heading3.copyWith(color: AppColors.textPrimary),
         ),
         actions: [
-          IconButton(
-            icon: Icon(Icons.settings, color: AppColors.textPrimary),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder:
-                      (context) => BlocProvider.value(
-                        value: context.read<ProfileCubit>(),
-                        child: const ProfileSettingsScreen(),
-                      ),
-                ),
+          BlocBuilder<ProfileCubit, ProfileState>(
+            builder: (context, state) {
+              return IconButton(
+                icon: Icon(Icons.settings, color: AppColors.textPrimary),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (context) => BlocProvider.value(
+                            value: context.read<ProfileCubit>(),
+                            child: const ProfileSettingsScreen(),
+                          ),
+                    ),
+                  );
+                },
               );
             },
           ),
@@ -85,18 +90,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   SizedBox(height: 32.h),
 
-                  // Vehicle Information
-                  _buildVehicleInfo(state),
-
-                  SizedBox(height: 32.h),
-
                   // Action Buttons
-                  _buildActionButtons(),
+                  _buildActionButtons(context),
 
                   SizedBox(height: 24.h),
 
                   // Logout Button
-                  _buildLogoutButton(),
+                  _buildLogoutButton(context),
                 ],
               ),
             );
@@ -190,16 +190,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
 
           // Edit Button
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const EditProfileScreen(),
-                ),
+          Builder(
+            builder: (context) {
+              return IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (context) => BlocProvider.value(
+                            value: context.read<ProfileCubit>(),
+                            child: const EditProfileScreen(),
+                          ),
+                    ),
+                  );
+                },
+                icon: Icon(Icons.edit, color: AppColors.primary),
               );
             },
-            icon: Icon(Icons.edit, color: AppColors.primary),
           ),
         ],
       ),
@@ -306,59 +314,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildVehicleInfo(ProfileLoaded state) {
-    final vehicleInfo = state.driver?['vehicleInfo'] ?? {};
-
-    return Container(
-      padding: EdgeInsets.all(20.w),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Avtomobil Məlumatları',
-            style: AppTheme.heading3.copyWith(color: AppColors.textPrimary),
-          ),
-          SizedBox(height: 16.h),
-          _buildInfoRow(
-            'Marka',
-            vehicleInfo['make'] ?? 'Məlumat yoxdur',
-            Icons.directions_car,
-          ),
-          _buildInfoRow(
-            'Model',
-            vehicleInfo['model'] ?? 'Məlumat yoxdur',
-            Icons.car_rental,
-          ),
-          _buildInfoRow(
-            'İl',
-            vehicleInfo['year']?.toString() ?? 'Məlumat yoxdur',
-            Icons.calendar_today,
-          ),
-          _buildInfoRow(
-            'Rəng',
-            vehicleInfo['color'] ?? 'Məlumat yoxdur',
-            Icons.color_lens,
-          ),
-          _buildInfoRow(
-            'Nömrə Nişanı',
-            vehicleInfo['plateNumber'] ?? 'Məlumat yoxdur',
-            Icons.confirmation_number,
-          ),
-          _buildInfoRow(
-            'Sürücülük Vəsiqəsi',
-            state.driver?['licenseNumber'] ?? 'Məlumat yoxdur',
-            Icons.credit_card,
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildInfoRow(String label, String value, IconData icon) {
     return Padding(
       padding: EdgeInsets.only(bottom: 12.h),
@@ -391,7 +346,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildActionButtons() {
+  Widget _buildActionButtons(BuildContext context) {
     return Column(
       children: [
         _buildActionButton(
@@ -409,24 +364,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
               ),
             );
-          },
-        ),
-        SizedBox(height: 12.h),
-        _buildActionButton(
-          'Sürücü Məlumatlarını Yenilə',
-          Icons.drive_eta,
-          AppColors.info,
-          () {
-            // Navigate to driver info edit screen
-          },
-        ),
-        SizedBox(height: 12.h),
-        _buildActionButton(
-          'Avtomobil Məlumatlarını Yenilə',
-          Icons.car_repair,
-          AppColors.warning,
-          () {
-            // Navigate to vehicle info edit screen
           },
         ),
         SizedBox(height: 12.h),
@@ -487,12 +424,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildLogoutButton() {
+  Widget _buildLogoutButton(BuildContext context) {
     return Container(
       width: double.infinity,
       height: 48.h,
       child: ElevatedButton(
-        onPressed: () => _showLogoutDialog(),
+        onPressed: () => _showLogoutDialog(context),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.error,
           shape: RoundedRectangleBorder(
@@ -591,7 +528,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _showLogoutDialog() {
+  void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
       builder:

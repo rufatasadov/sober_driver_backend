@@ -3,11 +3,13 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:latlong2/latlong.dart' as latlong;
 import 'package:flutter_map/flutter_map.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/map_widget.dart';
 import '../cubit/orders_cubit.dart';
+import '../widgets/waiting_timer_widget.dart';
 
 class OrderDetailsScreen extends StatefulWidget {
   final Order order;
@@ -112,6 +114,221 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                       ],
                     ),
                   ),
+
+                  SizedBox(height: 16.h),
+
+                  // Price Card
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(16.w),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.success,
+                          AppColors.success.withOpacity(0.8),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Sifariş Qiyməti',
+                              style: AppTheme.bodyMedium.copyWith(
+                                color: AppColors.textOnPrimary.withOpacity(0.8),
+                              ),
+                            ),
+                            SizedBox(height: 4.h),
+                            Text(
+                              '${widget.order.fare.toStringAsFixed(2)} AZN',
+                              style: AppTheme.heading2.copyWith(
+                                color: AppColors.textOnPrimary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: EdgeInsets.all(8.w),
+                          decoration: BoxDecoration(
+                            color: AppColors.textOnPrimary.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8.r),
+                          ),
+                          child: Icon(
+                            Icons.attach_money,
+                            color: AppColors.textOnPrimary,
+                            size: 24.sp,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  SizedBox(height: 16.h),
+
+                  // Customer Info Card (if available)
+                  if (widget.order.customerId.isNotEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.all(16.w),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Müştəri Məlumatları', style: AppTheme.heading3),
+                          SizedBox(height: 12.h),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.person,
+                                color: AppColors.primary,
+                                size: 20.sp,
+                              ),
+                              SizedBox(width: 8.w),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      widget.order.customer?['name'] ??
+                                          'Müştəri',
+                                      style: AppTheme.bodyLarge.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    if (widget.order.customerPhone != null) ...[
+                                      SizedBox(height: 4.h),
+                                      Text(
+                                        widget.order.customerPhone!,
+                                        style: AppTheme.bodyMedium.copyWith(
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              if (widget.order.customerPhone != null)
+                                IconButton(
+                                  onPressed:
+                                      () => _makePhoneCall(
+                                        widget.order.customerPhone!,
+                                      ),
+                                  icon: Icon(
+                                    Icons.phone,
+                                    color: AppColors.success,
+                                    size: 24.sp,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  SizedBox(height: 16.h),
+
+                  // Payment Method Card
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(16.w),
+                    decoration: BoxDecoration(
+                      color: AppColors.warning.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12.r),
+                      border: Border.all(
+                        color: AppColors.warning.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.payment,
+                          color: AppColors.warning,
+                          size: 24.sp,
+                        ),
+                        SizedBox(width: 12.w),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Ödəniş Metodu',
+                                style: AppTheme.bodySmall.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              SizedBox(height: 4.h),
+                              Text(
+                                widget.order.paymentMethod == 'cash'
+                                    ? 'Nağd'
+                                    : widget.order.paymentMethod,
+                                style: AppTheme.bodyLarge.copyWith(
+                                  color: AppColors.warning,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  SizedBox(height: 16.h),
+
+                  // ETA Card (if available)
+                  if (widget.order.etaMinutes != null)
+                    Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.all(16.w),
+                      decoration: BoxDecoration(
+                        color: AppColors.info.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12.r),
+                        border: Border.all(
+                          color: AppColors.info.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.access_time,
+                            color: AppColors.info,
+                            size: 24.sp,
+                          ),
+                          SizedBox(width: 12.w),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Çatma Vaxtı',
+                                  style: AppTheme.bodySmall.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                                SizedBox(height: 4.h),
+                                Text(
+                                  '${widget.order.etaMinutes} dəqiqə',
+                                  style: AppTheme.bodyLarge.copyWith(
+                                    color: AppColors.info,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
 
                   SizedBox(height: 16.h),
 
@@ -262,6 +479,47 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
 
                   // Action Buttons
                   if (_shouldShowActionButtons()) _buildActionButtons(),
+
+                  // Waiting Timer (if driver has arrived)
+                  if (widget.order.status == 'driver_arrived')
+                    WaitingTimerWidget(
+                      freeWaitingMinutes:
+                          5, // Admin tərəfindən təyin olunan pulsuz dəqiqələr
+                      paidWaitingRatePerMinute:
+                          0.5, // Admin tərəfindən təyin olunan hər dəqiqəyə ödəniş
+                      onTimerComplete: () {
+                        // Müştəri gəldikdə timer dayanır
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Gözləmə vaxtı tamamlandı'),
+                            backgroundColor: AppColors.success,
+                          ),
+                        );
+                      },
+                      onAdditionalFee: (fee) {
+                        // Əlavə ödəniş hesablanır
+                        print('Əlavə ödəniş: $fee AZN');
+                      },
+                    ),
+
+                  // Cancel Order Button (if order is accepted but not arrived)
+                  if (widget.order.status == 'accepted')
+                    Container(
+                      width: double.infinity,
+                      height: 48.h,
+                      margin: EdgeInsets.only(top: 16.h),
+                      child: ElevatedButton(
+                        onPressed: () => _showCancelOrderDialog(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.error,
+                          foregroundColor: AppColors.textOnPrimary,
+                        ),
+                        child: Text(
+                          'Sifarişi Ləğv Et',
+                          style: TextStyle(fontSize: 16.sp),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -562,6 +820,78 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
           backgroundColor: AppColors.success,
         ),
       );
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ordersCubit.error ?? 'Xəta baş verdi'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    final Uri phoneUri = Uri(scheme: 'tel', path: phoneNumber);
+    try {
+      if (await canLaunchUrl(phoneUri)) {
+        await launchUrl(phoneUri);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Telefon zəngi başladıla bilmədi'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Xəta: $e'), backgroundColor: AppColors.error),
+      );
+    }
+  }
+
+  void _showCancelOrderDialog() {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text('Sifarişi Ləğv Et'),
+            content: Text('Bu sifarişi ləğv etmək istədiyinizə əminsiniz?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Ləğv et'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _cancelOrder();
+                },
+                child: Text(
+                  'Təsdiqlə',
+                  style: TextStyle(color: AppColors.error),
+                ),
+              ),
+            ],
+          ),
+    );
+  }
+
+  Future<void> _cancelOrder() async {
+    final ordersCubit = context.read<OrdersCubit>();
+    final success = await ordersCubit.cancelOrder(
+      widget.order.id,
+      reason: 'Sürücü tərəfindən ləğv edildi',
+    );
+
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Sifariş ləğv edildi'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      Navigator.pop(context);
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

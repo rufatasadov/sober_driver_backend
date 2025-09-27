@@ -151,6 +151,27 @@ router.put('/profile', auth, authorize('driver'), [
   }
 });
 
+// Get driver status
+router.get('/status', auth, authorize('driver'), async (req, res) => {
+  try {
+    const driver = await Driver.findOne({ where: { userId: req.user.id } });
+
+    if (!driver) {
+      return res.status(404).json({ error: 'Sürücü məlumatları tapılmadı' });
+    }
+
+    res.json({
+      success: true,
+      isOnline: driver.isOnline,
+      isAvailable: driver.isAvailable,
+      lastActive: driver.lastActive
+    });
+  } catch (error) {
+    console.error('Sürücü status alma xətası:', error);
+    res.status(500).json({ error: 'Server xətası' });
+  }
+});
+
 // Online/Offline status
 router.patch('/status', auth, authorize('driver'), [
   body('isOnline').isBoolean().withMessage('Online status boolean olmalıdır'),

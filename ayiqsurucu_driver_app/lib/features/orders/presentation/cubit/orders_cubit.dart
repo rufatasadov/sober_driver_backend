@@ -1,6 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/services/api_service.dart';
-import '../../../../core/services/socket_service.dart';
 import '../../../../core/constants/app_constants.dart';
 
 // Order Model
@@ -19,6 +18,9 @@ class Order {
   final String? notes;
   final DateTime createdAt;
   final DateTime? updatedAt;
+  final Map<String, dynamic>? customer;
+  final String? customerPhone;
+  final int? etaMinutes;
 
   Order({
     required this.id,
@@ -35,6 +37,9 @@ class Order {
     this.notes,
     required this.createdAt,
     this.updatedAt,
+    this.customer,
+    this.customerPhone,
+    this.etaMinutes,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {
@@ -56,6 +61,9 @@ class Order {
       ),
       updatedAt:
           json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
+      customer: json['customer'],
+      customerPhone: json['customer']?['phone'] ?? json['customerPhone'],
+      etaMinutes: json['etaMinutes'],
     );
   }
 
@@ -75,6 +83,9 @@ class Order {
       'notes': notes,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
+      'customer': customer,
+      'customerPhone': customerPhone,
+      'etaMinutes': etaMinutes,
     };
   }
 }
