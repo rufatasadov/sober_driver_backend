@@ -166,7 +166,7 @@ router.post('/orders/:orderId/assign-driver', auth, authorize('operator'), [
         driver: {
           id: driver.id,
           name: driver.user?.name || 'N/A',
-          phone: driver.user?.phone || 'N/A'
+          phone: driver.user?.phone || 'N/A '
         }
       }
     });
