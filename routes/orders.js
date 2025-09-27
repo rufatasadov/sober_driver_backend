@@ -411,15 +411,15 @@ router.patch('/:orderId/status', auth, [
 
     // Status dəyişikliyi icazəsini yoxla
     const canUpdateStatus = 
-      req.user.role === 'admin' ||
-      req.user.role === 'operator' ||
-      req.user.role === 'dispatcher' ||
-      req.user.role === 'driver' ||
+      req.user.role.name === 'admin' ||
+      req.user.role.name === 'operator' ||
+      req.user.role.name === 'dispatcher' ||
+      req.user.role.name === 'driver' ||
       order.customerId === req.user.id ||
       (order.driverId && order.driverId === req.user.id);
 
     if (!canUpdateStatus) {
-      return res.status(403).json({ error: 'Status dəyişdirmə icazəniz yoxdur req.user.role = ' + req.user.role + ' order.customerId = ' + order.customerId + ' order.driverId = ' + order.driverId + ' order.status = ' + order.status + ' status = ' + status    });
+      return res.status(403).json({ error: 'Status dəyişdirmə icazəniz yoxdur req.user.role = ' + req.user.role.name + ' order.customerId = ' + order.customerId + ' order.driverId = ' + order.driverId + ' order.status = ' + order.status + ' status = ' + status    });
     }
 
     // Status dəyişikliyi məntiqini yoxla
