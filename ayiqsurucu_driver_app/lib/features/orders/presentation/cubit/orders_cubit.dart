@@ -59,7 +59,7 @@ class Order {
       destination: json['destination'] ?? {},
       status: json['status'] ?? '',
       estimatedTime: json['estimatedTime']?.toDouble(),
-      estimatedDistance: json['estimatedDistance']?.toDouble(),
+      estimatedDistance: double.tryParse(json['estimatedDistance'] ?? "0.0"),
       fare: _parseFare(json['fare']),
       paymentMethod: json['paymentMethod'] ?? '',
       notes: json['notes'],
@@ -179,12 +179,18 @@ class OrdersCubit extends Cubit<OrdersState> {
   // Get driver orders
   Future<void> getDriverOrders() async {
     try {
+      print('OrdersCubit: Getting driver orders...');
       emit(OrdersLoading());
 
       final response = await _apiService.get(AppConstants.recentOrdersEndpoint);
+      print('OrdersCubit: API response: $response');
+
       final data = _apiService.handleResponse(response);
+      print('OrdersCubit: Parsed data: $data');
 
       if (data['orders'] != null) {
+        print('OrdersCubit: Found ${(data['orders'] as List).length} orders');
+
         final orders =
             (data['orders'] as List)
                 .map((order) => Order.fromJson(order))
@@ -198,7 +204,9 @@ class OrdersCubit extends Cubit<OrdersState> {
                 .where(
                   (order) =>
                       order.status == 'accepted' ||
-                      order.status == 'in_progress',
+                      order.status == 'in_progress' ||
+                      order.status == 'driver_assigned' ||
+                      order.status == 'driver_arrived',
                 )
                 .toList();
         final completedOrders =
@@ -209,6 +217,10 @@ class OrdersCubit extends Cubit<OrdersState> {
                       order.status == 'cancelled',
                 )
                 .toList();
+
+        print(
+          'OrdersCubit: Categorized orders - Pending: ${pendingOrders.length}, Active: ${activeOrders.length}, Completed: ${completedOrders.length}',
+        );
 
         emit(
           OrdersLoaded(

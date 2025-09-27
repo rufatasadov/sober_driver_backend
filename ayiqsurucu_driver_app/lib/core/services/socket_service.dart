@@ -112,6 +112,11 @@ class SocketService {
       _newOrderController.add(Map<String, dynamic>.from(data));
     });
 
+    _socket!.on('new_order_available', (data) {
+      print('📦 New order available: $data');
+      _newOrderController.add(Map<String, dynamic>.from(data));
+    });
+
     _socket!.on(AppConstants.socketOrderStatusEvent, (data) {
       print('📋 Order status updated: $data');
       _orderStatusController.add(Map<String, dynamic>.from(data));

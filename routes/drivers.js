@@ -430,6 +430,72 @@ router.post('/orders/:orderId/reject', auth, authorize('driver'), async (req, re
   }
 });
 
+// Sürücünün sifarişləri
+router.get('/orders', auth, authorize('driver'), async (req, res) => {
+  try {
+    console.log('Driver orders request:', {
+      userId: req.user.id,
+      userRole: req.user.role
+    });
+
+    const driver = await Driver.findOne({ where: { userId: req.user.id } });
+    if (!driver) {
+      return res.status(404).json({ error: 'Sürücü məlumatları tapılmadı' });
+    }
+
+    console.log('Found driver:', { id: driver.id, userId: driver.userId });
+
+    const { page = 1, limit = 50, status } = req.query;
+    const offset = (page - 1) * limit;
+
+    const whereClause = { driverId: driver.id };
+    
+    if (status) {
+      whereClause.status = status;
+    }
+
+    console.log('Query where clause:', whereClause);
+
+    const { count, rows: orders } = await Order.findAndCountAll({
+      where: whereClause,
+      include: [
+        {
+          model: User,
+          as: 'customer',
+          attributes: ['name', 'phone']
+        }
+      ],
+      order: [['createdAt', 'DESC']],
+      offset: parseInt(offset),
+      limit: parseInt(limit)
+    });
+
+    console.log('Found orders:', {
+      count: count,
+      ordersCount: orders.length,
+      sampleOrder: orders.length > 0 ? {
+        id: orders[0].id,
+        orderNumber: orders[0].orderNumber,
+        status: orders[0].status
+      } : null
+    });
+
+    res.json({
+      orders,
+      pagination: {
+        current: parseInt(page),
+        total: Math.ceil(count / limit),
+        hasNext: page * limit < count,
+        hasPrev: page > 1
+      }
+    });
+  } catch (error) {
+    console.error('Sürücü sifarişləri alma xətası:', error);
+    console.error('Error details:', error.message);
+    res.status(500).json({ error: 'Server xətası' });
+  }
+});
+
 // Sürücünün qazanc məlumatları
 router.get('/earnings', auth, authorize('driver'), async (req, res) => {
   try {

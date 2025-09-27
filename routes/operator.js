@@ -942,7 +942,7 @@ router.post('/orders', auth, authorize('operator'), [
       console.log('Operator: Emitting new order to all drivers');
       
       // Bütün online sürücülərə yeni sifariş bildir
-      io.to('drivers').emit('new_order_available', {
+      const orderData = {
         id: order.id,
         orderNumber: order.orderNumber,
         customerId: order.customerId,
@@ -961,7 +961,15 @@ router.post('/orders', auth, authorize('operator'), [
         },
         customerPhone: customer.phone,
         etaMinutes: 15 // Default ETA
+      };
+      
+      console.log('Operator: Emitting order data to drivers:', {
+        orderId: orderData.id,
+        orderNumber: orderData.orderNumber,
+        status: orderData.status
       });
+      
+      io.to('drivers').emit('new_order_available', orderData);
 
       // Müştəriyə bildir
       io.to(`user_${order.customerId}`).emit('order_created', {

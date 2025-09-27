@@ -18,7 +18,7 @@ class AppConstants {
   static const String earningsEndpoint = '/drivers/earnings';
   static const String ordersEndpoint = '/orders';
   static const String dashboardStatsEndpoint = '/drivers/earnings';
-  static const String recentOrdersEndpoint = '/orders/my-orders';
+  static const String recentOrdersEndpoint = '/drivers/orders';
 
   // Socket Events
   static const String socketNewOrderEvent = 'new_order_available';
