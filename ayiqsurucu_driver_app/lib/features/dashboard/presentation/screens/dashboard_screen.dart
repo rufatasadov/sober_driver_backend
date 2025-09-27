@@ -16,6 +16,7 @@ import '../../../orders/presentation/screens/order_details_screen.dart';
 import '../../../orders/presentation/cubit/orders_cubit.dart';
 import '../cubit/dashboard_cubit.dart';
 import '../../../../core/services/location_service.dart';
+import '../../../../core/services/location_tracking_service.dart';
 import '../../../../core/services/socket_service.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -177,23 +178,20 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _startLocationTracking() async {
     try {
       // Check permissions first
-      final hasPermission = await _locationService.checkAndRequestPermissions();
-      if (hasPermission) {
-        // Start location tracking
-        await _locationService.startLocationTracking();
-
-        // Update location on socket
-        final position = await _locationService.getCurrentLocation();
-        if (position != null) {
-          final socketService = SocketService();
-          if (socketService.isConnected) {
-            socketService.updateLocation(
-              latitude: position.latitude,
-              longitude: position.longitude,
-            );
-          }
+      final hasPermission =
+          await LocationTrackingService().checkLocationPermissions();
+      if (!hasPermission) {
+        final granted =
+            await LocationTrackingService().requestLocationPermissions();
+        if (!granted) {
+          print('Location tracking: Permission denied');
+          return;
         }
       }
+
+      // Start location tracking service
+      await LocationTrackingService().startTracking();
+      print('Location tracking: Started successfully');
     } catch (e) {
       print('Error starting location tracking: $e');
     }
@@ -1542,6 +1540,16 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) {
       if (success) {
         print('UI: Status update successful');
+
+        // Manage location tracking based on online status
+        if (!isOnline) {
+          // Going online - start location tracking
+          await LocationTrackingService().startTracking();
+        } else {
+          // Going offline - stop location tracking
+          LocationTrackingService().stopTracking();
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(!isOnline ? 'Onlayn oldunuz ✅' : 'Oflayn oldunuz ⏸️'),

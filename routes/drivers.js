@@ -673,4 +673,93 @@ router.get('/', auth, authorize('admin', 'dispatcher'), async (req, res) => {
   }
 });
 
+// Onlayn sürücüləri GPS məlumatları ilə alma
+router.get('/online', auth, authorize('operator'), async (req, res) => {
+  try {
+    const drivers = await Driver.findAll({
+      where: {
+        isOnline: true
+      },
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'name', 'phone']
+        }
+      ],
+      attributes: [
+        'id',
+        'userId',
+        'isOnline',
+        'isAvailable',
+        'currentLocation',
+        'lastLocationUpdate',
+        'vehicleInfo'
+      ]
+    });
+
+    // GPS məlumatları olan sürücüləri filtrlə
+    const driversWithLocation = drivers.filter(driver => 
+      driver.currentLocation && 
+      driver.currentLocation.coordinates &&
+      driver.currentLocation.coordinates.length >= 2
+    );
+
+    res.json({
+      success: true,
+      drivers: driversWithLocation.map(driver => ({
+        id: driver.id,
+        name: driver.user?.name || 'Sürücü',
+        phone: driver.user?.phone,
+        isOnline: driver.isOnline,
+        isAvailable: driver.isAvailable,
+        currentLocation: driver.currentLocation,
+        lastLocationUpdate: driver.lastLocationUpdate,
+        vehicleInfo: driver.vehicleInfo
+      }))
+    });
+  } catch (error) {
+    console.error('Onlayn sürücülər alma xətası:', error);
+    res.status(500).json({ error: 'Server xətası' });
+  }
+});
+
+// Sürücü GPS məlumatlarını yenilə
+router.patch('/location', auth, authorize('driver'), [
+  body('latitude').isFloat({ min: -90, max: 90 }).withMessage('Düzgün enlik daxil edin'),
+  body('longitude').isFloat({ min: -180, max: 180 }).withMessage('Düzgün uzunluq daxil edin')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { latitude, longitude } = req.body;
+
+    // Sürücünü tap
+    const driver = await Driver.findOne({ where: { userId: req.user.id } });
+    if (!driver) {
+      return res.status(404).json({ error: 'Sürücü tapılmadı' });
+    }
+
+    // GPS məlumatlarını yenilə
+    await driver.update({
+      currentLocation: {
+        type: 'Point',
+        coordinates: [longitude, latitude]
+      },
+      lastLocationUpdate: new Date()
+    });
+
+    res.json({
+      success: true,
+      message: 'GPS məlumatları yeniləndi'
+    });
+  } catch (error) {
+    console.error('GPS yeniləmə xətası:', error);
+    res.status(500).json({ error: 'Server xətası' });
+  }
+});
+
 module.exports = router; 
