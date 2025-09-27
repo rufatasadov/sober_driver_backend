@@ -936,12 +936,21 @@ router.post('/orders', auth, authorize('operator'), [
       ]
     });
 
-    // Socket event emit et - bütün online sürücülərə yeni sifariş bildir
+    // Socket event emit et - yaxın sürücülərə yeni sifariş bildir
     const io = req.app.get('io');
     if (io) {
-      console.log('Operator: Emitting new order to all drivers');
+      console.log('Operator: Finding nearby drivers for new order');
       
-      // Bütün online sürücülərə yeni sifariş bildir
+      // Pickup koordinatlarını al
+      const pickupCoords = order.pickup.location.coordinates;
+      const [pickupLon, pickupLat] = pickupCoords;
+      
+      // 5 km yaxınlıqdakı sürücüləri tap
+      const nearbyDrivers = await findNearbyDrivers(pickupLat, pickupLon, 5);
+      
+      console.log('Operator: Found nearby drivers:', nearbyDrivers.length);
+      
+      // Sifariş məlumatlarını hazırla
       const orderData = {
         id: order.id,
         orderNumber: order.orderNumber,
@@ -960,16 +969,28 @@ router.post('/orders', auth, authorize('operator'), [
           phone: customer.phone
         },
         customerPhone: customer.phone,
-        etaMinutes: 15 // Default ETA
+        etaMinutes: 15, // Default ETA
+        broadcastType: 'nearby_drivers', // Bu broadcast sifarişidir
+        nearbyDriversCount: nearbyDrivers.length
       };
       
-      console.log('Operator: Emitting order data to drivers:', {
+      console.log('Operator: Broadcasting order to nearby drivers:', {
         orderId: orderData.id,
         orderNumber: orderData.orderNumber,
-        status: orderData.status
+        nearbyDriversCount: nearbyDrivers.length
       });
       
-      io.to('drivers').emit('new_order_available', orderData);
+      // Yaxın sürücülərə broadcast et
+      if (nearbyDrivers.length > 0) {
+        nearbyDrivers.forEach(driver => {
+          console.log(`Operator: Sending order to driver ${driver.userId}`);
+          io.to(`driver_${driver.userId}`).emit('broadcast_order_available', orderData);
+        });
+      } else {
+        console.log('Operator: No nearby drivers found, sending to all online drivers');
+        // Əgər yaxın sürücü yoxdursa, bütün online sürücülərə göndər
+        io.to('drivers').emit('new_order_available', orderData);
+      }
 
       // Müştəriyə bildir
       io.to(`user_${order.customerId}`).emit('order_created', {

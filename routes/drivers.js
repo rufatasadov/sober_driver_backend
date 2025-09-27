@@ -377,6 +377,37 @@ router.post('/orders/:orderId/accept', auth, authorize('driver'), async (req, re
       status: order.status
     });
 
+    // Socket event emit et - digər sürücülərdən broadcast sifarişi sil
+    const io = req.app.get('io');
+    if (io) {
+      console.log('Driver: Emitting order accepted, removing from other drivers');
+      
+      // Bütün sürücülərə bildir ki, bu sifariş artıq mövcud deyil
+      io.to('drivers').emit('order_accepted_by_other', {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        acceptedBy: {
+          driverId: driver.id,
+          driverName: driver.user?.name || 'Sürücü'
+        }
+      });
+
+      // Müştəriyə bildir
+      io.to(`user_${order.customerId}`).emit('driver_assigned', {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        driver: {
+          id: driver.id,
+          name: driver.user?.name || 'N/A',
+          phone: driver.user?.phone || 'N/A'
+        }
+      });
+
+      // Operator və dispetçerlərə bildir
+      io.to('operators').emit('driver_assigned_to_order', { order });
+      io.to('dispatchers').emit('driver_assigned_to_order', { order });
+    }
+
     res.json({
       message: 'Sifariş uğurla qəbul edildi',
       order: {
@@ -499,8 +530,16 @@ router.get('/orders', auth, authorize('driver'), async (req, res) => {
 // Sürücünün qazanc məlumatları
 router.get('/earnings', auth, authorize('driver'), async (req, res) => {
   try {
+    console.log('Driver earnings request:', {
+      userId: req.user.id,
+      userRole: req.user.role,
+      period: req.query.period
+    });
+
     const { period = 'today' } = req.query;
     const driver = await Driver.findOne({ where: { userId: req.user.id } });
+
+    console.log('Found driver for earnings:', driver ? { id: driver.id, commission: driver.commission } : 'Not found');
 
     if (!driver) {
       return res.status(404).json({ error: 'Sürücü məlumatları tapılmadı' });
@@ -530,6 +569,13 @@ router.get('/earnings', auth, authorize('driver'), async (req, res) => {
     }
 
     // Tamamlanmış sifarişləri al
+    console.log('Looking for completed orders:', {
+      driverId: driver.id,
+      status: 'completed',
+      startDate,
+      endDate
+    });
+
     const completedOrders = await Order.findAll({
       where: {
         driverId: driver.id,
@@ -541,23 +587,45 @@ router.get('/earnings', auth, authorize('driver'), async (req, res) => {
       }
     });
 
+    console.log('Found completed orders:', {
+      count: completedOrders.length,
+      orders: completedOrders.map(order => ({
+        id: order.id,
+        fare: order.fare,
+        status: order.status
+      }))
+    });
+
     const totalEarnings = completedOrders.reduce((sum, order) => sum + parseFloat(order.fare?.total || 0), 0);
     const commission = totalEarnings * (driver.commission / 100);
     const netEarnings = totalEarnings - commission;
 
-    res.json({
-      period,
-      totalOrders: completedOrders.length,
+    console.log('Earnings calculation:', {
+      completedOrdersCount: completedOrders.length,
       totalEarnings,
       commission,
       netEarnings,
-      orders: completedOrders.map(order => ({
-        id: order.id,
-        orderNumber: order.orderNumber,
-        fare: order.fare,
-        createdAt: order.createdAt
-      }))
+      driverCommission: driver.commission
     });
+
+    const earningsData = {
+      earnings: {
+        period,
+        totalOrders: completedOrders.length,
+        totalEarnings,
+        commission,
+        netEarnings,
+        orders: completedOrders.map(order => ({
+          id: order.id,
+          orderNumber: order.orderNumber,
+          fare: order.fare,
+          createdAt: order.createdAt
+        }))
+      }
+    };
+
+    console.log('Sending earnings response:', earningsData);
+    res.json(earningsData);
   } catch (error) {
     console.error('Qazanc məlumatları alma xətası:', error);
     res.status(500).json({ error: 'Server xətası' });

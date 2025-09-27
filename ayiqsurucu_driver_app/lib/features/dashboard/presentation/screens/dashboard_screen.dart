@@ -10,6 +10,7 @@ import '../../../profile/presentation/screens/earnings_screen.dart';
 import '../../../orders/presentation/screens/order_history_screen.dart';
 import '../../../notifications/presentation/screens/notifications_screen.dart';
 import '../../../orders/presentation/widgets/new_order_notification_widget.dart';
+import '../../../orders/presentation/widgets/broadcast_order_notification_widget.dart';
 import '../../../orders/presentation/cubit/orders_cubit.dart';
 import '../cubit/dashboard_cubit.dart';
 
@@ -139,12 +140,15 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   Order? _newOrder;
   bool _showNewOrderNotification = false;
+  Order? _broadcastOrder;
+  bool _showBroadcastOrderNotification = false;
 
   @override
   void initState() {
     super.initState();
     // Listen for new orders
     _listenForNewOrders();
+    _listenForBroadcastOrders();
   }
 
   void _listenForNewOrders() {
@@ -155,6 +159,14 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  void _listenForBroadcastOrders() {
+    // Set callback for broadcast order notifications
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ordersCubit = context.read<OrdersCubit>();
+      ordersCubit.setBroadcastOrderCallback(_showBroadcastOrder);
+    });
+  }
+
   void _showNewOrder(Order order) {
     setState(() {
       _newOrder = order;
@@ -162,10 +174,24 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  void _showBroadcastOrder(Order order) {
+    setState(() {
+      _broadcastOrder = order;
+      _showBroadcastOrderNotification = true;
+    });
+  }
+
   void _dismissNewOrder() {
     setState(() {
       _showNewOrderNotification = false;
       _newOrder = null;
+    });
+  }
+
+  void _dismissBroadcastOrder() {
+    setState(() {
+      _showBroadcastOrderNotification = false;
+      _broadcastOrder = null;
     });
   }
 
@@ -182,6 +208,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
         _dismissNewOrder();
+        _dismissBroadcastOrder();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -206,6 +233,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
         _dismissNewOrder();
+        _dismissBroadcastOrder();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -215,6 +243,28 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     }
+  }
+
+  // Helper method to parse fare from different formats
+  double _parseFare(dynamic fare) {
+    if (fare == null) return 0.0;
+
+    if (fare is double) return fare;
+    if (fare is int) return fare.toDouble();
+    if (fare is String) {
+      return double.tryParse(fare) ?? 0.0;
+    }
+    if (fare is Map<String, dynamic>) {
+      // If fare is an object, try to get total or amount
+      final total = fare['total'] ?? fare['amount'] ?? fare['fare'];
+      if (total is double) return total;
+      if (total is int) return total.toDouble();
+      if (total is String) {
+        return double.tryParse(total) ?? 0.0;
+      }
+    }
+
+    return 0.0;
   }
 
   @override
@@ -288,6 +338,20 @@ class _HomeScreenState extends State<HomeScreen> {
                     onDismiss: _dismissNewOrder,
                   ),
                 ),
+
+              // Broadcast Order Notification Overlay
+              if (_showBroadcastOrderNotification && _broadcastOrder != null)
+                Positioned(
+                  top: _showNewOrderNotification ? 200.h : 0,
+                  left: 0,
+                  right: 0,
+                  child: BroadcastOrderNotificationWidget(
+                    order: _broadcastOrder!,
+                    onAccept: () => _acceptOrder(_broadcastOrder!),
+                    onReject: () => _rejectOrder(_broadcastOrder!),
+                    onDismiss: _dismissBroadcastOrder,
+                  ),
+                ),
             ],
           );
         },
@@ -327,98 +391,68 @@ class _HomeScreenState extends State<HomeScreen> {
       margin: EdgeInsets.all(16.w),
       child: Column(
         children: [
-          // Balance Card
+          // Balance Card - Compact
           Container(
             width: double.infinity,
-            padding: EdgeInsets.all(20.w),
+            padding: EdgeInsets.all(16.w),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [AppColors.primary, AppColors.primary.withOpacity(0.9)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(16.r),
+              borderRadius: BorderRadius.circular(12.r),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.primary.withOpacity(0.3),
-                  blurRadius: 12,
-                  offset: const Offset(0, 6),
+                  color: AppColors.primary.withOpacity(0.2),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Balansınız',
-                          style: AppTheme.bodyMedium.copyWith(
-                            color: AppColors.textOnPrimary.withOpacity(0.9),
-                            fontSize: 14.sp,
-                          ),
-                        ),
-                        SizedBox(height: 8.h),
-                        Text(
-                          '${stats['totalEarnings']?.toStringAsFixed(2) ?? '0.00'} AZN',
-                          style: AppTheme.heading1.copyWith(
-                            color: AppColors.textOnPrimary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 28.sp,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Container(
-                      padding: EdgeInsets.all(12.w),
-                      decoration: BoxDecoration(
-                        color: AppColors.textOnPrimary.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(12.r),
+                    Text(
+                      'Balans',
+                      style: AppTheme.bodySmall.copyWith(
+                        color: AppColors.textOnPrimary.withOpacity(0.8),
+                        fontSize: 12.sp,
                       ),
-                      child: Icon(
-                        Icons.account_balance_wallet_outlined,
+                    ),
+                    SizedBox(height: 4.h),
+                    Text(
+                      '${stats['totalEarnings']?.toStringAsFixed(2) ?? '0.00'} AZN',
+                      style: AppTheme.heading3.copyWith(
                         color: AppColors.textOnPrimary,
-                        size: 28.sp,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20.sp,
+                      ),
+                    ),
+                    SizedBox(height: 4.h),
+                    Text(
+                      'Bugün: ${(stats['todayEarnings'] ?? 0.0).toStringAsFixed(2)} AZN',
+                      style: AppTheme.caption.copyWith(
+                        color: AppColors.textOnPrimary.withOpacity(0.8),
+                        fontSize: 11.sp,
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: 16.h),
-                Row(
-                  children: [
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 12.w,
-                        vertical: 6.h,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.textOnPrimary.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(20.r),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.trending_up,
-                            color: AppColors.textOnPrimary,
-                            size: 16.sp,
-                          ),
-                          SizedBox(width: 4.w),
-                          Text(
-                            'Bugün: ${(stats['todayEarnings'] ?? 0.0).toStringAsFixed(2)} AZN',
-                            style: AppTheme.bodySmall.copyWith(
-                              color: AppColors.textOnPrimary,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                Container(
+                  padding: EdgeInsets.all(8.w),
+                  decoration: BoxDecoration(
+                    color: AppColors.textOnPrimary.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                  child: Icon(
+                    Icons.account_balance_wallet_outlined,
+                    color: AppColors.textOnPrimary,
+                    size: 20.sp,
+                  ),
                 ),
               ],
             ),
@@ -532,7 +566,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildOnlineStatusCard(bool isOnline, bool isAvailable) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(20.w),
+      padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors:
@@ -542,29 +576,29 @@ class _HomeScreenState extends State<HomeScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16.r),
+        borderRadius: BorderRadius.circular(12.r),
         border: Border.all(
           color: isOnline ? AppColors.success : AppColors.border,
-          width: 2.w,
+          width: 1.w,
         ),
         boxShadow: [
           BoxShadow(
             color:
                 isOnline
-                    ? AppColors.success.withOpacity(0.2)
+                    ? AppColors.success.withOpacity(0.15)
                     : AppColors.shadow,
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+            blurRadius: 6,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
-      child: Column(
+      child: Row(
         children: [
-          // Status Icon with animation
+          // Status Icon
           AnimatedContainer(
             duration: const Duration(milliseconds: 300),
-            width: 70.w,
-            height: 70.h,
+            width: 50.w,
+            height: 50.h,
             decoration: BoxDecoration(
               color:
                   isOnline
@@ -576,36 +610,50 @@ class _HomeScreenState extends State<HomeScreen> {
               isOnline
                   ? Icons.check_circle_rounded
                   : Icons.pause_circle_outline_rounded,
-              size: 40.sp,
+              size: 28.sp,
               color:
                   isOnline ? AppColors.textOnPrimary : AppColors.textSecondary,
             ),
           ),
-          SizedBox(height: 16.h),
-          Text(
-            isOnline ? 'Onlayn' : 'Oflayn',
-            style: AppTheme.heading2.copyWith(
-              color: isOnline ? AppColors.textOnPrimary : AppColors.textPrimary,
-              fontWeight: FontWeight.bold,
+          SizedBox(width: 16.w),
+          // Status Text
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isOnline ? 'Onlayn' : 'Oflayn',
+                  style: AppTheme.bodyLarge.copyWith(
+                    color:
+                        isOnline
+                            ? AppColors.textOnPrimary
+                            : AppColors.textPrimary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16.sp,
+                  ),
+                ),
+                SizedBox(height: 4.h),
+                Text(
+                  isOnline
+                      ? isAvailable
+                          ? 'Yeni sifarişlər alırsınız'
+                          : 'Onlayn amma məşğulsunuz'
+                      : 'İşə başlamaq üçün düyməyə basın',
+                  style: AppTheme.bodySmall.copyWith(
+                    color:
+                        isOnline
+                            ? AppColors.textOnPrimary.withOpacity(0.8)
+                            : AppColors.textSecondary,
+                    fontSize: 12.sp,
+                  ),
+                ),
+              ],
             ),
           ),
-          SizedBox(height: 8.h),
-          Text(
-            isOnline
-                ? isAvailable
-                    ? 'Yeni sifarişlər alırsınız 🚗'
-                    : 'Onlayn amma məşğulsunuz ⏸️'
-                : 'İşə başlamaq üçün düyməyə basın ▶️',
-            style: AppTheme.bodyMedium.copyWith(
-              color:
-                  isOnline ? AppColors.textOnPrimary : AppColors.textSecondary,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 20.h),
+          // Toggle Button
           SizedBox(
-            width: double.infinity,
-            height: 50.h,
+            width: 80.w,
+            height: 36.h,
             child: ElevatedButton(
               onPressed:
                   () => _toggleOnlineStatus(
@@ -618,9 +666,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 foregroundColor:
                     isOnline ? AppColors.success : AppColors.textOnPrimary,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.r),
+                  borderRadius: BorderRadius.circular(8.r),
                 ),
                 elevation: isOnline ? 0 : 2,
+                padding: EdgeInsets.zero,
               ),
               child: BlocBuilder<DashboardCubit, DashboardState>(
                 builder: (context, state) {
@@ -628,8 +677,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   if (isLoading) {
                     return SizedBox(
-                      width: 20.w,
-                      height: 20.h,
+                      width: 16.w,
+                      height: 16.h,
                       child: CircularProgressIndicator(
                         strokeWidth: 2.w,
                         valueColor: AlwaysStoppedAnimation<Color>(
@@ -641,24 +690,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   }
 
-                  return Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        isOnline
-                            ? Icons.pause_rounded
-                            : Icons.play_arrow_rounded,
-                        size: 20.sp,
-                      ),
-                      SizedBox(width: 8.w),
-                      Text(
-                        isOnline ? 'Oflayn Ol' : 'Onlayn Ol',
-                        style: TextStyle(
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+                  return Icon(
+                    isOnline ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                    size: 16.sp,
                   );
                 },
               ),
@@ -923,7 +957,7 @@ class _HomeScreenState extends State<HomeScreen> {
               borderRadius: BorderRadius.circular(20.r),
             ),
             child: Text(
-              '${(order['fare'] ?? 0.0).toStringAsFixed(2)} ₼',
+              '${_parseFare(order['fare']).toStringAsFixed(2)} ₼',
               style: AppTheme.bodyMedium.copyWith(
                 fontWeight: FontWeight.w600,
                 color: AppColors.success,

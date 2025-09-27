@@ -150,6 +150,24 @@ const setupSocketHandlers = (io) => {
       }
     });
 
+    // Broadcast sifariş bildirişi (yaxın sürücülərə)
+    socket.on('broadcast_order_available', (data) => {
+      console.log('Socket: Broadcasting order to nearby drivers:', data.orderNumber);
+      // Bu event-i yalnız driver-lərə forward et
+      if (socket.userRole === 'driver') {
+        socket.emit('broadcast_order_available', data);
+      }
+    });
+
+    // Sifariş başqa sürücü tərəfindən qəbul edildi
+    socket.on('order_accepted_by_other', (data) => {
+      console.log('Socket: Order accepted by other driver:', data.orderNumber);
+      // Bu event-i yalnız driver-lərə forward et
+      if (socket.userRole === 'driver') {
+        socket.emit('order_accepted_by_other', data);
+      }
+    });
+
     // Sifariş statusu yeniləməsi
     socket.on('order_status_updated', async (data) => {
       try {

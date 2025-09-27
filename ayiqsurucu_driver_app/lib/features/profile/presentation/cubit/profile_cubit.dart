@@ -184,10 +184,33 @@ class ProfileCubit extends Cubit<ProfileState> {
   // Get driver earnings
   Future<Map<String, dynamic>?> getDriverEarnings() async {
     try {
+      print('ProfileCubit: Getting driver earnings...');
       final response = await _apiService.get(AppConstants.earningsEndpoint);
+      print('ProfileCubit: Earnings API response: $response');
+
       final data = _apiService.handleResponse(response);
-      return data['earnings'];
+      print('ProfileCubit: Parsed earnings data: $data');
+      print('ProfileCubit: Data keys: ${data.keys.toList()}');
+
+      final earnings = data['earnings'];
+      print('ProfileCubit: Extracted earnings: $earnings');
+
+      if (earnings == null) {
+        print(
+          'ProfileCubit: Earnings is null, checking if data has other keys...',
+        );
+        print('ProfileCubit: Full data structure: $data');
+
+        // If earnings is null, try to return the data itself
+        if (data.isNotEmpty) {
+          print('ProfileCubit: Returning full data instead of earnings');
+          return data;
+        }
+      }
+
+      return earnings;
     } catch (e) {
+      print('ProfileCubit: Error getting earnings: $e');
       emit(ProfileError(e.toString()));
       return null;
     }

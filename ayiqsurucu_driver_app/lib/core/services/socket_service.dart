@@ -18,6 +18,10 @@ class SocketService {
       StreamController<Map<String, dynamic>>.broadcast();
   final StreamController<Map<String, dynamic>> _driverLocationController =
       StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<Map<String, dynamic>> _broadcastOrderController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<Map<String, dynamic>> _orderAcceptedByOtherController =
+      StreamController<Map<String, dynamic>>.broadcast();
 
   // Streams
   Stream<Map<String, dynamic>> get newOrderStream => _newOrderController.stream;
@@ -25,6 +29,10 @@ class SocketService {
       _orderStatusController.stream;
   Stream<Map<String, dynamic>> get driverLocationStream =>
       _driverLocationController.stream;
+  Stream<Map<String, dynamic>> get broadcastOrderStream =>
+      _broadcastOrderController.stream;
+  Stream<Map<String, dynamic>> get orderAcceptedByOtherStream =>
+      _orderAcceptedByOtherController.stream;
 
   bool get isConnected => _isConnected;
   IO.Socket? get socket => _socket;
@@ -115,6 +123,16 @@ class SocketService {
     _socket!.on('new_order_available', (data) {
       print('📦 New order available: $data');
       _newOrderController.add(Map<String, dynamic>.from(data));
+    });
+
+    _socket!.on('broadcast_order_available', (data) {
+      print('📢 Broadcast order available: $data');
+      _broadcastOrderController.add(Map<String, dynamic>.from(data));
+    });
+
+    _socket!.on('order_accepted_by_other', (data) {
+      print('👥 Order accepted by other driver: $data');
+      _orderAcceptedByOtherController.add(Map<String, dynamic>.from(data));
     });
 
     _socket!.on(AppConstants.socketOrderStatusEvent, (data) {
@@ -244,6 +262,8 @@ class SocketService {
     _newOrderController.close();
     _orderStatusController.close();
     _driverLocationController.close();
+    _broadcastOrderController.close();
+    _orderAcceptedByOtherController.close();
   }
 
   // Check connection status

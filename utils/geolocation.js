@@ -68,26 +68,56 @@ const calculateFare = (distance, estimatedTime) => {
   };
 };
 
-// Yaxın sürücüləri tap
+// Yaxın sürücüləri tap (Sequelize ilə)
 const findNearbyDrivers = async (latitude, longitude, maxDistance = 5) => {
   try {
     const Driver = require('../models/Driver');
+    const User = require('../models/User');
+    const { Op } = require('sequelize');
     
-    const drivers = await Driver.find({
-      isOnline: true,
-      isAvailable: true,
-      currentLocation: {
-        $near: {
-          $geometry: {
-            type: 'Point',
-            coordinates: [longitude, latitude]
-          },
-          $maxDistance: maxDistance * 1000 // metrə çevir
-        }
-      }
-    }).populate('userId', 'name phone');
+    console.log('Finding nearby drivers:', {
+      latitude,
+      longitude,
+      maxDistance
+    });
 
-    return drivers;
+    // Bütün online və available sürücüləri al
+    const drivers = await Driver.findAll({
+      where: {
+        isOnline: true,
+        isAvailable: true,
+        currentLocation: {
+          [Op.ne]: null
+        }
+      },
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'name', 'phone']
+        }
+      ]
+    });
+
+    console.log('Found online drivers:', drivers.length);
+
+    // Məsafəyə görə filter et
+    const nearbyDrivers = drivers.filter(driver => {
+      if (!driver.currentLocation || !driver.currentLocation.coordinates) {
+        return false;
+      }
+
+      const [driverLon, driverLat] = driver.currentLocation.coordinates;
+      const distance = calculateDistance(latitude, longitude, driverLat, driverLon);
+      
+      console.log(`Driver ${driver.id} distance: ${distance.toFixed(2)} km`);
+      
+      return distance <= maxDistance;
+    });
+
+    console.log('Nearby drivers within', maxDistance, 'km:', nearbyDrivers.length);
+
+    return nearbyDrivers;
   } catch (error) {
     console.error('Yaxın sürücü tapma xətası:', error);
     return [];

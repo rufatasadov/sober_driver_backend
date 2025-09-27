@@ -202,14 +202,17 @@ class _OrdersScreenState extends State<OrdersScreen>
             children: [
               // Header
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Sifariş #${order.orderNumber}',
-                    style: AppTheme.bodyLarge.copyWith(
-                      fontWeight: FontWeight.w600,
+                  Expanded(
+                    child: Text(
+                      'Sifariş #${order.orderNumber}',
+                      style: AppTheme.bodyLarge.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  SizedBox(width: 8.w),
                   Container(
                     padding: EdgeInsets.symmetric(
                       horizontal: 8.w,

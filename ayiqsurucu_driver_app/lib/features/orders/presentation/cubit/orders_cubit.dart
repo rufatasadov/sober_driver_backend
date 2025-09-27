@@ -153,6 +153,9 @@ class OrdersCubit extends Cubit<OrdersState> {
   // Callback for new order notifications
   Function(Order)? _newOrderCallback;
 
+  // Callback for broadcast order notifications
+  Function(Order)? _broadcastOrderCallback;
+
   OrdersCubit() : super(OrdersInitial()) {
     // Initialize socket listeners after a delay to ensure socket is connected
     Future.delayed(const Duration(seconds: 2), () {
@@ -392,6 +395,11 @@ class OrdersCubit extends Cubit<OrdersState> {
     _newOrderCallback = callback;
   }
 
+  // Set callback for broadcast order notifications
+  void setBroadcastOrderCallback(Function(Order) callback) {
+    _broadcastOrderCallback = callback;
+  }
+
   // Initialize socket listeners
   void _initializeSocketListeners() {
     print('OrdersCubit: Initializing socket listeners...');
@@ -400,6 +408,18 @@ class OrdersCubit extends Cubit<OrdersState> {
     _newOrderSubscription = _socketService.newOrderStream.listen((orderData) {
       print('OrdersCubit: New order received via socket: $orderData');
       _handleNewOrder(orderData);
+    });
+
+    // Listen for broadcast orders
+    _socketService.broadcastOrderStream.listen((orderData) {
+      print('OrdersCubit: Broadcast order received via socket: $orderData');
+      _handleBroadcastOrder(orderData);
+    });
+
+    // Listen for orders accepted by other drivers
+    _socketService.orderAcceptedByOtherStream.listen((data) {
+      print('OrdersCubit: Order accepted by other driver: $data');
+      _handleOrderAcceptedByOther(data);
     });
 
     print('OrdersCubit: Socket listeners initialized');
@@ -450,6 +470,86 @@ class OrdersCubit extends Cubit<OrdersState> {
       }
     } catch (e) {
       print('OrdersCubit: Error handling new order: $e');
+    }
+  }
+
+  // Handle broadcast order from socket
+  void _handleBroadcastOrder(Map<String, dynamic> orderData) {
+    try {
+      final broadcastOrder = Order.fromJson(orderData);
+
+      // Call the callback to show broadcast notification
+      if (_broadcastOrderCallback != null) {
+        print(
+          'OrdersCubit: Calling broadcast order callback for: ${broadcastOrder.orderNumber}',
+        );
+        _broadcastOrderCallback!(broadcastOrder);
+      }
+
+      if (state is OrdersLoaded) {
+        final currentState = state as OrdersLoaded;
+        final updatedPendingOrders = List<Order>.from(
+          currentState.pendingOrders,
+        );
+
+        // Check if order already exists
+        final existingIndex = updatedPendingOrders.indexWhere(
+          (order) => order.id == broadcastOrder.id,
+        );
+        if (existingIndex == -1) {
+          // Add new broadcast order to pending orders
+          updatedPendingOrders.add(broadcastOrder);
+
+          emit(
+            OrdersLoaded(
+              pendingOrders: updatedPendingOrders,
+              activeOrders: currentState.activeOrders,
+              completedOrders: currentState.completedOrders,
+            ),
+          );
+
+          print(
+            'OrdersCubit: Broadcast order added to pending orders: ${broadcastOrder.orderNumber}',
+          );
+        }
+      } else {
+        // If not loaded, refresh orders
+        getDriverOrders();
+      }
+    } catch (e) {
+      print('OrdersCubit: Error handling broadcast order: $e');
+    }
+  }
+
+  // Handle order accepted by other driver
+  void _handleOrderAcceptedByOther(Map<String, dynamic> data) {
+    try {
+      final orderId = data['orderId']?.toString();
+      if (orderId == null) return;
+
+      print('OrdersCubit: Order $orderId accepted by other driver');
+
+      if (state is OrdersLoaded) {
+        final currentState = state as OrdersLoaded;
+        final updatedPendingOrders = List<Order>.from(
+          currentState.pendingOrders,
+        );
+
+        // Remove the order from pending orders
+        updatedPendingOrders.removeWhere((order) => order.id == orderId);
+
+        emit(
+          OrdersLoaded(
+            pendingOrders: updatedPendingOrders,
+            activeOrders: currentState.activeOrders,
+            completedOrders: currentState.completedOrders,
+          ),
+        );
+
+        print('OrdersCubit: Order $orderId removed from pending orders');
+      }
+    } catch (e) {
+      print('OrdersCubit: Error handling order accepted by other: $e');
     }
   }
 
