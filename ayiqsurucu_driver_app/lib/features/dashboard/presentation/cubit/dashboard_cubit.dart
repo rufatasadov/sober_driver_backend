@@ -131,7 +131,8 @@ class DashboardCubit extends Cubit<DashboardState> {
       final data = _apiService.handleResponse(response);
       print('DashboardCubit: Parsed data: $data');
 
-      if (data['success'] == true) {
+      // Check if the response is successful (either 'success: true' or has 'driver' field)
+      if (data['success'] == true || data['driver'] != null) {
         // Update current state with new status
         if (state is DashboardLoaded) {
           final currentState = state as DashboardLoaded;
@@ -148,6 +149,10 @@ class DashboardCubit extends Cubit<DashboardState> {
               recentOrders: currentState.recentOrders,
             ),
           );
+        } else {
+          // If state is not loaded, reload the entire dashboard
+          print('DashboardCubit: State not loaded, reloading dashboard...');
+          await loadDashboardData();
         }
         return true;
       }

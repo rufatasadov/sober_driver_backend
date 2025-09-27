@@ -45,8 +45,13 @@ class Order {
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {
+    print('Order.fromJson: Parsing order data: $json');
+
+    final orderId = json['id']?.toString() ?? '';
+    print('Order.fromJson: Parsed order ID: $orderId');
+
     return Order(
-      id: json['id'] ?? '',
+      id: orderId,
       orderNumber: json['orderNumber'] ?? '',
       customerId: json['customerId'] ?? '',
       driverId: json['driverId'],
@@ -55,7 +60,7 @@ class Order {
       status: json['status'] ?? '',
       estimatedTime: json['estimatedTime']?.toDouble(),
       estimatedDistance: json['estimatedDistance']?.toDouble(),
-      fare: (json['fare'] ?? 0).toDouble(),
+      fare: _parseFare(json['fare']),
       paymentMethod: json['paymentMethod'] ?? '',
       notes: json['notes'],
       createdAt: DateTime.parse(
@@ -90,6 +95,28 @@ class Order {
       'etaMinutes': etaMinutes,
     };
   }
+
+  // Helper method to parse fare from different formats
+  static double _parseFare(dynamic fare) {
+    if (fare == null) return 0.0;
+
+    if (fare is double) return fare;
+    if (fare is int) return fare.toDouble();
+    if (fare is String) {
+      return double.tryParse(fare) ?? 0.0;
+    }
+    if (fare is Map<String, dynamic>) {
+      // If fare is an object, try to get total or amount
+      final total = fare['total'] ?? fare['amount'] ?? fare['fare'];
+      if (total is double) return total;
+      if (total is int) return total.toDouble();
+      if (total is String) {
+        return double.tryParse(total) ?? 0.0;
+      }
+    }
+
+    return 0.0;
+  }
 }
 
 // Orders States
@@ -122,6 +149,9 @@ class OrdersCubit extends Cubit<OrdersState> {
   final ApiService _apiService = ApiService();
   final SocketService _socketService = SocketService();
   StreamSubscription? _newOrderSubscription;
+
+  // Callback for new order notifications
+  Function(Order)? _newOrderCallback;
 
   OrdersCubit() : super(OrdersInitial()) {
     // Initialize socket listeners after a delay to ensure socket is connected
@@ -204,15 +234,25 @@ class OrdersCubit extends Cubit<OrdersState> {
   // Accept order
   Future<bool> acceptOrder(String orderId) async {
     try {
+      print('OrdersCubit: Accepting order with ID: $orderId');
+
+      if (orderId.isEmpty) {
+        print('OrdersCubit: Order ID is empty!');
+        emit(OrdersError('Order ID is empty'));
+        return false;
+      }
+
       emit(OrdersLoading());
 
-      final response = await _apiService.patch(
-        '${AppConstants.ordersEndpoint}/$orderId/accept',
-      );
+      final endpoint = '${AppConstants.acceptOrderEndpoint}/$orderId/accept';
+      print('OrdersCubit: API endpoint: $endpoint');
 
+      final response = await _apiService.post(endpoint);
+
+      print('OrdersCubit: Accept order response: $response');
       final data = _apiService.handleResponse(response);
 
-      if (data['success'] == true) {
+      if (data['message'] != null || data['order'] != null) {
         // Refresh orders
         await getDriverOrders();
         return true;
@@ -221,6 +261,7 @@ class OrdersCubit extends Cubit<OrdersState> {
       emit(OrdersError('Failed to accept order'));
       return false;
     } catch (e) {
+      print('OrdersCubit: Error accepting order: $e');
       emit(OrdersError(e.toString()));
       return false;
     }
@@ -229,15 +270,25 @@ class OrdersCubit extends Cubit<OrdersState> {
   // Reject order
   Future<bool> rejectOrder(String orderId) async {
     try {
+      print('OrdersCubit: Rejecting order with ID: $orderId');
+
+      if (orderId.isEmpty) {
+        print('OrdersCubit: Order ID is empty!');
+        emit(OrdersError('Order ID is empty'));
+        return false;
+      }
+
       emit(OrdersLoading());
 
-      final response = await _apiService.patch(
-        '${AppConstants.ordersEndpoint}/$orderId/reject',
-      );
+      final endpoint = '${AppConstants.rejectOrderEndpoint}/$orderId/reject';
+      print('OrdersCubit: API endpoint: $endpoint');
 
+      final response = await _apiService.post(endpoint);
+
+      print('OrdersCubit: Reject order response: $response');
       final data = _apiService.handleResponse(response);
 
-      if (data['success'] == true) {
+      if (data['message'] != null) {
         // Refresh orders
         await getDriverOrders();
         return true;
@@ -246,6 +297,7 @@ class OrdersCubit extends Cubit<OrdersState> {
       emit(OrdersError('Failed to reject order'));
       return false;
     } catch (e) {
+      print('OrdersCubit: Error rejecting order: $e');
       emit(OrdersError(e.toString()));
       return false;
     }
@@ -323,6 +375,11 @@ class OrdersCubit extends Cubit<OrdersState> {
     await getDriverOrders();
   }
 
+  // Set callback for new order notifications
+  void setNewOrderCallback(Function(Order) callback) {
+    _newOrderCallback = callback;
+  }
+
   // Initialize socket listeners
   void _initializeSocketListeners() {
     print('OrdersCubit: Initializing socket listeners...');
@@ -340,6 +397,14 @@ class OrdersCubit extends Cubit<OrdersState> {
   void _handleNewOrder(Map<String, dynamic> orderData) {
     try {
       final newOrder = Order.fromJson(orderData);
+
+      // Call the callback to show notification
+      if (_newOrderCallback != null) {
+        print(
+          'OrdersCubit: Calling new order callback for: ${newOrder.orderNumber}',
+        );
+        _newOrderCallback!(newOrder);
+      }
 
       if (state is OrdersLoaded) {
         final currentState = state as OrdersLoaded;

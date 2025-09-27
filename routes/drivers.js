@@ -178,8 +178,14 @@ router.patch('/status', auth, authorize('driver'), [
   body('isAvailable').optional().isBoolean().withMessage('Available status boolean olmalıdır')
 ], async (req, res) => {
   try {
+    console.log('Driver status update request:', {
+      userId: req.user.id,
+      body: req.body
+    });
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
@@ -194,20 +200,32 @@ router.patch('/status', auth, authorize('driver'), [
       updates.lastActive = new Date();
     }
 
+    console.log('Updating driver with:', updates);
+
     const driver = await Driver.findOne({ where: { userId: req.user.id } });
     
-    if (driver) {
-      await driver.update(updates);
-    }
-
     if (!driver) {
+      console.log('Driver not found for userId:', req.user.id);
       return res.status(404).json({ error: 'Sürücü məlumatları tapılmadı' });
     }
 
+    await driver.update(updates);
+    
+    // Reload the driver to get updated values
+    await driver.reload();
+
+    console.log('Driver updated successfully:', {
+      id: driver.id,
+      isOnline: driver.isOnline,
+      isAvailable: driver.isAvailable,
+      lastActive: driver.lastActive
+    });
+
     res.json({
+      success: true,
       message: `Sürücü ${isOnline ? 'online' : 'offline'} oldu`,
       driver: {
-        id: driver._id,
+        id: driver.id,
         isOnline: driver.isOnline,
         isAvailable: driver.isAvailable,
         lastActive: driver.lastActive
@@ -314,7 +332,14 @@ router.get('/nearby-orders', auth, authorize('driver'), async (req, res) => {
 // Sifarişi qəbul et
 router.post('/orders/:orderId/accept', auth, authorize('driver'), async (req, res) => {
   try {
-    const order = await Order.findById(req.params.orderId);
+    console.log('Accept order request:', {
+      orderId: req.params.orderId,
+      userId: req.user.id,
+      userRole: req.user.role
+    });
+    
+    const order = await Order.findByPk(req.params.orderId);
+    console.log('Found order:', order ? { id: order.id, status: order.status } : 'Not found');
     
     if (!order) {
       return res.status(404).json({ error: 'Sifariş tapılmadı' });
@@ -325,13 +350,15 @@ router.post('/orders/:orderId/accept', auth, authorize('driver'), async (req, re
     }
 
     // Sürücünün məlumatlarını al
-    const driver = await Driver.findOne({ userId: req.user.id });
+    const driver = await Driver.findOne({ where: { userId: req.user.id } });
+    console.log('Found driver:', driver ? { id: driver.id, isOnline: driver.isOnline, isAvailable: driver.isAvailable } : 'Not found');
+    
     if (!driver || !driver.isOnline || !driver.isAvailable) {
       return res.status(400).json({ error: 'Sürücü online və available olmalıdır' });
     }
 
     // Sifarişi sürücüyə təyin et
-    order.driver = driver._id;
+    order.driverId = driver.id;
     order.status = 'driver_assigned';
     order.timeline.push({
       status: 'driver_assigned',
@@ -344,10 +371,16 @@ router.post('/orders/:orderId/accept', auth, authorize('driver'), async (req, re
     driver.isAvailable = false;
     await driver.save();
 
+    console.log('Order accepted successfully:', {
+      orderId: order.id,
+      driverId: driver.id,
+      status: order.status
+    });
+
     res.json({
       message: 'Sifariş uğurla qəbul edildi',
       order: {
-        id: order._id,
+        id: order.id,
         orderNumber: order.orderNumber,
         status: order.status,
         customer: order.customer,
@@ -364,7 +397,14 @@ router.post('/orders/:orderId/accept', auth, authorize('driver'), async (req, re
 // Sifarişi imtina et
 router.post('/orders/:orderId/reject', auth, authorize('driver'), async (req, res) => {
   try {
-    const order = await Order.findById(req.params.orderId);
+    console.log('Reject order request:', {
+      orderId: req.params.orderId,
+      userId: req.user.id,
+      userRole: req.user.role
+    });
+    
+    const order = await Order.findByPk(req.params.orderId);
+    console.log('Found order for rejection:', order ? { id: order.id, status: order.status } : 'Not found');
     
     if (!order) {
       return res.status(404).json({ error: 'Sifariş tapılmadı' });
@@ -374,11 +414,18 @@ router.post('/orders/:orderId/reject', auth, authorize('driver'), async (req, re
       return res.status(400).json({ error: 'Bu sifariş artıq qəbul edilib və ya ləğv edilib' });
     }
 
+    console.log('Order rejected successfully:', {
+      orderId: order.id,
+      status: order.status
+    });
+
     res.json({
       message: 'Sifariş imtina edildi'
     });
   } catch (error) {
     console.error('Sifariş imtina etmə xətası:', error);
+    console.error('Error details:', error.message);
+    console.error('Stack trace:', error.stack);
     res.status(500).json({ error: 'Server xətası' });
   }
 });

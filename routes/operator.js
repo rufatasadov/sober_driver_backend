@@ -936,6 +936,47 @@ router.post('/orders', auth, authorize('operator'), [
       ]
     });
 
+    // Socket event emit et - bütün online sürücülərə yeni sifariş bildir
+    const io = req.app.get('io');
+    if (io) {
+      console.log('Operator: Emitting new order to all drivers');
+      
+      // Bütün online sürücülərə yeni sifariş bildir
+      io.to('drivers').emit('new_order_available', {
+        id: order.id,
+        orderNumber: order.orderNumber,
+        customerId: order.customerId,
+        pickup: order.pickup,
+        destination: order.destination,
+        status: order.status,
+        estimatedTime: order.estimatedTime,
+        estimatedDistance: order.estimatedDistance,
+        fare: order.fare,
+        paymentMethod: order.payment?.method || 'cash',
+        notes: order.notes,
+        createdAt: order.createdAt,
+        customer: {
+          name: customer.name,
+          phone: customer.phone
+        },
+        customerPhone: customer.phone,
+        etaMinutes: 15 // Default ETA
+      });
+
+      // Müştəriyə bildir
+      io.to(`user_${order.customerId}`).emit('order_created', {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        status: order.status,
+        estimatedTime: order.estimatedTime,
+        fare: order.fare
+      });
+
+      // Operator və dispetçerlərə bildir
+      io.to('operators').emit('new_order_created', { order: orderWithCustomer });
+      io.to('dispatchers').emit('new_order_created', { order: orderWithCustomer });
+    }
+
     res.status(201).json({
       message: 'Sifariş uğurla yaradıldı',
       order: orderWithCustomer
