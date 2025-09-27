@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../providers/orders_provider.dart';
+import '../cubit/orders_cubit.dart';
 import 'order_details_screen.dart';
 
 class OrdersScreen extends StatefulWidget {
@@ -23,14 +23,10 @@ class _OrdersScreenState extends State<OrdersScreen>
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
 
-    // Initialize orders provider
+    // Initialize orders cubit
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final ordersProvider = Provider.of<OrdersProvider>(
-        context,
-        listen: false,
-      );
-      ordersProvider.initialize();
-      ordersProvider.getDriverOrders();
+      final ordersCubit = context.read<OrdersCubit>();
+      ordersCubit.initialize();
     });
   }
 
@@ -63,46 +59,77 @@ class _OrdersScreenState extends State<OrdersScreen>
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
-              final ordersProvider = Provider.of<OrdersProvider>(
-                context,
-                listen: false,
-              );
-              ordersProvider.getDriverOrders();
+              final ordersCubit = context.read<OrdersCubit>();
+              ordersCubit.getDriverOrders();
             },
           ),
         ],
       ),
-      body: Consumer<OrdersProvider>(
-        builder: (context, ordersProvider, child) {
-          if (ordersProvider.isLoading) {
+      body: BlocBuilder<OrdersCubit, OrdersState>(
+        builder: (context, state) {
+          if (state is OrdersLoading) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              // Pending Orders
-              _buildOrdersList(
-                ordersProvider.pendingOrders,
-                'Gözləyən sifariş yoxdur',
-                true,
-              ),
+          if (state is OrdersLoaded) {
+            return TabBarView(
+              controller: _tabController,
+              children: [
+                // Pending Orders
+                _buildOrdersList(
+                  state.pendingOrders,
+                  'Gözləyən sifariş yoxdur',
+                  true,
+                ),
 
-              // Active Orders
-              _buildOrdersList(
-                ordersProvider.activeOrders,
-                'Aktiv sifariş yoxdur',
-                false,
-              ),
+                // Active Orders
+                _buildOrdersList(
+                  state.activeOrders,
+                  'Aktiv sifariş yoxdur',
+                  false,
+                ),
 
-              // Completed Orders
-              _buildOrdersList(
-                ordersProvider.completedOrders,
-                'Tamamlanan sifariş yoxdur',
-                false,
+                // Completed Orders
+                _buildOrdersList(
+                  state.completedOrders,
+                  'Tamamlanan sifariş yoxdur',
+                  false,
+                ),
+              ],
+            );
+          }
+
+          if (state is OrdersError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 64.sp,
+                    color: AppColors.error,
+                  ),
+                  SizedBox(height: 16.h),
+                  Text('Xəta baş verdi', style: AppTheme.heading3),
+                  SizedBox(height: 8.h),
+                  Text(
+                    state.message,
+                    style: AppTheme.bodyMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 16.h),
+                  ElevatedButton(
+                    onPressed: () {
+                      context.read<OrdersCubit>().getDriverOrders();
+                    },
+                    child: const Text('Yenidən cəhd et'),
+                  ),
+                ],
               ),
-            ],
-          );
+            );
+          }
+
+          return const Center(child: CircularProgressIndicator());
         },
       ),
     );
@@ -137,11 +164,8 @@ class _OrdersScreenState extends State<OrdersScreen>
 
     return RefreshIndicator(
       onRefresh: () async {
-        final ordersProvider = Provider.of<OrdersProvider>(
-          context,
-          listen: false,
-        );
-        await ordersProvider.getDriverOrders();
+        final ordersCubit = context.read<OrdersCubit>();
+        await ordersCubit.getDriverOrders();
       },
       child: ListView.builder(
         padding: EdgeInsets.all(16.w),
@@ -373,8 +397,8 @@ class _OrdersScreenState extends State<OrdersScreen>
   }
 
   Future<void> _acceptOrder(String orderId) async {
-    final ordersProvider = Provider.of<OrdersProvider>(context, listen: false);
-    final success = await ordersProvider.acceptOrder(orderId);
+    final ordersCubit = context.read<OrdersCubit>();
+    final success = await ordersCubit.acceptOrder(orderId);
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -386,7 +410,7 @@ class _OrdersScreenState extends State<OrdersScreen>
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(ordersProvider.error ?? 'Xəta baş verdi'),
+          content: Text(ordersCubit.error ?? 'Xəta baş verdi'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -394,8 +418,8 @@ class _OrdersScreenState extends State<OrdersScreen>
   }
 
   Future<void> _rejectOrder(String orderId) async {
-    final ordersProvider = Provider.of<OrdersProvider>(context, listen: false);
-    final success = await ordersProvider.rejectOrder(orderId);
+    final ordersCubit = context.read<OrdersCubit>();
+    final success = await ordersCubit.rejectOrder(orderId);
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -407,7 +431,7 @@ class _OrdersScreenState extends State<OrdersScreen>
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(ordersProvider.error ?? 'Xəta baş verdi'),
+          content: Text(ordersCubit.error ?? 'Xəta baş verdi'),
           backgroundColor: AppColors.error,
         ),
       );

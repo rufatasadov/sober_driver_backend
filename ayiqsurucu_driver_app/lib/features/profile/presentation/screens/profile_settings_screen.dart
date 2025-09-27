@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../providers/profile_provider.dart';
+import '../cubit/profile_cubit.dart';
 
 class ProfileSettingsScreen extends StatefulWidget {
   const ProfileSettingsScreen({super.key});
@@ -27,11 +27,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   }
 
   void _loadSettings() {
-    final profileProvider = Provider.of<ProfileProvider>(
-      context,
-      listen: false,
-    );
-    final driver = profileProvider.driver;
+    final profileCubit = context.read<ProfileCubit>();
+    final driver = profileCubit.driver;
 
     if (driver != null) {
       setState(() {
@@ -42,12 +39,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   }
 
   Future<void> _updateDriverStatus() async {
-    final profileProvider = Provider.of<ProfileProvider>(
-      context,
-      listen: false,
-    );
+    final profileCubit = context.read<ProfileCubit>();
 
-    final success = await profileProvider.updateDriverStatus(
+    final success = await profileCubit.updateDriverStatus(
       isOnline: _isOnline,
       isAvailable: _isAvailable,
     );
@@ -63,7 +57,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       }
     } else {
       if (mounted) {
-        _showErrorDialog(profileProvider.error ?? 'Status yenilənmədi');
+        _showErrorDialog(profileCubit.error ?? 'Status yenilənmədi');
       }
     }
   }
@@ -100,7 +94,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
               TextButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  Provider.of<ProfileProvider>(context, listen: false).logout();
+                  context.read<ProfileCubit>().logout();
                 },
                 child: const Text(
                   'Çıxış',

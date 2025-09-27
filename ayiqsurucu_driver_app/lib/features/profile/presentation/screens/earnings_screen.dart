@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/loading_screen.dart';
-import '../providers/profile_provider.dart';
+import '../cubit/profile_cubit.dart';
 
 class EarningsScreen extends StatefulWidget {
   const EarningsScreen({super.key});
@@ -14,9 +14,6 @@ class EarningsScreen extends StatefulWidget {
 }
 
 class _EarningsScreenState extends State<EarningsScreen> {
-  Map<String, dynamic>? _earnings;
-  bool _isLoading = false;
-
   @override
   void initState() {
     super.initState();
@@ -26,20 +23,8 @@ class _EarningsScreenState extends State<EarningsScreen> {
   }
 
   Future<void> _loadEarnings() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    final profileProvider = Provider.of<ProfileProvider>(
-      context,
-      listen: false,
-    );
-    final earnings = await profileProvider.getDriverEarnings();
-
-    setState(() {
-      _earnings = earnings;
-      _isLoading = false;
-    });
+    final profileCubit = context.read<ProfileCubit>();
+    await profileCubit.getDriverEarnings();
   }
 
   @override
@@ -64,40 +49,68 @@ class _EarningsScreenState extends State<EarningsScreen> {
           ),
         ],
       ),
-      body:
-          _isLoading
-              ? const LoadingScreen()
-              : _earnings == null
-              ? _buildErrorWidget()
-              : SingleChildScrollView(
+      body: BlocBuilder<ProfileCubit, ProfileState>(
+        builder: (context, state) {
+          if (state is ProfileLoading) {
+            return const LoadingScreen();
+          }
+
+          if (state is ProfileError) {
+            return _buildErrorWidget(state.message);
+          }
+
+          // Get earnings from cubit state
+          final earnings = context.read<ProfileCubit>().getDriverEarnings();
+
+          return FutureBuilder<Map<String, dynamic>?>(
+            future: earnings,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const LoadingScreen();
+              }
+
+              if (snapshot.hasError || snapshot.data == null) {
+                return _buildErrorWidget(
+                  snapshot.error?.toString() ??
+                      'Gəlir məlumatları yüklənə bilmədi',
+                );
+              }
+
+              final earningsData = snapshot.data!;
+
+              return SingleChildScrollView(
                 padding: EdgeInsets.all(24.w),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // Summary Cards
-                    _buildSummaryCards(),
+                    _buildSummaryCards(earningsData),
 
                     SizedBox(height: 32.h),
 
                     // Daily Earnings Chart
-                    _buildDailyEarningsChart(),
+                    _buildDailyEarningsChart(earningsData),
 
                     SizedBox(height: 32.h),
 
                     // Weekly Breakdown
-                    _buildWeeklyBreakdown(),
+                    _buildWeeklyBreakdown(earningsData),
 
                     SizedBox(height: 32.h),
 
                     // Monthly Summary
-                    _buildMonthlySummary(),
+                    _buildMonthlySummary(earningsData),
                   ],
                 ),
-              ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildSummaryCards() {
+  Widget _buildSummaryCards(Map<String, dynamic> earnings) {
     return Column(
       children: [
         Row(
@@ -105,7 +118,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
             Expanded(
               child: _buildSummaryCard(
                 'Bugün',
-                '${_earnings?['today']?.toString() ?? '0'} AZN',
+                '${earnings['today']?.toString() ?? '0'} AZN',
                 Icons.today,
                 AppColors.primary,
               ),
@@ -114,7 +127,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
             Expanded(
               child: _buildSummaryCard(
                 'Bu Həftə',
-                '${_earnings?['thisWeek']?.toString() ?? '0'} AZN',
+                '${earnings['thisWeek']?.toString() ?? '0'} AZN',
                 Icons.date_range,
                 AppColors.info,
               ),
@@ -127,7 +140,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
             Expanded(
               child: _buildSummaryCard(
                 'Bu Ay',
-                '${_earnings?['thisMonth']?.toString() ?? '0'} AZN',
+                '${earnings['thisMonth']?.toString() ?? '0'} AZN',
                 Icons.calendar_month,
                 AppColors.success,
               ),
@@ -136,7 +149,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
             Expanded(
               child: _buildSummaryCard(
                 'Ümumi',
-                '${_earnings?['total']?.toString() ?? '0'} AZN',
+                '${earnings['total']?.toString() ?? '0'} AZN',
                 Icons.account_balance_wallet,
                 AppColors.warning,
               ),
@@ -186,8 +199,8 @@ class _EarningsScreenState extends State<EarningsScreen> {
     );
   }
 
-  Widget _buildDailyEarningsChart() {
-    final dailyEarnings = _earnings?['dailyEarnings'] as List<dynamic>? ?? [];
+  Widget _buildDailyEarningsChart(Map<String, dynamic> earnings) {
+    final dailyEarnings = earnings['dailyEarnings'] as List<dynamic>? ?? [];
 
     return Container(
       padding: EdgeInsets.all(20.w),
@@ -281,9 +294,8 @@ class _EarningsScreenState extends State<EarningsScreen> {
     );
   }
 
-  Widget _buildWeeklyBreakdown() {
-    final weeklyBreakdown =
-        _earnings?['weeklyBreakdown'] as List<dynamic>? ?? [];
+  Widget _buildWeeklyBreakdown(Map<String, dynamic> earnings) {
+    final weeklyBreakdown = earnings['weeklyBreakdown'] as List<dynamic>? ?? [];
 
     return Container(
       padding: EdgeInsets.all(20.w),
@@ -385,9 +397,9 @@ class _EarningsScreenState extends State<EarningsScreen> {
     );
   }
 
-  Widget _buildMonthlySummary() {
+  Widget _buildMonthlySummary(Map<String, dynamic> earnings) {
     final monthlySummary =
-        _earnings?['monthlySummary'] as Map<String, dynamic>? ?? {};
+        earnings['monthlySummary'] as Map<String, dynamic>? ?? {};
 
     return Container(
       padding: EdgeInsets.all(20.w),
@@ -451,7 +463,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
     );
   }
 
-  Widget _buildErrorWidget() {
+  Widget _buildErrorWidget(String message) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -459,7 +471,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
           Icon(Icons.error_outline, size: 64.sp, color: AppColors.error),
           SizedBox(height: 16.h),
           Text(
-            'Gəlir məlumatları yüklənə bilmədi',
+            message,
             style: AppTheme.heading3.copyWith(color: AppColors.error),
           ),
           SizedBox(height: 8.h),

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/loading_screen.dart';
-import '../providers/profile_provider.dart';
+import '../cubit/profile_cubit.dart';
 import 'edit_profile_screen.dart';
 import 'profile_settings_screen.dart';
 import 'earnings_screen.dart';
@@ -21,7 +21,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<ProfileProvider>(context, listen: false).loadProfile();
+      context.read<ProfileCubit>().loadProfile();
     });
   }
 
@@ -44,11 +44,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 context,
                 MaterialPageRoute(
                   builder:
-                      (context) => ChangeNotifierProvider.value(
-                        value: Provider.of<ProfileProvider>(
-                          context,
-                          listen: false,
-                        ),
+                      (context) => BlocProvider.value(
+                        value: context.read<ProfileCubit>(),
                         child: const ProfileSettingsScreen(),
                       ),
                 ),
@@ -57,57 +54,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
-      body: Consumer<ProfileProvider>(
-        builder: (context, profileProvider, child) {
-          if (profileProvider.isLoading) {
+      body: BlocBuilder<ProfileCubit, ProfileState>(
+        builder: (context, state) {
+          if (state is ProfileLoading) {
             return const LoadingScreen();
           }
 
-          if (profileProvider.error != null) {
-            return _buildErrorWidget(profileProvider.error!);
+          if (state is ProfileError) {
+            return _buildErrorWidget(state.message);
           }
 
-          return SingleChildScrollView(
-            padding: EdgeInsets.all(24.w),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Profile Header
-                _buildProfileHeader(profileProvider),
+          if (state is ProfileLoaded) {
+            return SingleChildScrollView(
+              padding: EdgeInsets.all(24.w),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Profile Header
+                  _buildProfileHeader(state),
 
-                SizedBox(height: 32.h),
+                  SizedBox(height: 32.h),
 
-                // Statistics Cards
-                _buildStatisticsCards(profileProvider),
+                  // Statistics Cards
+                  _buildStatisticsCards(state),
 
-                SizedBox(height: 32.h),
+                  SizedBox(height: 32.h),
 
-                // Profile Information
-                _buildProfileInfo(profileProvider),
+                  // Profile Information
+                  _buildProfileInfo(state),
 
-                SizedBox(height: 32.h),
+                  SizedBox(height: 32.h),
 
-                // Vehicle Information
-                _buildVehicleInfo(profileProvider),
+                  // Vehicle Information
+                  _buildVehicleInfo(state),
 
-                SizedBox(height: 32.h),
+                  SizedBox(height: 32.h),
 
-                // Action Buttons
-                _buildActionButtons(),
+                  // Action Buttons
+                  _buildActionButtons(),
 
-                SizedBox(height: 24.h),
+                  SizedBox(height: 24.h),
 
-                // Logout Button
-                _buildLogoutButton(),
-              ],
-            ),
-          );
+                  // Logout Button
+                  _buildLogoutButton(),
+                ],
+              ),
+            );
+          }
+
+          return const Center(child: CircularProgressIndicator());
         },
       ),
     );
   }
 
-  Widget _buildProfileHeader(ProfileProvider profileProvider) {
+  Widget _buildProfileHeader(ProfileLoaded state) {
     return Container(
       padding: EdgeInsets.all(24.w),
       decoration: BoxDecoration(
@@ -119,7 +120,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           // Profile Image
           GestureDetector(
-            onTap: () => _showImagePicker(profileProvider),
+            onTap: () => _showImagePicker(state),
             child: Container(
               width: 80.w,
               height: 80.w,
@@ -129,10 +130,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 border: Border.all(color: AppColors.primary, width: 3),
               ),
               child:
-                  profileProvider.user?['profileImage'] != null
+                  state.user['profileImage'] != null
                       ? ClipOval(
                         child: Image.network(
-                          profileProvider.user!['profileImage'],
+                          state.user['profileImage'],
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
                             return Icon(
@@ -159,12 +160,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  profileProvider.user?['name'] ?? 'Ad Soyad',
+                  state.user['name'] ?? 'Ad Soyad',
                   style: AppTheme.heading3.copyWith(color: AppColors.primary),
                 ),
                 SizedBox(height: 4.h),
                 Text(
-                  profileProvider.user?['phone'] ?? 'Telefon nömrəsi',
+                  state.user['phone'] ?? 'Telefon nömrəsi',
                   style: AppTheme.bodyMedium.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -173,11 +174,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
                   decoration: BoxDecoration(
-                    color: _getStatusColor(profileProvider.driver?['status']),
+                    color: _getStatusColor(state.driver?['status']),
                     borderRadius: BorderRadius.circular(12.r),
                   ),
                   child: Text(
-                    _getStatusText(profileProvider.driver?['status']),
+                    _getStatusText(state.driver?['status']),
                     style: AppTheme.caption.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
@@ -205,8 +206,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildStatisticsCards(ProfileProvider profileProvider) {
-    final earnings = profileProvider.driver?['earnings'] ?? {};
+  Widget _buildStatisticsCards(ProfileLoaded state) {
+    final earnings = state.driver?['earnings'] ?? {};
 
     return Row(
       children: [
@@ -264,7 +265,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildProfileInfo(ProfileProvider profileProvider) {
+  Widget _buildProfileInfo(ProfileLoaded state) {
     return Container(
       padding: EdgeInsets.all(20.w),
       decoration: BoxDecoration(
@@ -282,22 +283,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
           SizedBox(height: 16.h),
           _buildInfoRow(
             'Ad Soyad',
-            profileProvider.user?['name'] ?? 'Məlumat yoxdur',
+            state.user['name'] ?? 'Məlumat yoxdur',
             Icons.person,
           ),
           _buildInfoRow(
             'Telefon',
-            profileProvider.user?['phone'] ?? 'Məlumat yoxdur',
+            state.user['phone'] ?? 'Məlumat yoxdur',
             Icons.phone,
           ),
           _buildInfoRow(
             'Email',
-            profileProvider.user?['email'] ?? 'Məlumat yoxdur',
+            state.user['email'] ?? 'Məlumat yoxdur',
             Icons.email,
           ),
           _buildInfoRow(
             'Qeydiyyat Tarixi',
-            _formatDate(profileProvider.user?['createdAt']),
+            _formatDate(state.user['createdAt']),
             Icons.calendar_today,
           ),
         ],
@@ -305,8 +306,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildVehicleInfo(ProfileProvider profileProvider) {
-    final vehicleInfo = profileProvider.driver?['vehicleInfo'] ?? {};
+  Widget _buildVehicleInfo(ProfileLoaded state) {
+    final vehicleInfo = state.driver?['vehicleInfo'] ?? {};
 
     return Container(
       padding: EdgeInsets.all(20.w),
@@ -350,7 +351,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           _buildInfoRow(
             'Sürücülük Vəsiqəsi',
-            profileProvider.driver?['licenseNumber'] ?? 'Məlumat yoxdur',
+            state.driver?['licenseNumber'] ?? 'Məlumat yoxdur',
             Icons.credit_card,
           ),
         ],
@@ -402,11 +403,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               context,
               MaterialPageRoute(
                 builder:
-                    (context) => ChangeNotifierProvider.value(
-                      value: Provider.of<ProfileProvider>(
-                        context,
-                        listen: false,
-                      ),
+                    (context) => BlocProvider.value(
+                      value: context.read<ProfileCubit>(),
                       child: const EditProfileScreen(),
                     ),
               ),
@@ -441,11 +439,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               context,
               MaterialPageRoute(
                 builder:
-                    (context) => ChangeNotifierProvider.value(
-                      value: Provider.of<ProfileProvider>(
-                        context,
-                        listen: false,
-                      ),
+                    (context) => BlocProvider.value(
+                      value: context.read<ProfileCubit>(),
                       child: const EarningsScreen(),
                     ),
               ),
@@ -535,10 +530,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           SizedBox(height: 24.h),
           ElevatedButton(
             onPressed: () {
-              Provider.of<ProfileProvider>(
-                context,
-                listen: false,
-              ).loadProfile();
+              context.read<ProfileCubit>().loadProfile();
             },
             child: Text('Yenidən cəhd et'),
           ),
@@ -547,7 +539,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _showImagePicker(ProfileProvider profileProvider) {
+  void _showImagePicker(ProfileLoaded state) {
     showModalBottomSheet(
       context: context,
       builder:
@@ -614,7 +606,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               TextButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  Provider.of<ProfileProvider>(context, listen: false).logout();
+                  context.read<ProfileCubit>().logout();
                 },
                 child: Text('Çıxış', style: TextStyle(color: AppColors.error)),
               ),

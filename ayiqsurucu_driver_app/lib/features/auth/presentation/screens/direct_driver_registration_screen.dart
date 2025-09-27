@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/loading_screen.dart';
-import '../providers/auth_provider.dart';
+import '../cubit/auth_cubit.dart';
 import '../../../dashboard/presentation/screens/dashboard_screen.dart';
 
 class DirectDriverRegistrationScreen extends StatefulWidget {
@@ -59,12 +59,12 @@ class _DirectDriverRegistrationScreenState
   Future<void> _registerDriver() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final authCubit = context.read<AuthCubit>();
     setState(() => _isLoading = true);
 
     try {
       // First create user account
-      final userSuccess = await authProvider.createUserAccount(
+      final userSuccess = await authCubit.createUserAccount(
         name: _nameController.text.trim(),
         phone: _phoneController.text.trim(),
         username: _usernameController.text.trim(),
@@ -81,7 +81,7 @@ class _DirectDriverRegistrationScreenState
           'plateNumber': _plateController.text.trim(),
         };
 
-        final driverSuccess = await authProvider.registerDriver(
+        final driverSuccess = await authCubit.registerDriver(
           licenseNumber: _licenseController.text.trim(),
           vehicleInfo: vehicleInfo,
         );
@@ -97,14 +97,14 @@ class _DirectDriverRegistrationScreenState
         } else {
           if (mounted) {
             _showErrorDialog(
-              authProvider.error ?? 'Sürücü qeydiyyatı tamamlanmadı',
+              authCubit.error ?? 'Sürücü qeydiyyatı tamamlanmadı',
             );
           }
         }
       } else {
         if (mounted) {
           _showErrorDialog(
-            authProvider.error ?? 'İstifadəçi qeydiyyatı tamamlanmadı',
+            authCubit.error ?? 'İstifadəçi qeydiyyatı tamamlanmadı',
           );
         }
       }

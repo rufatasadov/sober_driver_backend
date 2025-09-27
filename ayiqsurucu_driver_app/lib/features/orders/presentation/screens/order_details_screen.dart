@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:latlong2/latlong.dart' as latlong;
 import 'package:flutter_map/flutter_map.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/map_widget.dart';
-import '../providers/orders_provider.dart';
+import '../cubit/orders_cubit.dart';
 
 class OrderDetailsScreen extends StatefulWidget {
   final Order order;
@@ -291,8 +291,8 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   Widget _buildActionButtons() {
-    return Consumer<OrdersProvider>(
-      builder: (context, ordersProvider, child) {
+    return BlocBuilder<OrdersCubit, OrdersState>(
+      builder: (context, state) {
         return Column(
           children: [
             if (widget.order.status == 'accepted') ...[
@@ -300,15 +300,30 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 width: double.infinity,
                 height: 48.h,
                 child: ElevatedButton(
-                  onPressed: () => _updateOrderStatus('driver_arrived'),
+                  onPressed:
+                      state is OrdersLoading
+                          ? null
+                          : () => _updateOrderStatus('driver_arrived'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.info,
                     foregroundColor: AppColors.textOnPrimary,
                   ),
-                  child: Text(
-                    'Müştərinin yanına çatdım',
-                    style: TextStyle(fontSize: 16.sp),
-                  ),
+                  child:
+                      state is OrdersLoading
+                          ? SizedBox(
+                            height: 20.h,
+                            width: 20.w,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                AppColors.textOnPrimary,
+                              ),
+                            ),
+                          )
+                          : Text(
+                            'Müştərinin yanına çatdım',
+                            style: TextStyle(fontSize: 16.sp),
+                          ),
                 ),
               ),
             ],
@@ -318,15 +333,30 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 width: double.infinity,
                 height: 48.h,
                 child: ElevatedButton(
-                  onPressed: () => _updateOrderStatus('in_progress'),
+                  onPressed:
+                      state is OrdersLoading
+                          ? null
+                          : () => _updateOrderStatus('in_progress'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: AppColors.textOnPrimary,
                   ),
-                  child: Text(
-                    'Səfəri başlat',
-                    style: TextStyle(fontSize: 16.sp),
-                  ),
+                  child:
+                      state is OrdersLoading
+                          ? SizedBox(
+                            height: 20.h,
+                            width: 20.w,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                AppColors.textOnPrimary,
+                              ),
+                            ),
+                          )
+                          : Text(
+                            'Səfəri başlat',
+                            style: TextStyle(fontSize: 16.sp),
+                          ),
                 ),
               ),
             ],
@@ -336,15 +366,30 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                 width: double.infinity,
                 height: 48.h,
                 child: ElevatedButton(
-                  onPressed: () => _updateOrderStatus('completed'),
+                  onPressed:
+                      state is OrdersLoading
+                          ? null
+                          : () => _updateOrderStatus('completed'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.success,
                     foregroundColor: AppColors.textOnPrimary,
                   ),
-                  child: Text(
-                    'Səfəri tamamla',
-                    style: TextStyle(fontSize: 16.sp),
-                  ),
+                  child:
+                      state is OrdersLoading
+                          ? SizedBox(
+                            height: 20.h,
+                            width: 20.w,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                AppColors.textOnPrimary,
+                              ),
+                            ),
+                          )
+                          : Text(
+                            'Səfəri tamamla',
+                            style: TextStyle(fontSize: 16.sp),
+                          ),
                 ),
               ),
             ],
@@ -503,10 +548,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   Future<void> _updateOrderStatus(String status) async {
-    final ordersProvider = Provider.of<OrdersProvider>(context, listen: false);
-    final success = await ordersProvider.updateOrderStatus(
-      widget.order.id,
-      status,
+    final ordersCubit = context.read<OrdersCubit>();
+    final success = await ordersCubit.updateOrderStatus(
+      orderId: widget.order.id,
+      status: status,
     );
 
     if (success && mounted) {
@@ -520,7 +565,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(ordersProvider.error ?? 'Xəta baş verdi'),
+          content: Text(ordersCubit.error ?? 'Xəta baş verdi'),
           backgroundColor: AppColors.error,
         ),
       );

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/loading_screen.dart';
-import '../providers/auth_provider.dart';
+import '../cubit/auth_cubit.dart';
 import 'driver_registration_screen.dart';
 import '../../../dashboard/presentation/screens/dashboard_screen.dart';
 
@@ -61,11 +61,11 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   Future<void> _verifyOtp() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final authCubit = context.read<AuthCubit>();
     setState(() => _isLoading = true);
 
     try {
-      final success = await authProvider.verifyOtp(
+      final success = await authCubit.verifyOtp(
         phone: widget.phone,
         otp: _otpController.text.trim(),
         name: _isNewUser ? _nameController.text.trim() : null,
@@ -74,7 +74,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       if (success) {
         if (mounted) {
           // Check if user is already a driver
-          if (authProvider.isDriver) {
+          if (authCubit.driver != null) {
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(builder: (context) => const DashboardScreen()),
@@ -92,7 +92,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         }
       } else {
         if (mounted) {
-          _showErrorDialog(authProvider.error ?? 'OTP yoxlanılmadı');
+          _showErrorDialog(authCubit.error ?? 'OTP yoxlanılmadı');
         }
       }
     } finally {
@@ -105,11 +105,11 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   Future<void> _resendOtp() async {
     if (!_canResend) return;
 
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final authCubit = context.read<AuthCubit>();
     setState(() => _isLoading = true);
 
     try {
-      final success = await authProvider.sendOtp(widget.phone);
+      final success = await authCubit.sendOtp(widget.phone);
 
       if (success) {
         if (mounted) {
@@ -123,7 +123,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         }
       } else {
         if (mounted) {
-          _showErrorDialog(authProvider.error ?? 'OTP göndərilmədi');
+          _showErrorDialog(authCubit.error ?? 'OTP göndərilmədi');
         }
       }
     } finally {

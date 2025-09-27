@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/loading_screen.dart';
-import '../providers/profile_provider.dart';
+import '../cubit/profile_cubit.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -36,11 +36,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   void _loadUserData() {
-    final profileProvider = Provider.of<ProfileProvider>(
-      context,
-      listen: false,
-    );
-    final user = profileProvider.user;
+    final profileCubit = context.read<ProfileCubit>();
+    final user = profileCubit.user;
 
     if (user != null) {
       _nameController.text = user['name'] ?? '';
@@ -52,12 +49,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final profileProvider = Provider.of<ProfileProvider>(
-      context,
-      listen: false,
-    );
+    final profileCubit = context.read<ProfileCubit>();
 
-    final success = await profileProvider.updateUserProfile(
+    final success = await profileCubit.updateUserProfile(
       name: _nameController.text.trim(),
       email:
           _emailController.text.trim().isNotEmpty
@@ -77,7 +71,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
     } else {
       if (mounted) {
-        _showErrorDialog(profileProvider.error ?? 'Profil yenilənmədi');
+        _showErrorDialog(profileCubit.error ?? 'Profil yenilənmədi');
       }
     }
   }
@@ -115,25 +109,37 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          Consumer<ProfileProvider>(
-            builder: (context, profileProvider, child) {
+          BlocBuilder<ProfileCubit, ProfileState>(
+            builder: (context, state) {
               return TextButton(
-                onPressed: profileProvider.isLoading ? null : _saveProfile,
-                child: Text(
-                  'Saxla',
-                  style: AppTheme.bodyMedium.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                onPressed: state is ProfileLoading ? null : _saveProfile,
+                child:
+                    state is ProfileLoading
+                        ? SizedBox(
+                          height: 20.h,
+                          width: 20.w,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              AppColors.primary,
+                            ),
+                          ),
+                        )
+                        : Text(
+                          'Saxla',
+                          style: AppTheme.bodyMedium.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
               );
             },
           ),
         ],
       ),
-      body: Consumer<ProfileProvider>(
-        builder: (context, profileProvider, child) {
-          if (profileProvider.isLoading) {
+      body: BlocBuilder<ProfileCubit, ProfileState>(
+        builder: (context, state) {
+          if (state is ProfileLoading) {
             return const LoadingScreen();
           }
 
@@ -280,33 +286,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     width: double.infinity,
                     height: 48.h,
                     child: ElevatedButton(
-                      onPressed:
-                          profileProvider.isLoading ? null : _saveProfile,
+                      onPressed: _saveProfile,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12.r),
                         ),
                       ),
-                      child:
-                          profileProvider.isLoading
-                              ? SizedBox(
-                                width: 20.w,
-                                height: 20.w,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    AppColors.textOnPrimary,
-                                  ),
-                                ),
-                              )
-                              : Text(
-                                'Saxla',
-                                style: AppTheme.bodyLarge.copyWith(
-                                  color: AppColors.textOnPrimary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                      child: Text(
+                        'Saxla',
+                        style: AppTheme.bodyLarge.copyWith(
+                          color: AppColors.textOnPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
 

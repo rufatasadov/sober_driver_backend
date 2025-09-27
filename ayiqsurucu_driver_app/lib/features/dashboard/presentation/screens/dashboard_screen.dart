@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../orders/presentation/providers/orders_provider.dart';
+import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../orders/presentation/screens/orders_screen.dart';
-import '../../../profile/presentation/providers/profile_provider.dart';
+import '../../../orders/presentation/cubit/orders_cubit.dart';
+import '../../../profile/presentation/cubit/profile_cubit.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
 import '../../../profile/presentation/screens/earnings_screen.dart';
-import '../providers/dashboard_provider.dart';
+import '../cubit/dashboard_cubit.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -57,14 +57,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-// Home screen with provider
+// Home screen with cubit
 class HomeTabScreen extends StatelessWidget {
   const HomeTabScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => DashboardProvider()..loadDashboardData(),
+    return BlocProvider(
+      create: (_) => DashboardCubit()..loadDashboardData(),
       child: const HomeScreen(),
     );
   }
@@ -82,14 +82,14 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Consumer2<DashboardProvider, AuthProvider>(
-        builder: (context, dashboardProvider, authProvider, child) {
-          if (dashboardProvider.isLoading) {
+      body: BlocBuilder<DashboardCubit, DashboardState>(
+        builder: (context, state) {
+          if (state is DashboardLoading) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final stats = dashboardProvider.stats ?? {};
-          final user = authProvider.user;
+          final stats = state is DashboardLoaded ? state.stats : {};
+          final user = context.read<AuthCubit>().user;
           final isOnline = stats['isOnline'] ?? false;
           final isAvailable = stats['isAvailable'] ?? false;
 
@@ -207,7 +207,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: ElevatedButton(
                             onPressed:
                                 () => _toggleOnlineStatus(
-                                  dashboardProvider,
+                                  context.read<DashboardCubit>(),
                                   isOnline,
                                 ),
                             style: ElevatedButton.styleFrom(
@@ -224,7 +224,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                             child:
-                                dashboardProvider.isLoading
+                                state is DashboardLoading
                                     ? SizedBox(
                                       width: 20.w,
                                       height: 20.w,
@@ -295,7 +295,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               Text('Son Sifarişlər', style: AppTheme.heading3),
                               IconButton(
-                                onPressed: () => dashboardProvider.refresh(),
+                                onPressed:
+                                    () =>
+                                        context
+                                            .read<DashboardCubit>()
+                                            .refresh(),
                                 icon: Icon(
                                   Icons.refresh,
                                   color: AppColors.primary,
@@ -306,7 +310,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           SizedBox(height: 16.h),
                           Expanded(
                             child:
-                                dashboardProvider.recentOrders.isEmpty
+                                (state is DashboardLoaded
+                                            ? state.recentOrders
+                                            : [])
+                                        .isEmpty
                                     ? Center(
                                       child: Column(
                                         mainAxisAlignment:
@@ -324,14 +331,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                               color: AppColors.textSecondary,
                                             ),
                                           ),
-                                          SizedBox(height: 4.h),
-                                          Text(
-                                            'Onlayn olduqda yeni sifarişlər görünəcək',
-                                            style: AppTheme.bodySmall.copyWith(
-                                              color: AppColors.textSecondary,
-                                            ),
-                                            textAlign: TextAlign.center,
-                                          ),
+                                          // SizedBox(height: 4.h),
+                                          // Text(
+                                          //   'Onlayn olduqda yeni sifarişlər görünəcək',
+                                          //   style: AppTheme.bodySmall.copyWith(
+                                          //     color: AppColors.textSecondary,
+                                          //   ),
+                                          //   textAlign: TextAlign.center,
+                                          // ),
                                         ],
                                       ),
                                     )
@@ -340,11 +347,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                       physics:
                                           const AlwaysScrollableScrollPhysics(),
                                       itemCount:
-                                          dashboardProvider.recentOrders.length,
+                                          (state is DashboardLoaded
+                                                  ? state.recentOrders
+                                                  : [])
+                                              .length,
                                       itemBuilder: (context, index) {
                                         final order =
-                                            dashboardProvider
-                                                .recentOrders[index];
+                                            (state is DashboardLoaded
+                                                ? state.recentOrders
+                                                : [])[index];
                                         return Container(
                                           margin: EdgeInsets.only(bottom: 8.h),
                                           padding: EdgeInsets.all(12.w),
@@ -449,50 +460,50 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _toggleOnlineStatus(
-    DashboardProvider dashboardProvider,
+    DashboardCubit dashboardCubit,
     bool isOnline,
   ) async {
-    await dashboardProvider.updateDriverStatus(
+    await dashboardCubit.updateDriverStatus(
       isOnline: !isOnline,
       isAvailable: !isOnline,
     );
   }
 }
 
-// Orders screen with provider
+// Orders screen with cubit
 class OrdersTabScreen extends StatelessWidget {
   const OrdersTabScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => OrdersProvider(),
+    return BlocProvider(
+      create: (_) => OrdersCubit(),
       child: const OrdersScreen(),
     );
   }
 }
 
-// Earnings screen with provider
+// Earnings screen with cubit
 class EarningsTabScreen extends StatelessWidget {
   const EarningsTabScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => ProfileProvider(),
+    return BlocProvider(
+      create: (_) => ProfileCubit(),
       child: const EarningsScreen(),
     );
   }
 }
 
-// Profile screen with provider
+// Profile screen with cubit
 class ProfileTabScreen extends StatelessWidget {
   const ProfileTabScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => ProfileProvider(),
+    return BlocProvider(
+      create: (_) => ProfileCubit()..loadProfile(),
       child: const ProfileScreen(),
     );
   }

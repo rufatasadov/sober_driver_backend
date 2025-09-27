@@ -132,7 +132,9 @@ router.post('/orders/:orderId/assign-driver', auth, authorize('operator'), [
     }
 
     // Sürücünü yoxla
-    const driver = await Driver.findByPk(driverId);
+    const driver = await Driver.findByPk(driverId, {
+      include: [{ model: User, as: 'user' }]
+    });
     if (!driver) {
       return res.status(404).json({ error: 'Sürücü tapılmadı' });
     }
@@ -163,8 +165,8 @@ router.post('/orders/:orderId/assign-driver', auth, authorize('operator'), [
         status: order.status,
         driver: {
           id: driver.id,
-          name: driver.user.name,
-          phone: driver.user.phone
+          name: driver.user?.name || 'N/A',
+          phone: driver.user?.phone || 'N/A'
         }
       }
     });

@@ -1,60 +1,90 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/services/api_service.dart';
 import '../../../../core/constants/app_constants.dart';
 
-class AuthProvider extends ChangeNotifier {
+// Auth States
+abstract class AuthState {}
+
+class AuthInitial extends AuthState {}
+
+class AuthLoading extends AuthState {}
+
+class AuthAuthenticated extends AuthState {
+  final String token;
+  final Map<String, dynamic> user;
+  final Map<String, dynamic>? driver;
+
+  AuthAuthenticated({required this.token, required this.user, this.driver});
+}
+
+class AuthUnauthenticated extends AuthState {}
+
+class AuthError extends AuthState {
+  final String message;
+
+  AuthError(this.message);
+}
+
+// Auth Cubit
+class AuthCubit extends Cubit<AuthState> {
   final ApiService _apiService = ApiService();
 
-  String? _token;
-  Map<String, dynamic>? _user;
-  Map<String, dynamic>? _driver;
-  bool _isLoading = false;
-  String? _error;
+  AuthCubit() : super(AuthInitial());
 
   // Getters
-  String? get token => _token;
-  Map<String, dynamic>? get user => _user;
-  Map<String, dynamic>? get driver => _driver;
-  bool get isLoading => _isLoading;
-  String? get error => _error;
-  bool get isAuthenticated => _token != null && _token!.isNotEmpty;
-  bool get isDriver => _driver != null;
+  bool get isAuthenticated => state is AuthAuthenticated;
+  bool get isLoading => state is AuthLoading;
+  String? get error => state is AuthError ? (state as AuthError).message : null;
+  Map<String, dynamic>? get user =>
+      state is AuthAuthenticated ? (state as AuthAuthenticated).user : null;
+  Map<String, dynamic>? get driver =>
+      state is AuthAuthenticated ? (state as AuthAuthenticated).driver : null;
+  String? get token =>
+      state is AuthAuthenticated ? (state as AuthAuthenticated).token : null;
 
   // Initialize auth state from stored data
   Future<void> checkAuthStatus() async {
     try {
-      _setLoading(true);
+      emit(AuthLoading());
 
       final storedToken = await _apiService.getStoredToken();
       if (storedToken != null) {
-        _token = storedToken;
-
         // Load user data from storage
         final prefs = await SharedPreferences.getInstance();
         final userJson = prefs.getString(AppConstants.userKey);
         final driverJson = prefs.getString(AppConstants.driverKey);
 
+        Map<String, dynamic>? user;
+        Map<String, dynamic>? driver;
+
         if (userJson != null) {
-          _user = Map<String, dynamic>.from(Uri.splitQueryString(userJson));
+          user = Map<String, dynamic>.from(Uri.splitQueryString(userJson));
         }
 
         if (driverJson != null) {
-          _driver = Map<String, dynamic>.from(Uri.splitQueryString(driverJson));
+          driver = Map<String, dynamic>.from(Uri.splitQueryString(driverJson));
         }
+
+        emit(
+          AuthAuthenticated(
+            token: storedToken,
+            user: user ?? {},
+            driver: driver,
+          ),
+        );
+      } else {
+        emit(AuthUnauthenticated());
       }
     } catch (e) {
-      _setError('Auth status check failed: $e');
-    } finally {
-      _setLoading(false);
+      emit(AuthError('Auth status check failed: $e'));
     }
   }
 
   // Send OTP
   Future<bool> sendOtp(String phone) async {
     try {
-      _setLoading(true);
-      _clearError();
+      emit(AuthLoading());
 
       final response = await _apiService.post(
         AppConstants.sendOtpEndpoint,
@@ -62,12 +92,17 @@ class AuthProvider extends ChangeNotifier {
       );
 
       final data = _apiService.handleResponse(response);
-      return data['message'] != null;
-    } catch (e) {
-      _setError(e.toString());
+
+      if (data['message'] != null) {
+        emit(AuthUnauthenticated());
+        return true;
+      }
+
+      emit(AuthError('Failed to send OTP'));
       return false;
-    } finally {
-      _setLoading(false);
+    } catch (e) {
+      emit(AuthError(e.toString()));
+      return false;
     }
   }
 
@@ -78,8 +113,7 @@ class AuthProvider extends ChangeNotifier {
     String? name,
   }) async {
     try {
-      _setLoading(true);
-      _clearError();
+      emit(AuthLoading());
 
       final response = await _apiService.post(
         AppConstants.verifyOtpEndpoint,
@@ -89,25 +123,24 @@ class AuthProvider extends ChangeNotifier {
       final data = _apiService.handleResponse(response);
 
       if (data['token'] != null) {
-        _token = data['token'];
-        _user = data['user'];
+        final token = data['token'];
+        final user = data['user'];
 
         // Store auth data
-        await _storeAuthData();
+        await _storeAuthData(token, user);
 
         // Set token in API service
-        await _apiService.setAuthToken(_token!);
+        await _apiService.setAuthToken(token);
 
-        notifyListeners();
+        emit(AuthAuthenticated(token: token, user: user));
         return true;
       }
 
+      emit(AuthError('Invalid OTP'));
       return false;
     } catch (e) {
-      _setError(e.toString());
+      emit(AuthError(e.toString()));
       return false;
-    } finally {
-      _setLoading(false);
     }
   }
 
@@ -117,8 +150,7 @@ class AuthProvider extends ChangeNotifier {
     required String password,
   }) async {
     try {
-      _setLoading(true);
-      _clearError();
+      emit(AuthLoading());
 
       final response = await _apiService.post(
         AppConstants.driverLoginEndpoint,
@@ -128,25 +160,24 @@ class AuthProvider extends ChangeNotifier {
       final data = _apiService.handleResponse(response);
 
       if (data['token'] != null) {
-        _token = data['token'];
-        _user = data['user'];
+        final token = data['token'];
+        final user = data['user'];
 
         // Store auth data
-        await _storeAuthData();
+        await _storeAuthData(token, user);
 
         // Set token in API service
-        await _apiService.setAuthToken(_token!);
+        await _apiService.setAuthToken(token);
 
-        notifyListeners();
+        emit(AuthAuthenticated(token: token, user: user));
         return true;
       }
 
+      emit(AuthError('Invalid credentials'));
       return false;
     } catch (e) {
-      _setError(e.toString());
+      emit(AuthError(e.toString()));
       return false;
-    } finally {
-      _setLoading(false);
     }
   }
 
@@ -158,8 +189,7 @@ class AuthProvider extends ChangeNotifier {
     required String password,
   }) async {
     try {
-      _setLoading(true);
-      _clearError();
+      emit(AuthLoading());
 
       final response = await _apiService.post(
         AppConstants.createUserEndpoint,
@@ -175,25 +205,24 @@ class AuthProvider extends ChangeNotifier {
       final data = _apiService.handleResponse(response);
 
       if (data['token'] != null) {
-        _token = data['token'];
-        _user = data['user'];
+        final token = data['token'];
+        final user = data['user'];
 
         // Store auth data
-        await _storeAuthData();
+        await _storeAuthData(token, user);
 
         // Set token in API service
-        await _apiService.setAuthToken(_token!);
+        await _apiService.setAuthToken(token);
 
-        notifyListeners();
+        emit(AuthAuthenticated(token: token, user: user));
         return true;
       }
 
+      emit(AuthError('Failed to create account'));
       return false;
     } catch (e) {
-      _setError(e.toString());
+      emit(AuthError(e.toString()));
       return false;
-    } finally {
-      _setLoading(false);
     }
   }
 
@@ -204,8 +233,7 @@ class AuthProvider extends ChangeNotifier {
     Map<String, dynamic>? documents,
   }) async {
     try {
-      _setLoading(true);
-      _clearError();
+      emit(AuthLoading());
 
       final response = await _apiService.post(
         AppConstants.driverRegisterEndpoint,
@@ -219,26 +247,36 @@ class AuthProvider extends ChangeNotifier {
       final data = _apiService.handleResponse(response);
 
       if (data['driver'] != null) {
-        _driver = data['driver'];
-        await _storeDriverData();
-        notifyListeners();
+        final driver = data['driver'];
+        await _storeDriverData(driver);
+
+        // Update current state with driver info
+        if (state is AuthAuthenticated) {
+          final currentState = state as AuthAuthenticated;
+          emit(
+            AuthAuthenticated(
+              token: currentState.token,
+              user: currentState.user,
+              driver: driver,
+            ),
+          );
+        }
+
         return true;
       }
 
+      emit(AuthError('Failed to register driver'));
       return false;
     } catch (e) {
-      _setError(e.toString());
+      emit(AuthError(e.toString()));
       return false;
-    } finally {
-      _setLoading(false);
     }
   }
 
   // Get driver profile
   Future<bool> getDriverProfile() async {
     try {
-      _setLoading(true);
-      _clearError();
+      emit(AuthLoading());
 
       final response = await _apiService.get(
         AppConstants.driverProfileEndpoint,
@@ -246,18 +284,29 @@ class AuthProvider extends ChangeNotifier {
       final data = _apiService.handleResponse(response);
 
       if (data['driver'] != null) {
-        _driver = data['driver'];
-        await _storeDriverData();
-        notifyListeners();
+        final driver = data['driver'];
+        await _storeDriverData(driver);
+
+        // Update current state with driver info
+        if (state is AuthAuthenticated) {
+          final currentState = state as AuthAuthenticated;
+          emit(
+            AuthAuthenticated(
+              token: currentState.token,
+              user: currentState.user,
+              driver: driver,
+            ),
+          );
+        }
+
         return true;
       }
 
+      emit(AuthError('Failed to load driver profile'));
       return false;
     } catch (e) {
-      _setError(e.toString());
+      emit(AuthError(e.toString()));
       return false;
-    } finally {
-      _setLoading(false);
     }
   }
 
@@ -267,8 +316,7 @@ class AuthProvider extends ChangeNotifier {
     bool? isAvailable,
   }) async {
     try {
-      _setLoading(true);
-      _clearError();
+      emit(AuthLoading());
 
       final response = await _apiService.patch(
         AppConstants.driverStatusEndpoint,
@@ -280,20 +328,31 @@ class AuthProvider extends ChangeNotifier {
 
       final data = _apiService.handleResponse(response);
 
-      if (data['driver'] != null && _driver != null) {
-        _driver!['isOnline'] = data['driver']['isOnline'];
-        _driver!['isAvailable'] = data['driver']['isAvailable'];
-        await _storeDriverData();
-        notifyListeners();
+      if (data['driver'] != null && state is AuthAuthenticated) {
+        final currentState = state as AuthAuthenticated;
+        final updatedDriver = Map<String, dynamic>.from(
+          currentState.driver ?? {},
+        );
+        updatedDriver['isOnline'] = data['driver']['isOnline'];
+        updatedDriver['isAvailable'] = data['driver']['isAvailable'];
+
+        await _storeDriverData(updatedDriver);
+
+        emit(
+          AuthAuthenticated(
+            token: currentState.token,
+            user: currentState.user,
+            driver: updatedDriver,
+          ),
+        );
         return true;
       }
 
+      emit(AuthError('Failed to update driver status'));
       return false;
     } catch (e) {
-      _setError(e.toString());
+      emit(AuthError(e.toString()));
       return false;
-    } finally {
-      _setLoading(false);
     }
   }
 
@@ -316,7 +375,7 @@ class AuthProvider extends ChangeNotifier {
       final data = _apiService.handleResponse(response);
       return data['message'] != null;
     } catch (e) {
-      _setError(e.toString());
+      emit(AuthError(e.toString()));
       return false;
     }
   }
@@ -324,15 +383,10 @@ class AuthProvider extends ChangeNotifier {
   // Logout
   Future<void> logout() async {
     try {
-      _setLoading(true);
+      emit(AuthLoading());
 
       // Clear API token
       await _apiService.clearAuthToken();
-
-      // Clear local data
-      _token = null;
-      _user = null;
-      _driver = null;
 
       // Clear stored data
       final prefs = await SharedPreferences.getInstance();
@@ -340,49 +394,29 @@ class AuthProvider extends ChangeNotifier {
       await prefs.remove(AppConstants.userKey);
       await prefs.remove(AppConstants.driverKey);
 
-      notifyListeners();
+      emit(AuthUnauthenticated());
     } catch (e) {
-      _setError(e.toString());
-    } finally {
-      _setLoading(false);
+      emit(AuthError(e.toString()));
     }
   }
 
   // Store auth data locally
-  Future<void> _storeAuthData() async {
+  Future<void> _storeAuthData(String token, Map<String, dynamic> user) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(AppConstants.tokenKey, _token!);
-    if (_user != null) {
-      await prefs.setString(AppConstants.userKey, _user.toString());
-    }
+    await prefs.setString(AppConstants.tokenKey, token);
+    await prefs.setString(AppConstants.userKey, user.toString());
   }
 
   // Store driver data locally
-  Future<void> _storeDriverData() async {
-    if (_driver != null) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(AppConstants.driverKey, _driver.toString());
-    }
-  }
-
-  // Helper methods
-  void _setLoading(bool loading) {
-    _isLoading = loading;
-    notifyListeners();
-  }
-
-  void _setError(String error) {
-    _error = error;
-    notifyListeners();
-  }
-
-  void _clearError() {
-    _error = null;
-    notifyListeners();
+  Future<void> _storeDriverData(Map<String, dynamic> driver) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(AppConstants.driverKey, driver.toString());
   }
 
   // Clear error manually
   void clearError() {
-    _clearError();
+    if (state is AuthError) {
+      emit(AuthUnauthenticated());
+    }
   }
 }

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/loading_screen.dart';
-import '../providers/auth_provider.dart';
+import '../cubit/auth_cubit.dart';
 import '../../../dashboard/presentation/screens/dashboard_screen.dart';
 
 class DriverRegistrationScreen extends StatefulWidget {
@@ -48,7 +48,7 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
   Future<void> _registerDriver() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final authCubit = context.read<AuthCubit>();
     setState(() => _isLoading = true);
 
     try {
@@ -60,7 +60,7 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
         'plateNumber': _plateController.text.trim(),
       };
 
-      final success = await authProvider.registerDriver(
+      final success = await authCubit.registerDriver(
         licenseNumber: _licenseController.text.trim(),
         vehicleInfo: vehicleInfo,
       );
@@ -75,7 +75,7 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
         }
       } else {
         if (mounted) {
-          _showErrorDialog(authProvider.error ?? 'Qeydiyyat tamamlanmadı');
+          _showErrorDialog(authCubit.error ?? 'Qeydiyyat tamamlanmadı');
         }
       }
     } finally {

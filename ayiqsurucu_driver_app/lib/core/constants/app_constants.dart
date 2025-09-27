@@ -1,7 +1,7 @@
 class AppConstants {
   // API Configuration
   static const String baseUrl = 'http://65.21.25.57:14122/api';
-  static const String socketUrl = 'http://65.21.25.57:3000';
+  static const String socketUrl = 'http://65.21.25.57:14122';
 
   // API Endpoints
   static const String sendOtpEndpoint = '/auth/send-otp';

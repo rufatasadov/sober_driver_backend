@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/loading_screen.dart';
-import '../providers/auth_provider.dart';
+import '../cubit/auth_cubit.dart';
 import 'otp_verification_screen.dart';
 import 'driver_registration_screen.dart';
 import 'direct_driver_registration_screen.dart';
@@ -36,11 +36,11 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _sendOtp() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final authCubit = context.read<AuthCubit>();
     setState(() => _isLoading = true);
 
     try {
-      final success = await authProvider.sendOtp(_phoneController.text.trim());
+      final success = await authCubit.sendOtp(_phoneController.text.trim());
 
       if (success) {
         if (mounted) {
@@ -56,7 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       } else {
         if (mounted) {
-          _showErrorDialog(authProvider.error ?? 'OTP göndərilmədi');
+          _showErrorDialog(authCubit.error ?? 'OTP göndərilmədi');
         }
       }
     } finally {
@@ -69,11 +69,11 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _driverLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final authCubit = context.read<AuthCubit>();
     setState(() => _isLoading = true);
 
     try {
-      final success = await authProvider.driverLogin(
+      final success = await authCubit.driverLogin(
         username: _usernameController.text.trim(),
         password: _passwordController.text.trim(),
       );
@@ -81,7 +81,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (success) {
         if (mounted) {
           // Check if user is already a driver
-          if (authProvider.isDriver) {
+          if (authCubit.driver != null) {
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(builder: (context) => const DashboardScreen()),
@@ -99,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       } else {
         if (mounted) {
-          _showErrorDialog(authProvider.error ?? 'Giriş uğursuz oldu');
+          _showErrorDialog(authCubit.error ?? 'Giriş uğursuz oldu');
         }
       }
     } finally {

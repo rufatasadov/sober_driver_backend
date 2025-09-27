@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'core/theme/app_theme.dart';
 import 'core/services/api_service.dart';
 import 'core/services/socket_service.dart';
-import 'features/auth/presentation/providers/auth_provider.dart';
+import 'features/auth/presentation/cubit/auth_cubit.dart';
 import 'features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'shared/widgets/loading_screen.dart';
@@ -24,8 +24,8 @@ class AyiqSurucuDriverApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [ChangeNotifierProvider(create: (_) => AuthProvider())],
+    return BlocProvider(
+      create: (context) => AuthCubit(),
       child: ScreenUtilInit(
         designSize: const Size(375, 812), // iPhone X design size
         minTextAdapt: true,
@@ -62,8 +62,8 @@ class _AppInitializerState extends State<AppInitializer> {
   Future<void> _initializeApp() async {
     try {
       // Check if user is already logged in
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      await authProvider.checkAuthStatus();
+      final authCubit = context.read<AuthCubit>();
+      await authCubit.checkAuthStatus();
 
       setState(() {
         _isInitializing = false;
@@ -82,12 +82,12 @@ class _AppInitializerState extends State<AppInitializer> {
       return const LoadingScreen();
     }
 
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, child) {
-        if (authProvider.isAuthenticated) {
+    return BlocBuilder<AuthCubit, AuthState>(
+      builder: (context, state) {
+        if (state is AuthAuthenticated) {
           // Initialize socket service if authenticated
           if (!SocketService().isConnected) {
-            SocketService().initialize(authToken: authProvider.token!);
+            SocketService().initialize(authToken: state.token);
           }
           return const DashboardScreen();
         } else {

@@ -1,45 +1,67 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import '../../../../core/services/api_service.dart';
 import '../../../../core/constants/app_constants.dart';
 
-class ProfileProvider extends ChangeNotifier {
+// Profile States
+abstract class ProfileState {}
+
+class ProfileInitial extends ProfileState {}
+
+class ProfileLoading extends ProfileState {}
+
+class ProfileLoaded extends ProfileState {
+  final Map<String, dynamic> user;
+  final Map<String, dynamic>? driver;
+
+  ProfileLoaded({required this.user, this.driver});
+}
+
+class ProfileError extends ProfileState {
+  final String message;
+
+  ProfileError(this.message);
+}
+
+// Profile Cubit
+class ProfileCubit extends Cubit<ProfileState> {
   final ApiService _apiService = ApiService();
 
-  Map<String, dynamic>? _user;
-  Map<String, dynamic>? _driver;
-  bool _isLoading = false;
-  String? _error;
+  ProfileCubit() : super(ProfileInitial());
 
   // Getters
-  Map<String, dynamic>? get user => _user;
-  Map<String, dynamic>? get driver => _driver;
-  bool get isLoading => _isLoading;
-  String? get error => _error;
+  bool get isLoading => state is ProfileLoading;
+  String? get error =>
+      state is ProfileError ? (state as ProfileError).message : null;
+  Map<String, dynamic>? get user =>
+      state is ProfileLoaded ? (state as ProfileLoaded).user : null;
+  Map<String, dynamic>? get driver =>
+      state is ProfileLoaded ? (state as ProfileLoaded).driver : null;
 
   // Load profile data
   Future<void> loadProfile() async {
     try {
-      _setLoading(true);
-      _clearError();
+      emit(ProfileLoading());
 
       // Load user profile
       final userResponse = await _apiService.get('/auth/me');
       final userData = _apiService.handleResponse(userResponse);
-      _user = userData['user'];
+      final user = userData['user'];
+
+      Map<String, dynamic>? driver;
 
       // Load driver profile (only if user is a driver)
-      if (_user?['role'] == 'driver') {
+      if (user?['role'] == 'driver') {
         try {
           final driverResponse = await _apiService.get(
             AppConstants.driverProfileEndpoint,
           );
           final driverData = _apiService.handleResponse(driverResponse);
-          _driver = driverData['driver'];
+          driver = driverData['driver'];
         } catch (e) {
           // If driver profile doesn't exist, set empty driver data
-          _driver = {
+          driver = {
             'status': 'pending',
             'vehicleInfo': {},
             'earnings': {'today': 0, 'thisWeek': 0, 'thisMonth': 0, 'total': 0},
@@ -47,19 +69,16 @@ class ProfileProvider extends ChangeNotifier {
         }
       }
 
-      notifyListeners();
+      emit(ProfileLoaded(user: user, driver: driver));
     } catch (e) {
-      _setError(e.toString());
-    } finally {
-      _setLoading(false);
+      emit(ProfileError(e.toString()));
     }
   }
 
   // Update user profile
   Future<bool> updateUserProfile({required String name, String? email}) async {
     try {
-      _setLoading(true);
-      _clearError();
+      emit(ProfileLoading());
 
       final response = await _apiService.patch(
         '/auth/profile',
@@ -69,18 +88,23 @@ class ProfileProvider extends ChangeNotifier {
       final data = _apiService.handleResponse(response);
 
       if (data['user'] != null) {
-        _user = data['user'];
-        await _storeUserData();
-        notifyListeners();
+        final updatedUser = data['user'];
+        await _storeUserData(updatedUser);
+
+        // Update current state
+        if (state is ProfileLoaded) {
+          final currentState = state as ProfileLoaded;
+          emit(ProfileLoaded(user: updatedUser, driver: currentState.driver));
+        }
+
         return true;
       }
 
+      emit(ProfileError('Failed to update profile'));
       return false;
     } catch (e) {
-      _setError(e.toString());
+      emit(ProfileError(e.toString()));
       return false;
-    } finally {
-      _setLoading(false);
     }
   }
 
@@ -90,8 +114,7 @@ class ProfileProvider extends ChangeNotifier {
     required Map<String, dynamic> vehicleInfo,
   }) async {
     try {
-      _setLoading(true);
-      _clearError();
+      emit(ProfileLoading());
 
       final response = await _apiService.patch(
         AppConstants.driverProfileEndpoint,
@@ -101,26 +124,30 @@ class ProfileProvider extends ChangeNotifier {
       final data = _apiService.handleResponse(response);
 
       if (data['driver'] != null) {
-        _driver = data['driver'];
-        await _storeDriverData();
-        notifyListeners();
+        final updatedDriver = data['driver'];
+        await _storeDriverData(updatedDriver);
+
+        // Update current state
+        if (state is ProfileLoaded) {
+          final currentState = state as ProfileLoaded;
+          emit(ProfileLoaded(user: currentState.user, driver: updatedDriver));
+        }
+
         return true;
       }
 
+      emit(ProfileError('Failed to update driver profile'));
       return false;
     } catch (e) {
-      _setError(e.toString());
+      emit(ProfileError(e.toString()));
       return false;
-    } finally {
-      _setLoading(false);
     }
   }
 
   // Update profile image
   Future<bool> updateProfileImage(String imagePath) async {
     try {
-      _setLoading(true);
-      _clearError();
+      emit(ProfileLoading());
 
       // Create FormData for file upload
       final formData = FormData.fromMap({
@@ -134,18 +161,23 @@ class ProfileProvider extends ChangeNotifier {
       final data = _apiService.handleResponse(response);
 
       if (data['user'] != null) {
-        _user = data['user'];
-        await _storeUserData();
-        notifyListeners();
+        final updatedUser = data['user'];
+        await _storeUserData(updatedUser);
+
+        // Update current state
+        if (state is ProfileLoaded) {
+          final currentState = state as ProfileLoaded;
+          emit(ProfileLoaded(user: updatedUser, driver: currentState.driver));
+        }
+
         return true;
       }
 
+      emit(ProfileError('Failed to update profile image'));
       return false;
     } catch (e) {
-      _setError(e.toString());
+      emit(ProfileError(e.toString()));
       return false;
-    } finally {
-      _setLoading(false);
     }
   }
 
@@ -156,7 +188,7 @@ class ProfileProvider extends ChangeNotifier {
       final data = _apiService.handleResponse(response);
       return data['earnings'];
     } catch (e) {
-      _setError(e.toString());
+      emit(ProfileError(e.toString()));
       return null;
     }
   }
@@ -167,8 +199,7 @@ class ProfileProvider extends ChangeNotifier {
     bool? isAvailable,
   }) async {
     try {
-      _setLoading(true);
-      _clearError();
+      emit(ProfileLoading());
 
       final response = await _apiService.patch(
         AppConstants.driverStatusEndpoint,
@@ -181,25 +212,30 @@ class ProfileProvider extends ChangeNotifier {
       final data = _apiService.handleResponse(response);
 
       if (data['driver'] != null) {
-        _driver = data['driver'];
-        await _storeDriverData();
-        notifyListeners();
+        final updatedDriver = data['driver'];
+        await _storeDriverData(updatedDriver);
+
+        // Update current state
+        if (state is ProfileLoaded) {
+          final currentState = state as ProfileLoaded;
+          emit(ProfileLoaded(user: currentState.user, driver: updatedDriver));
+        }
+
         return true;
       }
 
+      emit(ProfileError('Failed to update driver status'));
       return false;
     } catch (e) {
-      _setError(e.toString());
+      emit(ProfileError(e.toString()));
       return false;
-    } finally {
-      _setLoading(false);
     }
   }
 
   // Logout
   Future<void> logout() async {
     try {
-      _setLoading(true);
+      emit(ProfileLoading());
 
       // Call logout endpoint
       await _apiService.post('/auth/logout');
@@ -207,53 +243,27 @@ class ProfileProvider extends ChangeNotifier {
       // Clear API token
       await _apiService.clearAuthToken();
 
-      // Clear local data
-      _user = null;
-      _driver = null;
-
       // Clear stored data
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(AppConstants.tokenKey);
       await prefs.remove(AppConstants.userKey);
       await prefs.remove(AppConstants.driverKey);
 
-      notifyListeners();
+      emit(ProfileInitial());
     } catch (e) {
-      _setError(e.toString());
-    } finally {
-      _setLoading(false);
+      emit(ProfileError(e.toString()));
     }
   }
 
   // Store user data locally
-  Future<void> _storeUserData() async {
-    if (_user != null) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(AppConstants.userKey, _user.toString());
-    }
+  Future<void> _storeUserData(Map<String, dynamic> user) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(AppConstants.userKey, user.toString());
   }
 
   // Store driver data locally
-  Future<void> _storeDriverData() async {
-    if (_driver != null) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(AppConstants.driverKey, _driver.toString());
-    }
-  }
-
-  // Helper methods
-  void _setLoading(bool loading) {
-    _isLoading = loading;
-    notifyListeners();
-  }
-
-  void _setError(String error) {
-    _error = error;
-    notifyListeners();
-  }
-
-  void _clearError() {
-    _error = null;
-    notifyListeners();
+  Future<void> _storeDriverData(Map<String, dynamic> driver) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(AppConstants.driverKey, driver.toString());
   }
 }
