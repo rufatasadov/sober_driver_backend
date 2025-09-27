@@ -80,6 +80,9 @@ app.use('*', (req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
+// Make io available to routes
+app.set('io', io);
+
 // Setup socket handlers
 setupSocketHandlers(io);
 

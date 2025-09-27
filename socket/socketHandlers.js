@@ -35,6 +35,7 @@ const setupSocketHandlers = (io) => {
     
     if (socket.userRole === 'driver') {
       socket.join('drivers');
+      socket.join(`driver_${socket.userId}`);
     }
     if (socket.userRole === 'operator') {
       socket.join('operators');
@@ -45,6 +46,14 @@ const setupSocketHandlers = (io) => {
     if (socket.userRole === 'admin') {
       socket.join('admins');
     }
+
+    // Sürücü otağına qoşul
+    socket.on('join_driver_room', () => {
+      if (socket.userRole === 'driver') {
+        socket.join(`driver_${socket.userId}`);
+        console.log(`Driver ${socket.userId} joined driver room`);
+      }
+    });
 
     // Sürücü yerini yenilə
     socket.on('update_location', async (data) => {

@@ -124,7 +124,10 @@ class OrdersCubit extends Cubit<OrdersState> {
   StreamSubscription? _newOrderSubscription;
 
   OrdersCubit() : super(OrdersInitial()) {
-    _initializeSocketListeners();
+    // Initialize socket listeners after a delay to ensure socket is connected
+    Future.delayed(const Duration(seconds: 2), () {
+      _initializeSocketListeners();
+    });
   }
 
   // Getters
@@ -322,10 +325,15 @@ class OrdersCubit extends Cubit<OrdersState> {
 
   // Initialize socket listeners
   void _initializeSocketListeners() {
+    print('OrdersCubit: Initializing socket listeners...');
+    print('OrdersCubit: Socket connected: ${_socketService.isConnected}');
+
     _newOrderSubscription = _socketService.newOrderStream.listen((orderData) {
       print('OrdersCubit: New order received via socket: $orderData');
       _handleNewOrder(orderData);
     });
+
+    print('OrdersCubit: Socket listeners initialized');
   }
 
   // Handle new order from socket

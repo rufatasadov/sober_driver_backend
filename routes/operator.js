@@ -159,7 +159,9 @@ router.post('/orders/:orderId/assign-driver', auth, authorize('operator'), [
 
     // Socket event emit et
     const io = req.app.get('io');
+    console.log('Operator: Socket io object:', io ? 'Available' : 'Not available');
     if (io) {
+      console.log(`Operator: Emitting new_order_assigned to driver_${driver.userId}`);
       // Sürücüyə bildir
       io.to(`driver_${driver.userId}`).emit('new_order_assigned', {
         orderId: order.id,
