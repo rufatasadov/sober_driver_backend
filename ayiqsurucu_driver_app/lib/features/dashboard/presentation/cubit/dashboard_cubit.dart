@@ -43,11 +43,10 @@ class DashboardCubit extends Cubit<DashboardState> {
       emit(DashboardLoading());
 
       // Load statistics and recent orders in parallel
-      await Future.wait([_loadStats(), _loadRecentOrders()]);
+      final results = await Future.wait([_loadStats(), _loadRecentOrders()]);
 
-      // Get the loaded data
-      final statsData = await _loadStats();
-      final recentOrdersData = await _loadRecentOrders();
+      final statsData = results[0] as Map<String, dynamic>;
+      final recentOrdersData = results[1] as List<Map<String, dynamic>>;
 
       emit(DashboardLoaded(stats: statsData, recentOrders: recentOrdersData));
     } catch (e) {
@@ -69,15 +68,33 @@ class DashboardCubit extends Cubit<DashboardState> {
       );
       final statusData = _apiService.handleResponse(statusResponse);
 
+      // Convert to Map safely with error handling
+      Map<String, dynamic> earningsMap = {};
+      Map<String, dynamic> statusMap = {};
+
+      try {
+        earningsMap = Map<String, dynamic>.from(earningsData);
+      } catch (e) {
+        print('DashboardCubit: Error converting earnings data: $e');
+        earningsMap = {};
+      }
+
+      try {
+        statusMap = Map<String, dynamic>.from(statusData);
+      } catch (e) {
+        print('DashboardCubit: Error converting status data: $e');
+        statusMap = {};
+      }
+
       // Map earnings data to stats format
-      if (earningsData.isNotEmpty) {
+      if (earningsMap.isNotEmpty) {
         return {
-          'todayOrders': earningsData['totalOrders'] ?? 0,
-          'todayEarnings': earningsData['netEarnings'] ?? 0.0,
-          'totalOrders': earningsData['totalOrders'] ?? 0,
-          'totalEarnings': earningsData['netEarnings'] ?? 0.0,
-          'isOnline': statusData['isOnline'] ?? false,
-          'isAvailable': statusData['isAvailable'] ?? false,
+          'todayOrders': _safeParseInt(earningsMap['totalOrders']) ?? 0,
+          'todayEarnings': _safeParseDouble(earningsMap['netEarnings']) ?? 0.0,
+          'totalOrders': _safeParseInt(earningsMap['totalOrders']) ?? 0,
+          'totalEarnings': _safeParseDouble(earningsMap['netEarnings']) ?? 0.0,
+          'isOnline': _safeParseBool(statusMap['isOnline']) ?? true,
+          'isAvailable': _safeParseBool(statusMap['isAvailable']) ?? true,
         };
       }
 
@@ -97,12 +114,28 @@ class DashboardCubit extends Cubit<DashboardState> {
       );
       final data = _apiService.handleResponse(response);
 
-      if (data['orders'] != null) {
-        return List<Map<String, dynamic>>.from(data['orders']);
+      // Convert to Map safely with error handling
+      Map<String, dynamic> dataMap = {};
+
+      try {
+        dataMap = Map<String, dynamic>.from(data);
+      } catch (e) {
+        print('DashboardCubit: Error converting recent orders data: $e');
+        return [];
+      }
+
+      if (dataMap['orders'] != null && dataMap['orders'] is List) {
+        try {
+          return List<Map<String, dynamic>>.from(dataMap['orders']);
+        } catch (e) {
+          print('DashboardCubit: Error converting orders list: $e');
+          return [];
+        }
       }
 
       return [];
     } catch (e) {
+      print('DashboardCubit: Error loading recent orders: $e');
       // If recent orders endpoint fails, use empty list
       return [];
     }
@@ -131,8 +164,11 @@ class DashboardCubit extends Cubit<DashboardState> {
       final data = _apiService.handleResponse(response);
       print('DashboardCubit: Parsed data: $data');
 
+      // Convert to Map safely
+      Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
+
       // Check if the response is successful (either 'success: true' or has 'driver' field)
-      if (data['success'] == true || data['driver'] != null) {
+      if (dataMap['success'] == true || dataMap['driver'] != null) {
         // Update current state with new status
         if (state is DashboardLoaded) {
           final currentState = state as DashboardLoaded;
@@ -179,8 +215,41 @@ class DashboardCubit extends Cubit<DashboardState> {
       'todayEarnings': 0.0,
       'totalOrders': 0,
       'totalEarnings': 0.0,
-      'isOnline': false,
-      'isAvailable': false,
+      'isOnline': true, // Default to online
+      'isAvailable': true, // Default to available
     };
+  }
+
+  // Safe parsing helper methods
+  int? _safeParseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) {
+      return int.tryParse(value);
+    }
+    return null;
+  }
+
+  double? _safeParseDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      return double.tryParse(value);
+    }
+    return null;
+  }
+
+  bool? _safeParseBool(dynamic value) {
+    if (value == null) return null;
+    if (value is bool) return value;
+    if (value is String) {
+      return value.toLowerCase() == 'true';
+    }
+    if (value is int) {
+      return value == 1;
+    }
+    return null;
   }
 }

@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../orders/presentation/screens/orders_screen.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
 import '../../../profile/presentation/screens/earnings_screen.dart';
-import '../../../orders/presentation/screens/order_history_screen.dart';
 import '../../../notifications/presentation/screens/notifications_screen.dart';
 import '../../../orders/presentation/widgets/new_order_notification_widget.dart';
 import '../../../orders/presentation/widgets/broadcast_order_notification_widget.dart';
+import '../../../orders/presentation/screens/order_details_screen.dart';
 import '../../../orders/presentation/cubit/orders_cubit.dart';
 import '../cubit/dashboard_cubit.dart';
+import '../../../../core/services/location_service.dart';
+import '../../../../core/services/socket_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -142,6 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _showNewOrderNotification = false;
   Order? _broadcastOrder;
   bool _showBroadcastOrderNotification = false;
+  final LocationService _locationService = LocationService();
 
   @override
   void initState() {
@@ -149,6 +154,8 @@ class _HomeScreenState extends State<HomeScreen> {
     // Listen for new orders
     _listenForNewOrders();
     _listenForBroadcastOrders();
+    // Start location tracking
+    _startLocationTracking();
   }
 
   void _listenForNewOrders() {
@@ -165,6 +172,31 @@ class _HomeScreenState extends State<HomeScreen> {
       final ordersCubit = context.read<OrdersCubit>();
       ordersCubit.setBroadcastOrderCallback(_showBroadcastOrder);
     });
+  }
+
+  Future<void> _startLocationTracking() async {
+    try {
+      // Check permissions first
+      final hasPermission = await _locationService.checkAndRequestPermissions();
+      if (hasPermission) {
+        // Start location tracking
+        await _locationService.startLocationTracking();
+
+        // Update location on socket
+        final position = await _locationService.getCurrentLocation();
+        if (position != null) {
+          final socketService = SocketService();
+          if (socketService.isConnected) {
+            socketService.updateLocation(
+              latitude: position.latitude,
+              longitude: position.longitude,
+            );
+          }
+        }
+      }
+    } catch (e) {
+      print('Error starting location tracking: $e');
+    }
   }
 
   void _showNewOrder(Order order) {
@@ -245,32 +277,72 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // Helper method to parse fare from different formats
-  double _parseFare(dynamic fare) {
-    if (fare == null) return 0.0;
-
-    if (fare is double) return fare;
-    if (fare is int) return fare.toDouble();
-    if (fare is String) {
-      return double.tryParse(fare) ?? 0.0;
-    }
-    if (fare is Map<String, dynamic>) {
-      // If fare is an object, try to get total or amount
-      final total = fare['total'] ?? fare['amount'] ?? fare['fare'];
-      if (total is double) return total;
-      if (total is int) return total.toDouble();
-      if (total is String) {
-        return double.tryParse(total) ?? 0.0;
-      }
-    }
-
-    return 0.0;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        title: Text(
+          'Ayiq Sürücü',
+          style: AppTheme.heading3.copyWith(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        actions: [
+          // Notifications
+          IconButton(
+            icon: Stack(
+              children: [
+                Icon(
+                  Icons.notifications_outlined,
+                  color: AppColors.textPrimary,
+                  size: 20.sp,
+                ),
+                Positioned(
+                  right: 2,
+                  top: 2,
+                  child: Container(
+                    padding: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      color: AppColors.error,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppColors.background,
+                        width: 1.5,
+                      ),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 14,
+                      minHeight: 14,
+                    ),
+                    child: Text(
+                      '3',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 9.sp,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NotificationsScreen(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: BlocBuilder<DashboardCubit, DashboardState>(
         builder: (context, state) {
           if (state is DashboardLoading) {
@@ -295,7 +367,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                   child: CustomScrollView(
                     slivers: [
-                      // Header with balance
+                      // Header without balance
                       SliverToBoxAdapter(
                         child: _buildHeaderSection(
                           user,
@@ -305,20 +377,25 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
 
-                      // Quick actions grid
-                      SliverToBoxAdapter(child: _buildQuickActionsSection()),
-
-                      // Stats section
-                      SliverToBoxAdapter(child: _buildStatsSection(stats)),
-
-                      // Recent orders section
+                      // Center Circle Status
                       SliverToBoxAdapter(
-                        child: _buildRecentOrdersSection(state),
+                        child: _buildCenterStatusCircle(state, isOnline),
                       ),
 
-                      // Bottom padding
-                      SliverToBoxAdapter(
-                        child: SizedBox(height: 100.h), // Space for bottom nav
+                      // Stats section
+                      //     SliverToBoxAdapter(child: _buildStatsSection(stats)),
+
+                      // Spacer to push balance to bottom
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: Column(
+                          children: [
+                            const Spacer(),
+                            // Balance section at bottom
+                            _buildBalanceSection(stats),
+                            SizedBox(height: 12.h), // Small gap before nav
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -391,75 +468,6 @@ class _HomeScreenState extends State<HomeScreen> {
       margin: EdgeInsets.all(16.w),
       child: Column(
         children: [
-          // Balance Card - Compact
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.all(16.w),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppColors.primary, AppColors.primary.withOpacity(0.9)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(12.r),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.2),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Balans',
-                      style: AppTheme.bodySmall.copyWith(
-                        color: AppColors.textOnPrimary.withOpacity(0.8),
-                        fontSize: 12.sp,
-                      ),
-                    ),
-                    SizedBox(height: 4.h),
-                    Text(
-                      '${stats['totalEarnings']?.toStringAsFixed(2) ?? '0.00'} AZN',
-                      style: AppTheme.heading3.copyWith(
-                        color: AppColors.textOnPrimary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20.sp,
-                      ),
-                    ),
-                    SizedBox(height: 4.h),
-                    Text(
-                      'Bugün: ${(stats['todayEarnings'] ?? 0.0).toStringAsFixed(2)} AZN',
-                      style: AppTheme.caption.copyWith(
-                        color: AppColors.textOnPrimary.withOpacity(0.8),
-                        fontSize: 11.sp,
-                      ),
-                    ),
-                  ],
-                ),
-                Container(
-                  padding: EdgeInsets.all(8.w),
-                  decoration: BoxDecoration(
-                    color: AppColors.textOnPrimary.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(8.r),
-                  ),
-                  child: Icon(
-                    Icons.account_balance_wallet_outlined,
-                    color: AppColors.textOnPrimary,
-                    size: 20.sp,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          SizedBox(height: 20.h),
-
           // Welcome Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -469,7 +477,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Salam, ${user?['name']?.split(' ').first ?? 'Sürücü'}! 👋',
+                      'Salam, ${user?['name'] ?? 'Sürücü'}! 👋',
                       style: AppTheme.heading2.copyWith(
                         fontSize: 22.sp,
                         fontWeight: FontWeight.bold,
@@ -493,7 +501,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   GestureDetector(
                     onTap: () {
                       // Navigate to profile tab
-                      DefaultTabController.of(context).animateTo(3);
+                      // Find the parent DashboardScreen and update its index
+                      final dashboardState =
+                          context
+                              .findAncestorStateOfType<_DashboardScreenState>();
+                      if (dashboardState != null) {
+                        dashboardState.setState(() {
+                          dashboardState._currentIndex = 3;
+                        });
+                      }
                     },
                     child: Container(
                       padding: EdgeInsets.all(2.w),
@@ -553,149 +569,146 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-
-          SizedBox(height: 24.h),
-
-          // Online/Offline Status Card
-          _buildOnlineStatusCard(isOnline, isAvailable),
         ],
       ),
     );
   }
 
-  Widget _buildOnlineStatusCard(bool isOnline, bool isAvailable) {
+  Widget _buildCenterStatusCircle(DashboardState state, bool isOnline) {
     return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors:
-              isOnline
-                  ? [AppColors.success, AppColors.success.withOpacity(0.8)]
-                  : [AppColors.surface, AppColors.surface],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(
-          color: isOnline ? AppColors.success : AppColors.border,
-          width: 1.w,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color:
-                isOnline
-                    ? AppColors.success.withOpacity(0.15)
-                    : AppColors.shadow,
-            blurRadius: 6,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Row(
+      margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 20.h),
+      child: Column(
         children: [
-          // Status Icon
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            width: 50.w,
-            height: 50.h,
-            decoration: BoxDecoration(
-              color:
-                  isOnline
-                      ? AppColors.textOnPrimary.withOpacity(0.2)
-                      : AppColors.textSecondary.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              isOnline
-                  ? Icons.check_circle_rounded
-                  : Icons.pause_circle_outline_rounded,
-              size: 28.sp,
-              color:
-                  isOnline ? AppColors.textOnPrimary : AppColors.textSecondary,
-            ),
-          ),
-          SizedBox(width: 16.w),
-          // Status Text
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isOnline ? 'Onlayn' : 'Oflayn',
-                  style: AppTheme.bodyLarge.copyWith(
-                    color:
-                        isOnline
-                            ? AppColors.textOnPrimary
-                            : AppColors.textPrimary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16.sp,
+          // Dynamic Container - Circle or Rectangle based on active orders
+          BlocBuilder<OrdersCubit, OrdersState>(
+            builder: (context, ordersState) {
+              final hasActiveOrder =
+                  ordersState is OrdersLoaded &&
+                  ordersState.activeOrders.isNotEmpty;
+
+              if (hasActiveOrder) {
+                // Rounded Rectangle for Active Order
+                final activeOrder = ordersState.activeOrders.first;
+                return Container(
+                  width: double.infinity,
+                  constraints: BoxConstraints(minHeight: 200.h),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20.r),
+                    border: Border.all(color: AppColors.primary, width: 3.w),
+                    color: AppColors.surface,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withOpacity(0.2),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
                   ),
-                ),
-                SizedBox(height: 4.h),
-                Text(
-                  isOnline
-                      ? isAvailable
-                          ? 'Yeni sifarişlər alırsınız'
-                          : 'Onlayn amma məşğulsunuz'
-                      : 'İşə başlamaq üçün düyməyə basın',
-                  style: AppTheme.bodySmall.copyWith(
-                    color:
-                        isOnline
-                            ? AppColors.textOnPrimary.withOpacity(0.8)
-                            : AppColors.textSecondary,
-                    fontSize: 12.sp,
+                  child: _buildActiveOrderInRectangle(activeOrder),
+                );
+              } else {
+                // Circle for No Active Order
+                return Container(
+                  width: 300.w,
+                  height: 300.h,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color:
+                          isOnline
+                              ? AppColors.success
+                              : AppColors.textSecondary,
+                      width: 4.w,
+                    ),
+                    color: AppColors.surface,
+                    boxShadow: [
+                      BoxShadow(
+                        color: (isOnline
+                                ? AppColors.success
+                                : AppColors.textSecondary)
+                            .withOpacity(0.2),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
+                  child: _buildStatusInCircle(isOnline),
+                );
+              }
+            },
           ),
+
+          SizedBox(height: 16.h),
+
           // Toggle Button
           SizedBox(
             width: 80.w,
-            height: 36.h,
-            child: ElevatedButton(
-              onPressed:
-                  () => _toggleOnlineStatus(
-                    context.read<DashboardCubit>(),
-                    isOnline,
+            height: 32.h,
+            child: BlocBuilder<OrdersCubit, OrdersState>(
+              builder: (context, ordersState) {
+                final hasActiveOrder =
+                    ordersState is OrdersLoaded &&
+                    ordersState.activeOrders.isNotEmpty;
+                final isDisabled = isOnline && hasActiveOrder;
+
+                return ElevatedButton(
+                  onPressed:
+                      isDisabled
+                          ? null
+                          : () => _toggleOnlineStatus(
+                            context.read<DashboardCubit>(),
+                            isOnline,
+                          ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        isDisabled
+                            ? AppColors.textSecondary.withOpacity(0.3)
+                            : (isOnline
+                                ? AppColors.textOnPrimary
+                                : AppColors.primary),
+                    foregroundColor:
+                        isDisabled
+                            ? AppColors.textSecondary
+                            : (isOnline
+                                ? AppColors.success
+                                : AppColors.textOnPrimary),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    elevation: isOnline ? 0 : 2,
+                    padding: EdgeInsets.zero,
                   ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    isOnline ? AppColors.textOnPrimary : AppColors.primary,
-                foregroundColor:
-                    isOnline ? AppColors.success : AppColors.textOnPrimary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-                elevation: isOnline ? 0 : 2,
-                padding: EdgeInsets.zero,
-              ),
-              child: BlocBuilder<DashboardCubit, DashboardState>(
-                builder: (context, state) {
-                  final isLoading = state is DashboardLoading;
+                  child: BlocBuilder<DashboardCubit, DashboardState>(
+                    builder: (context, state) {
+                      final isLoading = state is DashboardLoading;
 
-                  if (isLoading) {
-                    return SizedBox(
-                      width: 16.w,
-                      height: 16.h,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.w,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          isOnline
-                              ? AppColors.success
-                              : AppColors.textOnPrimary,
-                        ),
-                      ),
-                    );
-                  }
+                      if (isLoading) {
+                        return SizedBox(
+                          width: 16.w,
+                          height: 16.h,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.w,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              isOnline
+                                  ? AppColors.success
+                                  : AppColors.textOnPrimary,
+                            ),
+                          ),
+                        );
+                      }
 
-                  return Icon(
-                    isOnline ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                    size: 16.sp,
-                  );
-                },
-              ),
+                      return Icon(
+                        isDisabled
+                            ? Icons.block
+                            : (isOnline
+                                ? Icons.pause_rounded
+                                : Icons.play_arrow_rounded),
+                        size: 16.sp,
+                      );
+                    },
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -703,72 +716,695 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildQuickActionsSection() {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16.w),
+  Widget _buildActiveOrderInRectangle(Order order) {
+    return Padding(
+      padding: EdgeInsets.all(20.w),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Sürətli Əməliyyatlar',
-            style: AppTheme.heading3.copyWith(fontWeight: FontWeight.bold),
-          ),
-          SizedBox(height: 16.h),
+          // Header with order info
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: _buildModernActionCard(
-                  'Sifariş Tarixçəsi',
-                  Icons.history_rounded,
-                  AppColors.info,
-                  'Keçmiş sifarişlərinizi görün',
-                  () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const OrderHistoryScreen(),
+              Row(
+                children: [
+                  Container(
+                    width: 40.w,
+                    height: 40.h,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    child: Icon(
+                      Icons.local_shipping,
+                      color: AppColors.primary,
+                      size: 20.sp,
+                    ),
+                  ),
+                  SizedBox(width: 12.w),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Aktiv Sifariş',
+                        style: AppTheme.bodySmall.copyWith(
+                          color: AppColors.textSecondary,
+                          fontSize: 12.sp,
+                        ),
                       ),
-                    );
-                  },
-                ),
+                      Text(
+                        'Sifariş #${order.orderNumber.toString().substring(order.orderNumber.toString().length - 4)}',
+                        style: AppTheme.heading3.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                          fontSize: 18.sp,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              SizedBox(width: 12.w),
-              Expanded(
-                child: _buildModernActionCard(
-                  'Gəlir Hesabatı',
-                  Icons.analytics_rounded,
-                  AppColors.success,
-                  'Qazanclarınızı analiz edin',
-                  () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const EarningsTabScreen(),
-                      ),
-                    );
-                  },
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                decoration: BoxDecoration(
+                  color: _getStatusColor(order.status).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12.r),
+                  border: Border.all(
+                    color: _getStatusColor(order.status).withOpacity(0.3),
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  _getStatusText(order.status),
+                  style: AppTheme.caption.copyWith(
+                    color: _getStatusColor(order.status),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12.sp,
+                  ),
                 ),
               ),
             ],
           ),
-          SizedBox(height: 12.h),
-          _buildModernActionCard(
-            'Bildirişlər',
-            Icons.notifications_active_rounded,
-            AppColors.warning,
-            'Admin və dispatcher mesajları',
-            () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const NotificationsScreen(),
+
+          SizedBox(height: 20.h),
+
+          // Customer info
+          if (order.customer != null) ...[
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(16.w),
+              decoration: BoxDecoration(
+                color: AppColors.surface.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(12.r),
+                border: Border.all(
+                  color: AppColors.border.withOpacity(0.3),
+                  width: 1,
                 ),
-              );
-            },
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.person,
+                    color: AppColors.textSecondary,
+                    size: 20.sp,
+                  ),
+                  SizedBox(width: 12.w),
+                  Expanded(
+                    child: Text(
+                      order.customer!['name'] ?? 'Müştəri',
+                      style: AppTheme.bodyMedium.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16.sp,
+                      ),
+                    ),
+                  ),
+                  if (order.customerPhone != null) ...[
+                    SizedBox(width: 12.w),
+                    GestureDetector(
+                      onTap: () => _makePhoneCall(order.customerPhone!),
+                      child: Container(
+                        padding: EdgeInsets.all(12.w),
+                        decoration: BoxDecoration(
+                          color: AppColors.success.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8.r),
+                        ),
+                        child: Icon(
+                          Icons.phone,
+                          color: AppColors.success,
+                          size: 20.sp,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            SizedBox(height: 16.h),
+          ],
+
+          // Addresses
+          Row(
+            children: [
+              // Pickup address
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => _shareLocation(order.pickup, 'Götürmə nöqtəsi'),
+                  child: Container(
+                    padding: EdgeInsets.all(16.w),
+                    decoration: BoxDecoration(
+                      color: AppColors.success.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12.r),
+                      border: Border.all(
+                        color: AppColors.success.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.my_location,
+                              color: AppColors.success,
+                              size: 16.sp,
+                            ),
+                            SizedBox(width: 8.w),
+                            Text(
+                              'Götürmə',
+                              style: AppTheme.bodySmall.copyWith(
+                                color: AppColors.success,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12.sp,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 8.h),
+                        Text(
+                          order.pickup['address'] ?? 'Ünvan yoxdur',
+                          style: AppTheme.bodyMedium.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 14.sp,
+                          ),
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              SizedBox(width: 12.w),
+
+              // Destination address
+              Expanded(
+                child: GestureDetector(
+                  onTap:
+                      () => _shareLocation(order.destination, 'Təhvil nöqtəsi'),
+                  child: Container(
+                    padding: EdgeInsets.all(16.w),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12.r),
+                      border: Border.all(
+                        color: AppColors.primary.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.location_on,
+                              color: AppColors.primary,
+                              size: 16.sp,
+                            ),
+                            SizedBox(width: 8.w),
+                            Text(
+                              'Təhvil',
+                              style: AppTheme.bodySmall.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12.sp,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 8.h),
+                        Text(
+                          order.destination['address'] ?? 'Ünvan yoxdur',
+                          style: AppTheme.bodyMedium.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 14.sp,
+                          ),
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          SizedBox(height: 20.h),
+
+          // Action buttons
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _viewOrderDetails(order),
+                  icon: Icon(Icons.visibility, size: 16.sp),
+                  label: Text(
+                    'Ətraflı',
+                    style: AppTheme.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.info,
+                    side: BorderSide(color: AppColors.info),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    padding: EdgeInsets.symmetric(vertical: 12.h),
+                  ),
+                ),
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed:
+                      () => _quickUpdateStatus(
+                        order,
+                        _getNextStatus(order.status),
+                      ),
+                  icon: Icon(Icons.check, size: 16.sp),
+                  label: Text(
+                    'Status Yenilə',
+                    style: AppTheme.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.success,
+                    foregroundColor: AppColors.textOnPrimary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    padding: EdgeInsets.symmetric(vertical: 12.h),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildActiveOrderInCircle(Order order) {
+    return Padding(
+      padding: EdgeInsets.all(12.w),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Order icon and number
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 24.w,
+                height: 24.h,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.local_shipping,
+                  color: AppColors.primary,
+                  size: 12.sp,
+                ),
+              ),
+              SizedBox(width: 6.w),
+              Text(
+                '#${order.orderNumber.toString().substring(order.orderNumber.toString().length - 4)}',
+                style: AppTheme.bodySmall.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                  fontSize: 12.sp,
+                ),
+              ),
+            ],
+          ),
+
+          SizedBox(height: 8.h),
+
+          // Customer info
+          if (order.customer != null) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.person, color: AppColors.textSecondary, size: 12.sp),
+                SizedBox(width: 4.w),
+                Expanded(
+                  child: Text(
+                    order.customer!['name'] ?? 'Müştəri',
+                    style: AppTheme.caption.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11.sp,
+                    ),
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (order.customerPhone != null) ...[
+                  SizedBox(width: 4.w),
+                  GestureDetector(
+                    onTap: () => _makePhoneCall(order.customerPhone!),
+                    child: Container(
+                      padding: EdgeInsets.all(3.w),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4.r),
+                      ),
+                      child: Icon(
+                        Icons.phone,
+                        color: AppColors.success,
+                        size: 10.sp,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            SizedBox(height: 6.h),
+          ],
+
+          // Pickup address
+          GestureDetector(
+            onTap: () => _shareLocation(order.pickup, 'Götürmə nöqtəsi'),
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+              decoration: BoxDecoration(
+                color: AppColors.success.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(6.r),
+                border: Border.all(
+                  color: AppColors.success.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.my_location,
+                    color: AppColors.success,
+                    size: 10.sp,
+                  ),
+                  SizedBox(width: 4.w),
+                  Expanded(
+                    child: Text(
+                      order.pickup['address'] ?? 'Ünvan yoxdur',
+                      style: AppTheme.caption.copyWith(
+                        color: AppColors.success,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 9.sp,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          SizedBox(height: 4.h),
+
+          // Destination address
+          GestureDetector(
+            onTap: () => _shareLocation(order.destination, 'Təhvil nöqtəsi'),
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(6.r),
+                border: Border.all(
+                  color: AppColors.primary.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.location_on,
+                    color: AppColors.primary,
+                    size: 10.sp,
+                  ),
+                  SizedBox(width: 4.w),
+                  Expanded(
+                    child: Text(
+                      order.destination['address'] ?? 'Ünvan yoxdur',
+                      style: AppTheme.caption.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 9.sp,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          SizedBox(height: 6.h),
+
+          // Action buttons
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              GestureDetector(
+                onTap: () => _viewOrderDetails(order),
+                child: Container(
+                  padding: EdgeInsets.all(4.w),
+                  decoration: BoxDecoration(
+                    color: AppColors.info.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(4.r),
+                  ),
+                  child: Icon(
+                    Icons.visibility,
+                    color: AppColors.info,
+                    size: 10.sp,
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap:
+                    () =>
+                        _quickUpdateStatus(order, _getNextStatus(order.status)),
+                child: Container(
+                  padding: EdgeInsets.all(4.w),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(4.r),
+                  ),
+                  child: Icon(
+                    Icons.check,
+                    color: AppColors.success,
+                    size: 10.sp,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusInCircle(bool isOnline) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Status icon
+        Container(
+          width: 60.w,
+          height: 60.h,
+          decoration: BoxDecoration(
+            color: (isOnline ? AppColors.success : AppColors.textSecondary)
+                .withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            isOnline
+                ? Icons.check_circle_rounded
+                : Icons.pause_circle_outline_rounded,
+            size: 32.sp,
+            color: isOnline ? AppColors.success : AppColors.textSecondary,
+          ),
+        ),
+
+        SizedBox(height: 12.h),
+
+        // Status text
+        Text(
+          isOnline ? 'Onlayn' : 'Oflayn',
+          style: AppTheme.heading3.copyWith(
+            color: isOnline ? AppColors.success : AppColors.textSecondary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+
+        SizedBox(height: 4.h),
+
+        // Status description
+        Text(
+          isOnline
+              ? 'Yeni sifarişlər alırsınız'
+              : 'İşə başlamaq üçün düyməyə basın',
+          style: AppTheme.bodySmall.copyWith(
+            color: AppColors.textSecondary,
+            fontSize: 12.sp,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'accepted':
+      case 'driver_assigned':
+        return AppColors.info;
+      case 'driver_arrived':
+        return AppColors.warning;
+      case 'in_progress':
+        return AppColors.primary;
+      default:
+        return AppColors.textSecondary;
+    }
+  }
+
+  String _getStatusText(String status) {
+    switch (status) {
+      case 'accepted':
+        return 'Qəbul Edildi';
+      case 'driver_assigned':
+        return 'Sürücü Təyin Edildi';
+      case 'driver_arrived':
+        return 'Çatdı';
+      case 'in_progress':
+        return 'Gedişdə';
+      default:
+        return status;
+    }
+  }
+
+  String _getNextStatus(String currentStatus) {
+    switch (currentStatus) {
+      case 'accepted':
+      case 'driver_assigned':
+        return 'driver_arrived';
+      case 'driver_arrived':
+        return 'in_progress';
+      case 'in_progress':
+        return 'completed';
+      default:
+        return currentStatus;
+    }
+  }
+
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    try {
+      final Uri phoneUri = Uri(scheme: 'tel', path: phoneNumber);
+      if (await canLaunchUrl(phoneUri)) {
+        await launchUrl(phoneUri);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Telefon zəngi başlatmaq mümkün olmadı'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Phone call error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Telefon zəngi xətası: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _shareLocation(
+    Map<String, dynamic> location,
+    String label,
+  ) async {
+    try {
+      final address = location['address'] ?? 'Ünvan yoxdur';
+      final coordinates = location['location']?['coordinates'];
+
+      if (coordinates != null &&
+          coordinates is List &&
+          coordinates.length >= 2) {
+        final lat = coordinates[1];
+        final lng = coordinates[0];
+
+        // Create location sharing text
+        final locationText = '$label: $address\nKoordinatlar: $lat, $lng';
+
+        // Try to open with Google Maps first
+        final googleMapsUri = Uri.parse(
+          'https://www.google.com/maps/search/?api=1&query=$lat,$lng',
+        );
+
+        if (await canLaunchUrl(googleMapsUri)) {
+          await launchUrl(googleMapsUri, mode: LaunchMode.externalApplication);
+        } else {
+          // Fallback to sharing text
+          await _shareText(locationText);
+        }
+      } else {
+        // If no coordinates, just share the address
+        await _shareText('$label: $address');
+      }
+    } catch (e) {
+      print('Location sharing error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ünvan paylaşma xətası: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _shareText(String text) async {
+    try {
+      // Copy to clipboard as fallback
+      await Clipboard.setData(ClipboardData(text: text));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ünvan məlumatları kopyalandı'),
+            backgroundColor: AppColors.success,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Text sharing error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Mətn paylaşma xətası: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildStatsSection(Map<dynamic, dynamic> stats) {
@@ -804,227 +1440,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildRecentOrdersSection(DashboardState state) {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16.w),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Son Sifarişlər',
-                style: AppTheme.heading3.copyWith(fontWeight: FontWeight.bold),
-              ),
-              TextButton.icon(
-                onPressed: () => context.read<DashboardCubit>().refresh(),
-                icon: Icon(Icons.refresh_rounded, size: 16.sp),
-                label: Text('Yenilə'),
-                style: TextButton.styleFrom(foregroundColor: AppColors.primary),
-              ),
-            ],
-          ),
-          SizedBox(height: 12.h),
-          Container(
-            constraints: BoxConstraints(maxHeight: 280.h),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16.r),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.shadow,
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child:
-                (state is DashboardLoaded ? state.recentOrders : []).isEmpty
-                    ? _buildEmptyOrdersWidget()
-                    : ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount:
-                          (state is DashboardLoaded ? state.recentOrders : [])
-                              .length,
-                      itemBuilder: (context, index) {
-                        final order =
-                            (state is DashboardLoaded
-                                ? state.recentOrders
-                                : [])[index];
-                        return _buildModernOrderCard(order);
-                      },
-                    ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyOrdersWidget() {
-    return Container(
-      padding: EdgeInsets.all(32.w),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.assignment_outlined,
-            size: 64.sp,
-            color: AppColors.textSecondary.withOpacity(0.5),
-          ),
-          SizedBox(height: 16.h),
-          Text(
-            'Hələ sifariş yoxdur',
-            style: AppTheme.bodyLarge.copyWith(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          SizedBox(height: 8.h),
-          Text(
-            'Yeni sifarişlər burada görünəcək',
-            style: AppTheme.bodyMedium.copyWith(
-              color: AppColors.textSecondary.withOpacity(0.7),
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildModernOrderCard(Map<String, dynamic> order) {
-    return Container(
-      margin: EdgeInsets.all(8.w),
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(12.r),
-        border: Border.all(color: AppColors.border.withOpacity(0.5)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48.w,
-            height: 48.h,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppColors.primary.withOpacity(0.1),
-                  AppColors.primary.withOpacity(0.05),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(12.r),
-            ),
-            child: Icon(
-              Icons.local_taxi_rounded,
-              color: AppColors.primary,
-              size: 24.sp,
-            ),
-          ),
-          SizedBox(width: 16.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Sifariş #${order['orderNumber'] ?? 'N/A'}',
-                  style: AppTheme.bodyMedium.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                SizedBox(height: 4.h),
-                Text(
-                  '${order['pickup']?['address'] ?? 'Məlumat yoxdur'}',
-                  style: AppTheme.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-            decoration: BoxDecoration(
-              color: AppColors.success.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20.r),
-            ),
-            child: Text(
-              '${_parseFare(order['fare']).toStringAsFixed(2)} ₼',
-              style: AppTheme.bodyMedium.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppColors.success,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildModernActionCard(
-    String title,
-    IconData icon,
-    Color color,
-    String subtitle,
-    VoidCallback onTap,
-  ) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16.r),
-      child: Container(
-        padding: EdgeInsets.all(20.w),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(16.r),
-          border: Border.all(color: color.withOpacity(0.2), width: 1.w),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: EdgeInsets.all(12.w),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(12.r),
-              ),
-              child: Icon(icon, color: color, size: 24.sp),
-            ),
-            SizedBox(height: 12.h),
-            Text(
-              title,
-              style: AppTheme.bodyMedium.copyWith(
-                color: color,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            SizedBox(height: 4.h),
-            Text(
-              subtitle,
-              style: AppTheme.bodySmall.copyWith(color: color.withOpacity(0.7)),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -1090,6 +1505,35 @@ class _HomeScreenState extends State<HomeScreen> {
     bool isOnline,
   ) async {
     print('UI: Toggling online status from $isOnline to ${!isOnline}');
+
+    // If going offline, check for active orders first
+    if (isOnline) {
+      // Check if there are active orders
+      final ordersState = context.read<OrdersCubit>().state;
+      final hasActiveOrder =
+          ordersState is OrdersLoaded && ordersState.activeOrders.isNotEmpty;
+
+      if (hasActiveOrder) {
+        // Show error message - cannot go offline with active order
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Aktiv sifarişiniz olduğu üçün oflayn ola bilməzsiniz ❌',
+              ),
+              backgroundColor: AppColors.error,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+
+      // If no active orders, show confirmation dialog
+      final confirmed = await _showOfflineConfirmationDialog();
+      if (!confirmed) return;
+    }
+
     final success = await dashboardCubit.updateDriverStatus(
       isOnline: !isOnline,
       isAvailable: !isOnline,
@@ -1116,6 +1560,195 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     }
+  }
+
+  Future<bool> _showOfflineConfirmationDialog() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16.r),
+              ),
+              title: Text(
+                'Oflayn Olmaq',
+                style: AppTheme.heading3.copyWith(fontWeight: FontWeight.bold),
+              ),
+              content: Text(
+                'Oflayn olmaq istədiyinizdən əminsiniz? Yeni sifarişlər almayacaqsınız.',
+                style: AppTheme.bodyMedium.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text(
+                    'Ləğv Et',
+                    style: AppTheme.bodyMedium.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.warning,
+                    foregroundColor: AppColors.textOnPrimary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                  ),
+                  child: Text(
+                    'Oflayn Ol',
+                    style: AppTheme.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+  }
+
+  void _viewOrderDetails(Order order) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => BlocProvider.value(
+              value: context.read<OrdersCubit>(),
+              child: OrderDetailsScreen(order: order),
+            ),
+      ),
+    );
+  }
+
+  Future<void> _quickUpdateStatus(Order order, String status) async {
+    final ordersCubit = context.read<OrdersCubit>();
+    final success = await ordersCubit.updateOrderStatus(
+      orderId: order.id,
+      status: status,
+    );
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success ? 'Status uğurla yeniləndi ✅' : 'Status yenilənmədi ❌',
+          ),
+          backgroundColor: success ? AppColors.success : AppColors.error,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Widget _buildBalanceSection(Map<dynamic, dynamic> stats) {
+    return Container(
+      margin: EdgeInsets.fromLTRB(16.w, 8.w, 16.w, 0),
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppColors.primary.withOpacity(0.05),
+              AppColors.primary.withOpacity(0.02),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16.r),
+          border: Border.all(
+            color: AppColors.primary.withOpacity(0.15),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.account_balance_wallet_outlined,
+                        color: AppColors.primary,
+                        size: 16.sp,
+                      ),
+                      SizedBox(width: 6.w),
+                      Text(
+                        'Balans',
+                        style: AppTheme.bodySmall.copyWith(
+                          color: AppColors.primary,
+                          fontSize: 12.sp,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 6.h),
+                  Text(
+                    '${stats['totalEarnings']?.toStringAsFixed(2) ?? '0.00'} ₼',
+                    style: AppTheme.heading3.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20.sp,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  SizedBox(height: 2.h),
+                  Text(
+                    'Bugün: ${(stats['todayEarnings'] ?? 0.0).toStringAsFixed(2)} ₼',
+                    style: AppTheme.bodySmall.copyWith(
+                      color: AppColors.textSecondary,
+                      fontSize: 11.sp,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: EdgeInsets.all(10.w),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.primary.withOpacity(0.1),
+                    AppColors.primary.withOpacity(0.05),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(12.r),
+                border: Border.all(
+                  color: AppColors.primary.withOpacity(0.2),
+                  width: 1,
+                ),
+              ),
+              child: Icon(
+                Icons.trending_up_rounded,
+                color: AppColors.primary,
+                size: 18.sp,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

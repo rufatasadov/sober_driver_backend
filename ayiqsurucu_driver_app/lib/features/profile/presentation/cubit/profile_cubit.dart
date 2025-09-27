@@ -47,7 +47,9 @@ class ProfileCubit extends Cubit<ProfileState> {
       // Load user profile
       final userResponse = await _apiService.get('/auth/me');
       final userData = _apiService.handleResponse(userResponse);
-      final user = userData['user'];
+      // Convert to Map safely
+      Map<String, dynamic> userDataMap = Map<String, dynamic>.from(userData);
+      final user = userDataMap['user'];
 
       Map<String, dynamic>? driver;
 
@@ -58,7 +60,11 @@ class ProfileCubit extends Cubit<ProfileState> {
             AppConstants.driverProfileEndpoint,
           );
           final driverData = _apiService.handleResponse(driverResponse);
-          driver = driverData['driver'];
+          // Convert to Map safely
+          Map<String, dynamic> driverDataMap = Map<String, dynamic>.from(
+            driverData,
+          );
+          driver = driverDataMap['driver'];
         } catch (e) {
           // If driver profile doesn't exist, set empty driver data
           driver = {
@@ -87,8 +93,11 @@ class ProfileCubit extends Cubit<ProfileState> {
 
       final data = _apiService.handleResponse(response);
 
-      if (data['user'] != null) {
-        final updatedUser = data['user'];
+      // Convert to Map safely
+      Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
+
+      if (dataMap['user'] != null) {
+        final updatedUser = dataMap['user'];
         await _storeUserData(updatedUser);
 
         // Update current state
@@ -123,8 +132,11 @@ class ProfileCubit extends Cubit<ProfileState> {
 
       final data = _apiService.handleResponse(response);
 
-      if (data['driver'] != null) {
-        final updatedDriver = data['driver'];
+      // Convert to Map safely
+      Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
+
+      if (dataMap['driver'] != null) {
+        final updatedDriver = dataMap['driver'];
         await _storeDriverData(updatedDriver);
 
         // Update current state
@@ -160,8 +172,11 @@ class ProfileCubit extends Cubit<ProfileState> {
       );
       final data = _apiService.handleResponse(response);
 
-      if (data['user'] != null) {
-        final updatedUser = data['user'];
+      // Convert to Map safely
+      Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
+
+      if (dataMap['user'] != null) {
+        final updatedUser = dataMap['user'];
         await _storeUserData(updatedUser);
 
         // Update current state
@@ -190,9 +205,12 @@ class ProfileCubit extends Cubit<ProfileState> {
 
       final data = _apiService.handleResponse(response);
       print('ProfileCubit: Parsed earnings data: $data');
-      print('ProfileCubit: Data keys: ${data.keys.toList()}');
 
-      final earnings = data['earnings'];
+      // Convert to Map safely
+      Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
+      print('ProfileCubit: Data keys: ${dataMap.keys.toList()}');
+
+      final earnings = dataMap['earnings'];
       print('ProfileCubit: Extracted earnings: $earnings');
 
       if (earnings == null) {
@@ -202,9 +220,9 @@ class ProfileCubit extends Cubit<ProfileState> {
         print('ProfileCubit: Full data structure: $data');
 
         // If earnings is null, try to return the data itself
-        if (data.isNotEmpty) {
+        if (dataMap.isNotEmpty) {
           print('ProfileCubit: Returning full data instead of earnings');
-          return data;
+          return dataMap;
         }
       }
 
@@ -234,8 +252,11 @@ class ProfileCubit extends Cubit<ProfileState> {
 
       final data = _apiService.handleResponse(response);
 
-      if (data['driver'] != null) {
-        final updatedDriver = data['driver'];
+      // Convert to Map safely
+      Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
+
+      if (dataMap['driver'] != null) {
+        final updatedDriver = dataMap['driver'];
         await _storeDriverData(updatedDriver);
 
         // Update current state

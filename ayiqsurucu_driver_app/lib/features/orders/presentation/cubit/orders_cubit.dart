@@ -191,11 +191,16 @@ class OrdersCubit extends Cubit<OrdersState> {
       final data = _apiService.handleResponse(response);
       print('OrdersCubit: Parsed data: $data');
 
-      if (data['orders'] != null) {
-        print('OrdersCubit: Found ${(data['orders'] as List).length} orders');
+      // Convert to Map safely
+      Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
+
+      if (dataMap['orders'] != null && dataMap['orders'] is List) {
+        print(
+          'OrdersCubit: Found ${(dataMap['orders'] as List).length} orders',
+        );
 
         final orders =
-            (data['orders'] as List)
+            (dataMap['orders'] as List)
                 .map((order) => Order.fromJson(order))
                 .toList();
 
@@ -267,7 +272,10 @@ class OrdersCubit extends Cubit<OrdersState> {
       print('OrdersCubit: Accept order response: $response');
       final data = _apiService.handleResponse(response);
 
-      if (data['message'] != null || data['order'] != null) {
+      // Convert to Map safely
+      Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
+
+      if (dataMap['message'] != null || dataMap['order'] != null) {
         // Refresh orders
         await getDriverOrders();
         return true;
@@ -303,7 +311,10 @@ class OrdersCubit extends Cubit<OrdersState> {
       print('OrdersCubit: Reject order response: $response');
       final data = _apiService.handleResponse(response);
 
-      if (data['message'] != null) {
+      // Convert to Map safely
+      Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
+
+      if (dataMap['message'] != null) {
         // Refresh orders
         await getDriverOrders();
         return true;
@@ -334,7 +345,10 @@ class OrdersCubit extends Cubit<OrdersState> {
 
       final data = _apiService.handleResponse(response);
 
-      if (data['success'] == true) {
+      // Convert to Map safely
+      Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
+
+      if (dataMap['success'] == true) {
         // Refresh orders
         await getDriverOrders();
         return true;

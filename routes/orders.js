@@ -414,6 +414,7 @@ router.patch('/:orderId/status', auth, [
       req.user.role === 'admin' ||
       req.user.role === 'operator' ||
       req.user.role === 'dispatcher' ||
+      req.user.role === 'driver' ||
       order.customerId === req.user.id ||
       (order.driverId && order.driverId === req.user.id);
 

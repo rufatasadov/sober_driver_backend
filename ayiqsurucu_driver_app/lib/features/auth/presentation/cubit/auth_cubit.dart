@@ -93,7 +93,10 @@ class AuthCubit extends Cubit<AuthState> {
 
       final data = _apiService.handleResponse(response);
 
-      if (data['message'] != null) {
+      // Convert to Map safely
+      Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
+
+      if (dataMap['message'] != null) {
         emit(AuthUnauthenticated());
         return true;
       }
@@ -122,9 +125,12 @@ class AuthCubit extends Cubit<AuthState> {
 
       final data = _apiService.handleResponse(response);
 
-      if (data['token'] != null) {
-        final token = data['token'];
-        final user = data['user'];
+      // Convert to Map safely
+      Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
+
+      if (dataMap['token'] != null) {
+        final token = dataMap['token'];
+        final user = dataMap['user'];
 
         // Store auth data
         await _storeAuthData(token, user);
@@ -159,9 +165,12 @@ class AuthCubit extends Cubit<AuthState> {
 
       final data = _apiService.handleResponse(response);
 
-      if (data['token'] != null) {
-        final token = data['token'];
-        final user = data['user'];
+      // Convert to Map safely
+      Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
+
+      if (dataMap['token'] != null) {
+        final token = dataMap['token'];
+        final user = dataMap['user'];
 
         // Store auth data
         await _storeAuthData(token, user);
@@ -204,9 +213,12 @@ class AuthCubit extends Cubit<AuthState> {
 
       final data = _apiService.handleResponse(response);
 
-      if (data['token'] != null) {
-        final token = data['token'];
-        final user = data['user'];
+      // Convert to Map safely
+      Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
+
+      if (dataMap['token'] != null) {
+        final token = dataMap['token'];
+        final user = dataMap['user'];
 
         // Store auth data
         await _storeAuthData(token, user);
@@ -246,8 +258,11 @@ class AuthCubit extends Cubit<AuthState> {
 
       final data = _apiService.handleResponse(response);
 
-      if (data['driver'] != null) {
-        final driver = data['driver'];
+      // Convert to Map safely
+      Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
+
+      if (dataMap['driver'] != null) {
+        final driver = dataMap['driver'];
         await _storeDriverData(driver);
 
         // Update current state with driver info
@@ -283,8 +298,11 @@ class AuthCubit extends Cubit<AuthState> {
       );
       final data = _apiService.handleResponse(response);
 
-      if (data['driver'] != null) {
-        final driver = data['driver'];
+      // Convert to Map safely
+      Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
+
+      if (dataMap['driver'] != null) {
+        final driver = dataMap['driver'];
         await _storeDriverData(driver);
 
         // Update current state with driver info
@@ -328,13 +346,16 @@ class AuthCubit extends Cubit<AuthState> {
 
       final data = _apiService.handleResponse(response);
 
-      if (data['driver'] != null && state is AuthAuthenticated) {
+      // Convert to Map safely
+      Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
+
+      if (dataMap['driver'] != null && state is AuthAuthenticated) {
         final currentState = state as AuthAuthenticated;
         final updatedDriver = Map<String, dynamic>.from(
           currentState.driver ?? {},
         );
-        updatedDriver['isOnline'] = data['driver']['isOnline'];
-        updatedDriver['isAvailable'] = data['driver']['isAvailable'];
+        updatedDriver['isOnline'] = dataMap['driver']['isOnline'];
+        updatedDriver['isAvailable'] = dataMap['driver']['isAvailable'];
 
         await _storeDriverData(updatedDriver);
 
@@ -373,7 +394,9 @@ class AuthCubit extends Cubit<AuthState> {
       );
 
       final data = _apiService.handleResponse(response);
-      return data['message'] != null;
+      // Convert to Map safely
+      Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
+      return dataMap['message'] != null;
     } catch (e) {
       emit(AuthError(e.toString()));
       return false;

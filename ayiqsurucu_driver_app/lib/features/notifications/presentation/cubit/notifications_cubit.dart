@@ -1,6 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/services/api_service.dart';
-import '../../../../core/constants/app_constants.dart';
 
 // Notifications States
 abstract class NotificationsState {}
@@ -46,9 +45,12 @@ class NotificationsCubit extends Cubit<NotificationsState> {
       final response = await _apiService.get('/notifications/driver');
       final data = _apiService.handleResponse(response);
 
-      if (data['notifications'] != null) {
+      // Convert to Map safely
+      Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
+
+      if (dataMap['notifications'] != null) {
         final notifications =
-            (data['notifications'] as List)
+            (dataMap['notifications'] as List)
                 .map((notification) => Map<String, dynamic>.from(notification))
                 .toList();
 
@@ -70,7 +72,10 @@ class NotificationsCubit extends Cubit<NotificationsState> {
 
       final data = _apiService.handleResponse(response);
 
-      if (data['success'] == true) {
+      // Convert to Map safely
+      Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
+
+      if (dataMap['success'] == true) {
         // Reload notifications to update the state
         await loadNotifications();
         return true;
@@ -90,7 +95,10 @@ class NotificationsCubit extends Cubit<NotificationsState> {
 
       final data = _apiService.handleResponse(response);
 
-      if (data['success'] == true) {
+      // Convert to Map safely
+      Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
+
+      if (dataMap['success'] == true) {
         // Reload notifications to update the state
         await loadNotifications();
         return true;
