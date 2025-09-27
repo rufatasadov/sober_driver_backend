@@ -348,7 +348,7 @@ class OrdersCubit extends Cubit<OrdersState> {
       // Convert to Map safely
       Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
 
-      if (dataMap['success'] == true) {
+      if (response.statusCode == 200 || dataMap['success'] == true) {
         // Refresh orders
         await getDriverOrders();
         return true;
