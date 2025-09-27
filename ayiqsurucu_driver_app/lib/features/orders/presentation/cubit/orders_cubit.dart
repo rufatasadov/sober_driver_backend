@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/services/api_service.dart';
+import '../../../../core/services/socket_service.dart';
 import '../../../../core/constants/app_constants.dart';
 
 // Order Model
@@ -118,8 +120,12 @@ class OrdersError extends OrdersState {
 // Orders Cubit
 class OrdersCubit extends Cubit<OrdersState> {
   final ApiService _apiService = ApiService();
+  final SocketService _socketService = SocketService();
+  StreamSubscription? _newOrderSubscription;
 
-  OrdersCubit() : super(OrdersInitial());
+  OrdersCubit() : super(OrdersInitial()) {
+    _initializeSocketListeners();
+  }
 
   // Getters
   bool get isLoading => state is OrdersLoading;
@@ -312,5 +318,59 @@ class OrdersCubit extends Cubit<OrdersState> {
   // Refresh orders
   Future<void> refresh() async {
     await getDriverOrders();
+  }
+
+  // Initialize socket listeners
+  void _initializeSocketListeners() {
+    _newOrderSubscription = _socketService.newOrderStream.listen((orderData) {
+      print('OrdersCubit: New order received via socket: $orderData');
+      _handleNewOrder(orderData);
+    });
+  }
+
+  // Handle new order from socket
+  void _handleNewOrder(Map<String, dynamic> orderData) {
+    try {
+      final newOrder = Order.fromJson(orderData);
+
+      if (state is OrdersLoaded) {
+        final currentState = state as OrdersLoaded;
+        final updatedPendingOrders = List<Order>.from(
+          currentState.pendingOrders,
+        );
+
+        // Check if order already exists
+        final existingIndex = updatedPendingOrders.indexWhere(
+          (order) => order.id == newOrder.id,
+        );
+        if (existingIndex == -1) {
+          // Add new order to pending orders
+          updatedPendingOrders.add(newOrder);
+
+          emit(
+            OrdersLoaded(
+              pendingOrders: updatedPendingOrders,
+              activeOrders: currentState.activeOrders,
+              completedOrders: currentState.completedOrders,
+            ),
+          );
+
+          print(
+            'OrdersCubit: New order added to pending orders: ${newOrder.orderNumber}',
+          );
+        }
+      } else {
+        // If not loaded, refresh orders
+        getDriverOrders();
+      }
+    } catch (e) {
+      print('OrdersCubit: Error handling new order: $e');
+    }
+  }
+
+  @override
+  Future<void> close() {
+    _newOrderSubscription?.cancel();
+    return super.close();
   }
 }

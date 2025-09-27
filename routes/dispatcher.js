@@ -250,6 +250,38 @@ router.post('/orders/:orderId/assign-driver', auth, authorize('dispatcher'), [
     // Sürücünü unavailable et
     await driver.update({ isAvailable: false });
 
+    // Socket event emit et
+    const io = req.app.get('io');
+    if (io) {
+      // Sürücüyə bildir
+      io.to(`driver_${driver.userId}`).emit('new_order_assigned', {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        pickup: order.pickup,
+        destination: order.destination,
+        fare: order.fare,
+        customer: {
+          name: order.customer?.name || 'Müştəri',
+          phone: order.customer?.phone || 'N/A'
+        },
+        etaMinutes: 15 // Default ETA
+      });
+
+      // Müştəriyə bildir
+      io.to(`user_${order.customerId}`).emit('driver_assigned', {
+        orderId: order.id,
+        driver: {
+          id: driver.id,
+          name: driver.user.name,
+          phone: driver.user.phone
+        }
+      });
+
+      // Operator və dispetçerlərə bildir
+      io.to('operators').emit('driver_assigned_to_order', { order });
+      io.to('dispatchers').emit('driver_assigned_to_order', { order });
+    }
+
     res.json({
       message: 'Sifariş uğurla sürücüyə təyin edildi',
       order: {

@@ -232,6 +232,47 @@ const setupSocketHandlers = (io) => {
       }
     });
 
+    // Yeni sifariş təyin edildi
+    socket.on('new_order_assigned', async (data) => {
+      try {
+        const { orderId, driverId } = data;
+        const order = await Order.findByPk(orderId, {
+          include: [
+            { model: User, as: 'customer', attributes: ['name', 'phone'] },
+            { model: Driver, as: 'driver', include: [{ model: User, attributes: ['id'] }] }
+          ]
+        });
+
+        if (!order) return;
+
+        // Sürücüyə bildir
+        socket.to(`driver_${driverId}`).emit('new_order_assigned', {
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          pickup: order.pickup,
+          destination: order.destination,
+          fare: order.fare,
+          customer: {
+            name: order.customer?.name || 'Müştəri',
+            phone: order.customer?.phone || 'N/A'
+          },
+          etaMinutes: 15
+        });
+
+        // Müştəriyə bildir
+        socket.to(`user_${order.customerId}`).emit('driver_assigned', {
+          orderId: order.id,
+          driver: order.driver
+        });
+
+        // Operator və dispetçerlərə bildir
+        socket.to('operators').emit('driver_assigned_to_order', { order });
+        socket.to('dispatchers').emit('driver_assigned_to_order', { order });
+      } catch (error) {
+        console.error('Yeni sifariş təyin etmə bildirişi xətası:', error);
+      }
+    });
+
     // Sifariş ləğv edildi
     socket.on('order_cancelled', async (data) => {
       try {
