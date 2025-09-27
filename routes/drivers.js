@@ -632,6 +632,63 @@ router.get('/earnings', auth, authorize('driver'), async (req, res) => {
   }
 });
 
+// Onlayn sürücüləri GPS məlumatları ilə alma
+router.get('/online', auth, authorize('operator'), async (req, res) => {
+  try {
+    console.log('Online drivers endpoint called');
+    
+    const drivers = await Driver.findAll({
+      where: {
+        isOnline: true
+      },
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'name', 'phone']
+        }
+      ],
+      attributes: [
+        'id',
+        'userId',
+        'isOnline',
+        'isAvailable',
+        'currentLocation',
+        'lastLocationUpdate',
+        'vehicleInfo'
+      ]
+    });
+
+    console.log(`Found ${drivers.length} online drivers`);
+
+    // GPS məlumatları olan sürücüləri filtrlə
+    const driversWithLocation = drivers.filter(driver => 
+      driver.currentLocation && 
+      driver.currentLocation.coordinates &&
+      driver.currentLocation.coordinates.length >= 2
+    );
+
+    console.log(`Found ${driversWithLocation.length} drivers with location data`);
+
+    res.json({
+      success: true,
+      drivers: driversWithLocation.map(driver => ({
+        id: driver.id,
+        name: driver.user?.name || 'Sürücü',
+        phone: driver.user?.phone,
+        isOnline: driver.isOnline,
+        isAvailable: driver.isAvailable,
+        currentLocation: driver.currentLocation,
+        lastLocationUpdate: driver.lastLocationUpdate,
+        vehicleInfo: driver.vehicleInfo
+      }))
+    });
+  } catch (error) {
+    console.error('Onlayn sürücülər alma xətası:', error);
+    res.status(500).json({ error: 'Server xətası' });
+  }
+});
+
 // Admin üçün bütün sürücüləri al
 router.get('/', auth, authorize('admin', 'dispatcher'), async (req, res) => {
   try {
@@ -669,57 +726,6 @@ router.get('/', auth, authorize('admin', 'dispatcher'), async (req, res) => {
     });
   } catch (error) {
     console.error('Sürücülər alma xətası:', error);
-    res.status(500).json({ error: 'Server xətası' });
-  }
-});
-
-// Onlayn sürücüləri GPS məlumatları ilə alma
-router.get('/online', auth, authorize('operator'), async (req, res) => {
-  try {
-    const drivers = await Driver.findAll({
-      where: {
-        isOnline: true
-      },
-      include: [
-        {
-          model: User,
-          as: 'user',
-          attributes: ['id', 'name', 'phone']
-        }
-      ],
-      attributes: [
-        'id',
-        'userId',
-        'isOnline',
-        'isAvailable',
-        'currentLocation',
-        'lastLocationUpdate',
-        'vehicleInfo'
-      ]
-    });
-
-    // GPS məlumatları olan sürücüləri filtrlə
-    const driversWithLocation = drivers.filter(driver => 
-      driver.currentLocation && 
-      driver.currentLocation.coordinates &&
-      driver.currentLocation.coordinates.length >= 2
-    );
-
-    res.json({
-      success: true,
-      drivers: driversWithLocation.map(driver => ({
-        id: driver.id,
-        name: driver.user?.name || 'Sürücü',
-        phone: driver.user?.phone,
-        isOnline: driver.isOnline,
-        isAvailable: driver.isAvailable,
-        currentLocation: driver.currentLocation,
-        lastLocationUpdate: driver.lastLocationUpdate,
-        vehicleInfo: driver.vehicleInfo
-      }))
-    });
-  } catch (error) {
-    console.error('Onlayn sürücülər alma xətası:', error);
     res.status(500).json({ error: 'Server xətası' });
   }
 });

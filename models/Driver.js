@@ -70,6 +70,10 @@ const Driver = sequelize.define('Driver', {
   lastActive: {
     type: DataTypes.DATE,
     allowNull: true
+  },
+  lastLocationUpdate: {
+    type: DataTypes.DATE,
+    allowNull: true
   }
 }, {
   tableName: 'drivers',
