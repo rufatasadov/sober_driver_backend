@@ -15,9 +15,7 @@ import '../../../orders/presentation/widgets/broadcast_order_notification_widget
 import '../../../orders/presentation/screens/order_details_screen.dart';
 import '../../../orders/presentation/cubit/orders_cubit.dart';
 import '../cubit/dashboard_cubit.dart';
-import '../../../../core/services/location_service.dart';
 import '../../../../core/services/location_tracking_service.dart';
-import '../../../../core/services/socket_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -42,40 +40,75 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ProfileTabScreen(),
         ],
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.shadow,
-              blurRadius: 20,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildBottomNavItem(Icons.home_rounded, 'Ana Səhifə', 0),
-                _buildBottomNavItem(Icons.assignment_rounded, 'Sifarişlər', 1),
-                _buildBottomNavItem(Icons.attach_money_rounded, 'Qazanc', 2),
-                _buildBottomNavItem(Icons.person_rounded, 'Profil', 3),
+      bottomNavigationBar: BlocBuilder<OrdersCubit, OrdersState>(
+        builder: (context, ordersState) {
+          final hasActiveOrder =
+              ordersState is OrdersLoaded &&
+              ordersState.activeOrders.isNotEmpty;
+
+          return Container(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.shadow,
+                  blurRadius: 20,
+                  offset: const Offset(0, -5),
+                ),
               ],
             ),
-          ),
-        ),
+            child: SafeArea(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildBottomNavItem(
+                      Icons.home_rounded,
+                      'Ana Səhifə',
+                      0,
+                      hasActiveOrder,
+                    ),
+                    _buildBottomNavItem(
+                      Icons.assignment_rounded,
+                      'Sifarişlər',
+                      1,
+                      hasActiveOrder,
+                    ),
+                    _buildBottomNavItem(
+                      Icons.attach_money_rounded,
+                      'Qazanc',
+                      2,
+                      hasActiveOrder,
+                    ),
+                    _buildBottomNavItem(
+                      Icons.person_rounded,
+                      'Profil',
+                      3,
+                      hasActiveOrder,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildBottomNavItem(IconData icon, String label, int index) {
+  Widget _buildBottomNavItem(
+    IconData icon,
+    String label,
+    int index,
+    bool hasActiveOrder,
+  ) {
     final isSelected = _currentIndex == index;
+    final isDisabled =
+        hasActiveOrder && index != 0; // Only allow home tab when active order
 
     return GestureDetector(
-      onTap: () => setState(() => _currentIndex = index),
+      onTap: isDisabled ? null : () => setState(() => _currentIndex = index),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
@@ -99,9 +132,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Icon(
                 icon,
                 color:
-                    isSelected
-                        ? AppColors.textOnPrimary
-                        : AppColors.textSecondary,
+                    isDisabled
+                        ? AppColors.textSecondary.withOpacity(0.3)
+                        : (isSelected
+                            ? AppColors.textOnPrimary
+                            : AppColors.textSecondary),
                 size: 22.sp,
               ),
             ),
@@ -109,7 +144,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Text(
               label,
               style: AppTheme.caption.copyWith(
-                color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                color:
+                    isDisabled
+                        ? AppColors.textSecondary.withOpacity(0.3)
+                        : (isSelected
+                            ? AppColors.primary
+                            : AppColors.textSecondary),
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
               ),
             ),
@@ -147,7 +187,6 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _showNewOrderNotification = false;
   Order? _broadcastOrder;
   bool _showBroadcastOrderNotification = false;
-  final LocationService _locationService = LocationService();
 
   @override
   void initState() {
@@ -157,6 +196,8 @@ class _HomeScreenState extends State<HomeScreen> {
     _listenForBroadcastOrders();
     // Start location tracking
     _startLocationTracking();
+    // Check and auto-set online status
+    _checkAutoOnlineStatus();
   }
 
   void _listenForNewOrders() {
@@ -172,6 +213,24 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final ordersCubit = context.read<OrdersCubit>();
       ordersCubit.setBroadcastOrderCallback(_showBroadcastOrder);
+    });
+  }
+
+  void _checkAutoOnlineStatus() {
+    // Check and auto-set online status after orders are loaded
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        final ordersCubit = context.read<OrdersCubit>();
+        final dashboardCubit = context.read<DashboardCubit>();
+
+        // Wait a bit for orders to load
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        // Check and auto-set online status
+        await dashboardCubit.checkAndAutoSetOnlineStatus(ordersCubit);
+      } catch (e) {
+        print('DashboardScreen: Error checking auto-online status: $e');
+      }
     });
   }
 
@@ -227,6 +286,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _acceptOrder(Order order) async {
     final ordersCubit = context.read<OrdersCubit>();
+    final dashboardCubit = context.read<DashboardCubit>();
     final success = await ordersCubit.acceptOrder(order.id);
 
     if (mounted) {
@@ -239,6 +299,9 @@ class _HomeScreenState extends State<HomeScreen> {
         );
         _dismissNewOrder();
         _dismissBroadcastOrder();
+
+        // Check and auto-set online status after accepting order
+        await dashboardCubit.checkAndAutoSetOnlineStatus(ordersCubit);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -252,6 +315,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _rejectOrder(Order order) async {
     final ordersCubit = context.read<OrdersCubit>();
+    final dashboardCubit = context.read<DashboardCubit>();
     final success = await ordersCubit.rejectOrder(order.id);
 
     if (mounted) {
@@ -264,6 +328,9 @@ class _HomeScreenState extends State<HomeScreen> {
         );
         _dismissNewOrder();
         _dismissBroadcastOrder();
+
+        // Check and auto-set online status after rejecting order
+        await dashboardCubit.checkAndAutoSetOnlineStatus(ordersCubit);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -639,37 +706,31 @@ class _HomeScreenState extends State<HomeScreen> {
           SizedBox(height: 16.h),
 
           // Toggle Button
-          SizedBox(
-            width: 80.w,
-            height: 32.h,
-            child: BlocBuilder<OrdersCubit, OrdersState>(
-              builder: (context, ordersState) {
-                final hasActiveOrder =
-                    ordersState is OrdersLoaded &&
-                    ordersState.activeOrders.isNotEmpty;
-                final isDisabled = isOnline && hasActiveOrder;
+          BlocBuilder<OrdersCubit, OrdersState>(
+            builder: (context, ordersState) {
+              final hasActiveOrder =
+                  ordersState is OrdersLoaded &&
+                  ordersState.activeOrders.isNotEmpty;
 
-                return ElevatedButton(
+              // Hide toggle button when there's an active order
+              if (hasActiveOrder) {
+                return const SizedBox.shrink();
+              }
+
+              return SizedBox(
+                width: 80.w,
+                height: 32.h,
+                child: ElevatedButton(
                   onPressed:
-                      isDisabled
-                          ? null
-                          : () => _toggleOnlineStatus(
-                            context.read<DashboardCubit>(),
-                            isOnline,
-                          ),
+                      () => _toggleOnlineStatus(
+                        context.read<DashboardCubit>(),
+                        isOnline,
+                      ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
-                        isDisabled
-                            ? AppColors.textSecondary.withOpacity(0.3)
-                            : (isOnline
-                                ? AppColors.textOnPrimary
-                                : AppColors.primary),
+                        isOnline ? AppColors.textOnPrimary : AppColors.primary,
                     foregroundColor:
-                        isDisabled
-                            ? AppColors.textSecondary
-                            : (isOnline
-                                ? AppColors.success
-                                : AppColors.textOnPrimary),
+                        isOnline ? AppColors.success : AppColors.textOnPrimary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8.r),
                     ),
@@ -696,18 +757,16 @@ class _HomeScreenState extends State<HomeScreen> {
                       }
 
                       return Icon(
-                        isDisabled
-                            ? Icons.block
-                            : (isOnline
-                                ? Icons.pause_rounded
-                                : Icons.play_arrow_rounded),
+                        isOnline
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
                         size: 16.sp,
                       );
                     },
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -715,296 +774,326 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildActiveOrderInRectangle(Order order) {
-    return Padding(
-      padding: EdgeInsets.all(20.w),
-      child: Column(
-        children: [
-          // Header with order info
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 40.w,
-                    height: 40.h,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8.r),
+    return AnimatedBorderContainer(
+      child: Padding(
+        padding: EdgeInsets.all(20.w),
+        child: Column(
+          children: [
+            // Header with order info
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 40.w,
+                      height: 40.h,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
+                      child: Icon(
+                        Icons.local_shipping,
+                        color: AppColors.primary,
+                        size: 20.sp,
+                      ),
                     ),
-                    child: Icon(
-                      Icons.local_shipping,
-                      color: AppColors.primary,
-                      size: 20.sp,
+                    SizedBox(width: 12.w),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Aktiv Sifariş',
+                          style: AppTheme.bodySmall.copyWith(
+                            color: AppColors.textSecondary,
+                            fontSize: 12.sp,
+                          ),
+                        ),
+                        Text(
+                          'Sifariş #${order.orderNumber.toString().substring(order.orderNumber.toString().length - 4)}',
+                          style: AppTheme.heading3.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                            fontSize: 18.sp,
+                          ),
+                        ),
+                        SizedBox(height: 4.h),
+                        Text(
+                          'Son status: ${_getElapsedTimeSinceLastUpdate(order)}',
+                          style: AppTheme.bodySmall.copyWith(
+                            color: AppColors.textSecondary,
+                            fontSize: 11.sp,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                Container(
+                  width: 100.w,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 12.w,
+                    vertical: 6.h,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(order.status).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12.r),
+                    border: Border.all(
+                      color: _getStatusColor(order.status).withOpacity(0.3),
+                      width: 1,
                     ),
                   ),
-                  SizedBox(width: 12.w),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Aktiv Sifariş',
-                        style: AppTheme.bodySmall.copyWith(
-                          color: AppColors.textSecondary,
-                          fontSize: 12.sp,
-                        ),
-                      ),
-                      Text(
-                        'Sifariş #${order.orderNumber.toString().substring(order.orderNumber.toString().length - 4)}',
-                        style: AppTheme.heading3.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
-                          fontSize: 18.sp,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    _getStatusText(order.status),
+                    style: AppTheme.caption.copyWith(
+                      color: _getStatusColor(order.status),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12.sp,
+                    ),
+                    softWrap: true,
+                    maxLines: 2,
                   ),
-                ],
-              ),
+                ),
+              ],
+            ),
+
+            SizedBox(height: 20.h),
+
+            // Customer info
+            if (order.customer != null) ...[
               Container(
-                padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+                width: double.infinity,
+                padding: EdgeInsets.all(16.w),
                 decoration: BoxDecoration(
-                  color: _getStatusColor(order.status).withOpacity(0.1),
+                  color: AppColors.surface.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(12.r),
                   border: Border.all(
-                    color: _getStatusColor(order.status).withOpacity(0.3),
+                    color: AppColors.border.withOpacity(0.3),
                     width: 1,
                   ),
                 ),
-                child: Text(
-                  _getStatusText(order.status),
-                  style: AppTheme.caption.copyWith(
-                    color: _getStatusColor(order.status),
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12.sp,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          SizedBox(height: 20.h),
-
-          // Customer info
-          if (order.customer != null) ...[
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.all(16.w),
-              decoration: BoxDecoration(
-                color: AppColors.surface.withOpacity(0.5),
-                borderRadius: BorderRadius.circular(12.r),
-                border: Border.all(
-                  color: AppColors.border.withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.person,
-                    color: AppColors.textSecondary,
-                    size: 20.sp,
-                  ),
-                  SizedBox(width: 12.w),
-                  Expanded(
-                    child: Text(
-                      order.customer!['name'] ?? 'Müştəri',
-                      style: AppTheme.bodyMedium.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16.sp,
-                      ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.person,
+                      color: AppColors.textSecondary,
+                      size: 20.sp,
                     ),
-                  ),
-                  if (order.customerPhone != null) ...[
                     SizedBox(width: 12.w),
-                    GestureDetector(
-                      onTap: () => _makePhoneCall(order.customerPhone!),
-                      child: Container(
-                        padding: EdgeInsets.all(12.w),
-                        decoration: BoxDecoration(
-                          color: AppColors.success.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8.r),
-                        ),
-                        child: Icon(
-                          Icons.phone,
-                          color: AppColors.success,
-                          size: 20.sp,
+                    Expanded(
+                      child: Text(
+                        order.customer!['name'] ?? 'Müştəri',
+                        style: AppTheme.bodyMedium.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16.sp,
                         ),
                       ),
                     ),
+                    if (order.customerPhone != null) ...[
+                      SizedBox(width: 12.w),
+                      GestureDetector(
+                        onTap: () => _makePhoneCall(order.customerPhone!),
+                        child: Container(
+                          padding: EdgeInsets.all(12.w),
+                          decoration: BoxDecoration(
+                            color: AppColors.success.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8.r),
+                          ),
+                          child: Icon(
+                            Icons.phone,
+                            color: AppColors.success,
+                            size: 20.sp,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-            SizedBox(height: 16.h),
-          ],
+              SizedBox(height: 16.h),
+            ],
 
-          // Addresses
-          Row(
-            children: [
-              // Pickup address
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => _shareLocation(order.pickup, 'Götürmə nöqtəsi'),
-                  child: Container(
-                    padding: EdgeInsets.all(16.w),
-                    decoration: BoxDecoration(
-                      color: AppColors.success.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12.r),
-                      border: Border.all(
-                        color: AppColors.success.withOpacity(0.3),
-                        width: 1,
+            // Addresses
+            Row(
+              children: [
+                // Pickup address
+                Expanded(
+                  child: GestureDetector(
+                    onTap:
+                        () => _shareLocation(order.pickup, 'Götürmə nöqtəsi'),
+                    child: Container(
+                      padding: EdgeInsets.all(16.w),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12.r),
+                        border: Border.all(
+                          color: AppColors.success.withOpacity(0.3),
+                          width: 1,
+                        ),
                       ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.my_location,
-                              color: AppColors.success,
-                              size: 16.sp,
-                            ),
-                            SizedBox(width: 8.w),
-                            Text(
-                              'Götürmə',
-                              style: AppTheme.bodySmall.copyWith(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.my_location,
                                 color: AppColors.success,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12.sp,
+                                size: 16.sp,
                               ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 8.h),
-                        Text(
-                          order.pickup['address'] ?? 'Ünvan yoxdur',
-                          style: AppTheme.bodyMedium.copyWith(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 14.sp,
+                              SizedBox(width: 8.w),
+                              Text(
+                                'Götürmə',
+                                style: AppTheme.bodySmall.copyWith(
+                                  color: AppColors.success,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12.sp,
+                                ),
+                              ),
+                            ],
                           ),
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+                          SizedBox(height: 8.h),
+                          Text(
+                            order.pickup['address'] ?? 'Ünvan yoxdur',
+                            style: AppTheme.bodyMedium.copyWith(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 14.sp,
+                            ),
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
 
-              SizedBox(width: 12.w),
+                SizedBox(width: 12.w),
 
-              // Destination address
-              Expanded(
-                child: GestureDetector(
-                  onTap:
-                      () => _shareLocation(order.destination, 'Təhvil nöqtəsi'),
-                  child: Container(
-                    padding: EdgeInsets.all(16.w),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12.r),
-                      border: Border.all(
-                        color: AppColors.primary.withOpacity(0.3),
-                        width: 1,
+                // Destination address
+                Expanded(
+                  child: GestureDetector(
+                    onTap:
+                        () =>
+                            _shareLocation(order.destination, 'Təhvil nöqtəsi'),
+                    child: Container(
+                      padding: EdgeInsets.all(16.w),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12.r),
+                        border: Border.all(
+                          color: AppColors.primary.withOpacity(0.3),
+                          width: 1,
+                        ),
                       ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.location_on,
-                              color: AppColors.primary,
-                              size: 16.sp,
-                            ),
-                            SizedBox(width: 8.w),
-                            Text(
-                              'Təhvil',
-                              style: AppTheme.bodySmall.copyWith(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.location_on,
                                 color: AppColors.primary,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12.sp,
+                                size: 16.sp,
                               ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 8.h),
-                        Text(
-                          order.destination['address'] ?? 'Ünvan yoxdur',
-                          style: AppTheme.bodyMedium.copyWith(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 14.sp,
+                              SizedBox(width: 8.w),
+                              Text(
+                                'Təhvil',
+                                style: AppTheme.bodySmall.copyWith(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12.sp,
+                                ),
+                              ),
+                            ],
                           ),
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          SizedBox(height: 20.h),
-
-          // Action buttons
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _viewOrderDetails(order),
-                  icon: Icon(Icons.visibility, size: 16.sp),
-                  label: Text(
-                    'Ətraflı',
-                    style: AppTheme.bodyMedium.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.info,
-                    side: BorderSide(color: AppColors.info),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.r),
-                    ),
-                    padding: EdgeInsets.symmetric(vertical: 12.h),
-                  ),
-                ),
-              ),
-              SizedBox(width: 12.w),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed:
-                      () => _quickUpdateStatus(
-                        order,
-                        _getNextStatus(order.status),
+                          SizedBox(height: 8.h),
+                          Text(
+                            order.destination['address'] ?? 'Ünvan yoxdur',
+                            style: AppTheme.bodyMedium.copyWith(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 14.sp,
+                            ),
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
-                  icon: Icon(Icons.check, size: 16.sp),
-                  label: Text(
-                    'Status Yenilə',
-                    style: AppTheme.bodyMedium.copyWith(
-                      fontWeight: FontWeight.w600,
                     ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.success,
-                    foregroundColor: AppColors.textOnPrimary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.r),
-                    ),
-                    padding: EdgeInsets.symmetric(vertical: 12.h),
                   ),
                 ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+
+            SizedBox(height: 20.h),
+
+            // Action buttons
+            Row(
+              children: [
+                Expanded(
+                  flex: 1, // Make details button smaller
+                  child: OutlinedButton.icon(
+                    onPressed: () => _viewOrderDetails(order),
+                    icon: Icon(Icons.visibility, size: 16.sp),
+                    label: Text(
+                      'Ətraflı',
+                      style: AppTheme.bodyMedium.copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13.sp,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.info,
+                      side: BorderSide(color: AppColors.info),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        vertical: 14.h,
+                        horizontal: 12.w,
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 8.w),
+                Expanded(
+                  flex: 2, // Make status button wider
+                  child: ElevatedButton.icon(
+                    onPressed:
+                        () => _quickUpdateStatus(
+                          order,
+                          _getNextStatus(order.status),
+                        ),
+                    icon: Icon(_getNextStatusIcon(order.status), size: 18.sp),
+                    label: Text(
+                      _getNextStatusText(order.status),
+                      style: AppTheme.bodyMedium.copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14.sp,
+                        color: AppTheme.textOnPrimaryColor,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _getNextStatusColor(order.status),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.r),
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        vertical: 14.h,
+                        horizontal: 16.w,
+                      ),
+                      elevation: 3,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1303,6 +1392,48 @@ class _HomeScreenState extends State<HomeScreen> {
         return 'completed';
       default:
         return currentStatus;
+    }
+  }
+
+  String _getNextStatusText(String currentStatus) {
+    final nextStatus = _getNextStatus(currentStatus);
+    switch (nextStatus) {
+      case 'driver_arrived':
+        return 'Çatdı';
+      case 'in_progress':
+        return 'Gedişdə';
+      case 'completed':
+        return 'Tamamlandı';
+      default:
+        return nextStatus;
+    }
+  }
+
+  IconData _getNextStatusIcon(String currentStatus) {
+    final nextStatus = _getNextStatus(currentStatus);
+    switch (nextStatus) {
+      case 'driver_arrived':
+        return Icons.location_on;
+      case 'in_progress':
+        return Icons.directions_car;
+      case 'completed':
+        return Icons.check_circle;
+      default:
+        return Icons.check;
+    }
+  }
+
+  Color _getNextStatusColor(String currentStatus) {
+    final nextStatus = _getNextStatus(currentStatus);
+    switch (nextStatus) {
+      case 'driver_arrived':
+        return const Color(0xFF4CAF50); // Green - arrived
+      case 'in_progress':
+        return const Color(0xFF2196F3); // Blue - in progress
+      case 'completed':
+        return const Color(0xFF8BC34A); // Light green - completed
+      default:
+        return AppColors.success;
     }
   }
 
@@ -1636,6 +1767,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _quickUpdateStatus(Order order, String status) async {
     final ordersCubit = context.read<OrdersCubit>();
+    final dashboardCubit = context.read<DashboardCubit>();
     final success = await ordersCubit.updateOrderStatus(
       orderId: order.id,
       status: status,
@@ -1651,6 +1783,11 @@ class _HomeScreenState extends State<HomeScreen> {
           duration: const Duration(seconds: 2),
         ),
       );
+
+      // Check and auto-set online status after updating order status
+      if (success) {
+        await dashboardCubit.checkAndAutoSetOnlineStatus(ordersCubit);
+      }
     }
   }
 
@@ -1758,6 +1895,23 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  String _getElapsedTimeSinceLastUpdate(Order order) {
+    final now = DateTime.now();
+    // Use updatedAt if available (last status update), otherwise use createdAt
+    final referenceTime = order.updatedAt ?? order.createdAt;
+    final difference = now.difference(referenceTime);
+
+    if (difference.inMinutes < 1) {
+      return 'İndi';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes} dəqiqə əvvəl';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours} saat əvvəl';
+    } else {
+      return '${difference.inDays} gün əvvəl';
+    }
+  }
 }
 
 // Orders screen with cubit
@@ -1777,6 +1931,85 @@ class EarningsTabScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const EarningsScreen();
+  }
+}
+
+// Animated border container for active orders
+class AnimatedBorderContainer extends StatefulWidget {
+  final Widget child;
+
+  const AnimatedBorderContainer({super.key, required this.child});
+
+  @override
+  State<AnimatedBorderContainer> createState() =>
+      _AnimatedBorderContainerState();
+}
+
+class _AnimatedBorderContainerState extends State<AnimatedBorderContainer>
+    with TickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _opacityAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(seconds: 3),
+      vsync: this,
+    );
+
+    // Subtle breathing effect
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.02).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+
+    // Gentle opacity pulse
+    _opacityAnimation = Tween<double>(begin: 0.3, end: 0.6).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+
+    _animationController.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animationController,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _scaleAnimation.value,
+          child: Container(
+            width: double.infinity,
+            constraints: BoxConstraints(minHeight: 200.h),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20.r),
+              color: AppColors.surface,
+              border: Border.all(
+                color: AppColors.primary.withOpacity(_opacityAnimation.value),
+                width: 2.w,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withOpacity(
+                    _opacityAnimation.value * 0.3,
+                  ),
+                  blurRadius: 15 + (_opacityAnimation.value * 10),
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: widget.child,
+          ),
+        );
+      },
+    );
   }
 }
 

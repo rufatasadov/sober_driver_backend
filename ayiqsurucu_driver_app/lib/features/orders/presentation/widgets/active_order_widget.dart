@@ -41,7 +41,9 @@ class _ActiveOrderWidgetState extends State<ActiveOrderWidget> {
 
   void _calculateElapsedTime() {
     final now = DateTime.now();
-    _elapsedMinutes = now.difference(widget.order.createdAt).inMinutes;
+    // Use updatedAt if available (last status update), otherwise use createdAt
+    final referenceTime = widget.order.updatedAt ?? widget.order.createdAt;
+    _elapsedMinutes = now.difference(referenceTime).inMinutes;
   }
 
   void _startTimer() {
@@ -120,18 +122,26 @@ class _ActiveOrderWidgetState extends State<ActiveOrderWidget> {
                   ],
                 ),
               ),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
-                decoration: BoxDecoration(
-                  color: _getStatusColor(widget.order.status).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8.r),
-                ),
-                child: Text(
-                  _getStatusText(widget.order.status),
-                  style: AppTheme.caption.copyWith(
-                    color: _getStatusColor(widget.order.status),
-                    fontWeight: FontWeight.w600,
-                    fontSize: 10.sp,
+              Flexible(
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(
+                      widget.order.status,
+                    ).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8.r),
+                  ),
+                  child: Text(
+                    _getStatusText(widget.order.status),
+                    style: AppTheme.caption.copyWith(
+                      color: _getStatusColor(widget.order.status),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 10.sp,
+                    ),
+                    textAlign: TextAlign.center,
+                    softWrap: true,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
@@ -277,10 +287,14 @@ class _ActiveOrderWidgetState extends State<ActiveOrderWidget> {
                     minimumSize: Size.zero,
                   ),
                   child: Text(
-                    'Status Yenilə',
+                    _getStatusText(widget.order.status),
                     style: AppTheme.caption.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
+                    textAlign: TextAlign.center,
+                    softWrap: true,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),

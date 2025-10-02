@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/services/api_service.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../orders/presentation/cubit/orders_cubit.dart';
 
 // Dashboard States
 abstract class DashboardState {}
@@ -206,6 +207,39 @@ class DashboardCubit extends Cubit<DashboardState> {
   // Refresh dashboard data
   Future<void> refresh() async {
     await loadDashboardData();
+  }
+
+  // Check and auto-set online status based on active orders
+  Future<void> checkAndAutoSetOnlineStatus(OrdersCubit ordersCubit) async {
+    try {
+      final ordersState = ordersCubit.state;
+      final hasActiveOrders =
+          ordersState is OrdersLoaded && ordersState.activeOrders.isNotEmpty;
+
+      // Get current driver status
+      final currentStats = stats;
+      final isCurrentlyOnline = currentStats?['isOnline'] ?? false;
+
+      print(
+        'DashboardCubit: Checking auto-online status - hasActiveOrders: $hasActiveOrders, isCurrentlyOnline: $isCurrentlyOnline',
+      );
+
+      // If driver has active orders but is offline, automatically set them online
+      if (hasActiveOrders && !isCurrentlyOnline) {
+        print(
+          'DashboardCubit: Driver has active orders but is offline. Setting to online automatically.',
+        );
+        await updateDriverStatus(isOnline: true, isAvailable: true);
+      }
+      // If driver has no active orders but is online, allow them to go offline
+      else if (!hasActiveOrders && isCurrentlyOnline) {
+        print(
+          'DashboardCubit: Driver has no active orders and is online. Status unchanged.',
+        );
+      }
+    } catch (e) {
+      print('DashboardCubit: Error checking auto-online status: $e');
+    }
   }
 
   // Get default stats
