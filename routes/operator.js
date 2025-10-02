@@ -421,7 +421,7 @@ router.get('/customers/search', auth, authorize('operator'), async (req, res) =>
 });
 
 // Müştəri siyahısı
-router.get('/customers', auth, authorize('operator'), async (req, res) => {
+router.get('/customers', auth, authorize('dispatcher'), async (req, res) => {
   try {
     const { page = 1, limit = 20, search } = req.query;
     const offset = (page - 1) * limit;
