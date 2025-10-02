@@ -1017,7 +1017,7 @@ router.post('/orders', auth, authorize('operator'), [
 });
 
 // Sürücü siyahısı
-router.get('/drivers', auth, authorize([]), async (req, res) => {
+router.get('/drivers', auth, authorize('dispatcher'), async (req, res) => {
   try {
     const { page = 1, limit = 20, status } = req.query;
     const offset = (page - 1) * limit;
