@@ -807,7 +807,7 @@ router.get('/customers/:customerId/order-count', auth, authorize('operator'), as
 });
 
 // Təkmilləşdirilmiş sifariş yaratma
-router.post('/orders', auth, authorize('operator'), [
+router.post('/orders', auth, authorize('dispatcher'), [
   body('customerPhone').isMobilePhone('az-AZ').withMessage('Düzgün telefon nömrəsi daxil edin'),
   body('customerName').notEmpty().withMessage('Müştəri adı tələb olunur'),
   body('pickup.coordinates').isArray({ min: 2, max: 2 }).withMessage('Pickup koordinatları tələb olunur'),
