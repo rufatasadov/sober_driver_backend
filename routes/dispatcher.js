@@ -10,7 +10,7 @@ const { Op } = require('sequelize');
 const router = express.Router();
 
 // Dispetçer dashboard
-router.get('/dashboard', auth, authorize('dispatcher'), async (req, res) => {
+router.get('/dashboard', auth, authorize('admin', 'operator', 'dispatcher'), async (req, res) => {
   try {
     // Aktiv sifarişlər
     const activeOrders = await Order.count({
@@ -116,7 +116,7 @@ router.get('/dashboard', auth, authorize('dispatcher'), async (req, res) => {
 });
 
 // Bütün aktiv sifarişləri al
-router.get('/active-orders', auth, authorize('dispatcher'), async (req, res) => {
+router.get('/active-orders', auth, authorize('admin', 'operator', 'dispatcher'), async (req, res) => {
   try {
     const { page = 1, limit = 20, status } = req.query;
     const skip = (page - 1) * limit;
@@ -160,7 +160,7 @@ router.get('/active-orders', auth, authorize('dispatcher'), async (req, res) => 
 });
 
 // Online sürücüləri al
-router.get('/online-drivers', auth, authorize('dispatcher'), async (req, res) => {
+router.get('/online-drivers', auth, authorize('admin', 'operator', 'dispatcher'), async (req, res) => {
   try {
     const drivers = await Driver.findAll({
       where: {
@@ -466,7 +466,7 @@ router.patch('/drivers/:driverId/status', auth, authorize('dispatcher'), [
 });
 
 // Real-time xəritə məlumatları
-router.get('/map-data', auth, authorize('dispatcher'), async (req, res) => {
+router.get('/map-data', auth, authorize('admin', 'operator', 'dispatcher'), async (req, res) => {
   try {
     // Aktiv sifarişlər
     const activeOrders = await Order.find({

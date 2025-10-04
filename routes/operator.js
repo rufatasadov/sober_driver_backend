@@ -15,7 +15,7 @@ const { Op } = require('sequelize');
 const router = express.Router();
 
 // Operator səhifəsi üçün əsas məlumatlar
-router.get('/dashboard', auth, authorize('operator', 'dispatcher'), async (req, res) => {
+router.get('/dashboard', auth, authorize('admin', 'operator', 'dispatcher'), async (req, res) => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -111,7 +111,7 @@ router.get('/dashboard', auth, authorize('operator', 'dispatcher'), async (req, 
 });
 
 // Sifarişi sürücüyə təyin et
-router.post('/orders/:orderId/assign-driver', auth, authorize('operator', 'dispatcher'), [
+router.post('/orders/:orderId/assign-driver', auth, authorize('admin', 'operator', 'dispatcher'), [
   body('driverId').notEmpty().withMessage('Sürücü ID tələb olunur')
 ], async (req, res) => {
   try {
@@ -211,7 +211,7 @@ router.post('/orders/:orderId/assign-driver', auth, authorize('operator', 'dispa
 });
 
 // Yaxın sürücüləri tap
-router.get('/nearby-drivers', auth, authorize('operator', 'dispatcher'), async (req, res) => {
+router.get('/nearby-drivers', auth, authorize('admin', 'operator', 'dispatcher'), async (req, res) => {
   try {
     const { latitude, longitude, maxDistance = 5 } = req.query;
 
@@ -242,7 +242,7 @@ router.get('/nearby-drivers', auth, authorize('operator', 'dispatcher'), async (
 });
 
 // Sifarişlər siyahısı
-router.get('/orders', auth, authorize('operator', 'dispatcher'), async (req, res) => {
+router.get('/orders', auth, authorize('admin', 'operator', 'dispatcher'), async (req, res) => {
   try {
     const { 
       page = 1, 
@@ -314,7 +314,7 @@ router.get('/orders', auth, authorize('operator', 'dispatcher'), async (req, res
 });
 
 // Sifariş məlumatlarını yenilə
-router.put('/orders/:orderId', auth, authorize('operator', 'dispatcher'), [
+router.put('/orders/:orderId', auth, authorize('admin', 'operator', 'dispatcher'), [
   body('pickup.address').optional().notEmpty().withMessage('Pickup ünvanı boş ola bilməz'),
   body('destination.address').optional().notEmpty().withMessage('Təyinat ünvanı boş ola bilməz'),
   body('notes').optional().isString().withMessage('Qeydlər string olmalıdır'),
@@ -396,7 +396,7 @@ router.put('/orders/:orderId', auth, authorize('operator', 'dispatcher'), [
 });
 
 // Müştəri axtar
-router.get('/customers/search', auth, authorize('operator', 'dispatcher'), async (req, res) => {
+router.get('/customers/search', auth, authorize('admin', 'operator', 'dispatcher'), async (req, res) => {
   try {
     const { phone, name } = req.query;
     const filter = {};
@@ -421,7 +421,7 @@ router.get('/customers/search', auth, authorize('operator', 'dispatcher'), async
 });
 
 // Müştəri siyahısı
-router.get('/customers', auth, authorize('dispatcher'), async (req, res) => {
+router.get('/customers', auth, authorize('admin', 'operator', 'dispatcher'), async (req, res) => {
   try {
     const { page = 1, limit = 20, search } = req.query;
     const offset = (page - 1) * limit;
@@ -498,7 +498,7 @@ router.get('/customers', auth, authorize('dispatcher'), async (req, res) => {
 });
 
 // Sürücü silmə
-router.delete('/drivers/:driverId', auth, authorize('operator', 'dispatcher'), async (req, res) => {
+router.delete('/drivers/:driverId', auth, authorize('admin', 'operator', 'dispatcher'), async (req, res) => {
   try {
     const { driverId } = req.params;
 
@@ -534,7 +534,7 @@ router.delete('/drivers/:driverId', auth, authorize('operator', 'dispatcher'), a
 });
 
 // Müştəri əlavə etmə
-router.post('/customers', auth, authorize('operator', 'dispatcher'), [
+router.post('/customers', auth, authorize('admin', 'operator', 'dispatcher'), [
   body('name').notEmpty().withMessage('Ad tələb olunur'),
   body('phone').notEmpty().withMessage('Telefon nömrəsi tələb olunur'),
   body('email').optional().isEmail().withMessage('Düzgün email daxil edin')
@@ -583,7 +583,7 @@ router.post('/customers', auth, authorize('operator', 'dispatcher'), [
 });
 
 // Müştəri məlumatlarını yeniləmə
-router.put('/customers/:customerId', auth, authorize('operator', 'dispatcher'), [
+router.put('/customers/:customerId', auth, authorize('admin', 'operator', 'dispatcher'), [
   body('name').optional().notEmpty().withMessage('Ad boş ola bilməz'),
   body('phone').optional().notEmpty().withMessage('Telefon nömrəsi boş ola bilməz'),
   body('email').optional().isEmail().withMessage('Düzgün email daxil edin')
@@ -641,7 +641,7 @@ router.put('/customers/:customerId', auth, authorize('operator', 'dispatcher'), 
 });
 
 // Müştəri sifarişləri
-router.get('/customers/:customerId/orders', auth, authorize('operator', 'dispatcher'), async (req, res) => {
+router.get('/customers/:customerId/orders', auth, authorize('admin', 'operator', 'dispatcher'), async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
     const skip = (page - 1) * limit;
@@ -684,7 +684,7 @@ router.get('/customers/:customerId/orders', auth, authorize('operator', 'dispatc
 });
 
 // Müştəri silmə
-router.delete('/customers/:customerId', auth, authorize('operator', 'dispatcher'), async (req, res) => {
+router.delete('/customers/:customerId', auth, authorize('admin', 'operator', 'dispatcher'), async (req, res) => {
   try {
     const { customerId } = req.params;
 
@@ -719,7 +719,7 @@ router.delete('/customers/:customerId', auth, authorize('operator', 'dispatcher'
 
 
 // Müştərinin əvvəlki ünvanları
-router.get('/customers/:customerId/addresses', auth, authorize('operator', 'dispatcher'), async (req, res) => {
+router.get('/customers/:customerId/addresses', auth, authorize('admin', 'operator', 'dispatcher'), async (req, res) => {
   try {
     const { customerId } = req.params;
 
@@ -773,7 +773,7 @@ router.get('/customers/:customerId/addresses', auth, authorize('operator', 'disp
 });
 
 // Müştərinin sifariş sayı
-router.get('/customers/:customerId/order-count', auth, authorize('operator', 'dispatcher'), async (req, res) => {
+router.get('/customers/:customerId/order-count', auth, authorize('admin', 'operator', 'dispatcher'), async (req, res) => {
   try {
     const { customerId } = req.params;
 
@@ -807,7 +807,7 @@ router.get('/customers/:customerId/order-count', auth, authorize('operator', 'di
 });
 
 // Təkmilləşdirilmiş sifariş yaratma
-router.post('/orders', auth, authorize('dispatcher'), [
+router.post('/orders', auth, authorize('admin', 'operator', 'dispatcher'), [
   body('customerPhone').isMobilePhone('az-AZ').withMessage('Düzgün telefon nömrəsi daxil edin'),
   body('customerName').notEmpty().withMessage('Müştəri adı tələb olunur'),
   body('pickup.coordinates').isArray({ min: 2, max: 2 }).withMessage('Pickup koordinatları tələb olunur'),
@@ -1017,7 +1017,7 @@ router.post('/orders', auth, authorize('dispatcher'), [
 });
 
 // Sürücü siyahısı
-router.get('/drivers', auth, authorize('dispatcher'), async (req, res) => {
+router.get('/drivers', auth, authorize('admin', 'operator', 'dispatcher'), async (req, res) => {
   try {
     const { page = 1, limit = 20, status } = req.query;
     const offset = (page - 1) * limit;
@@ -1065,7 +1065,7 @@ router.get('/drivers', auth, authorize('dispatcher'), async (req, res) => {
 });
 
 // Yeni sürücü əlavə etmə
-router.post('/drivers', auth, authorize('operator', 'dispatcher'), [
+router.post('/drivers', auth, authorize('admin', 'operator', 'dispatcher'), [
   body('name').notEmpty().withMessage('Ad tələb olunur'),
   body('phone').notEmpty().withMessage('Telefon nömrəsi tələb olunur'),
   body('licenseNumber').notEmpty().withMessage('Sürücülük vəsiqəsi tələb olunur'),
@@ -1154,7 +1154,7 @@ router.post('/drivers', auth, authorize('operator', 'dispatcher'), [
 });
 
 // Sürücü məlumatlarını yeniləmə
-router.put('/drivers/:driverId', auth, authorize('operator', 'dispatcher'), [
+router.put('/drivers/:driverId', auth, authorize('admin', 'operator', 'dispatcher'), [
   body('name').optional().notEmpty().withMessage('Ad boş ola bilməz'),
   body('phone').optional().notEmpty().withMessage('Telefon nömrəsi boş ola bilməz'),
   body('email').optional().isEmail().withMessage('Düzgün email daxil edin'),
