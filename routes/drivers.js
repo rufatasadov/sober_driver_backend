@@ -633,7 +633,7 @@ router.get('/earnings', auth, authorize('driver'), async (req, res) => {
 });
 
 // Onlayn sürücüləri GPS məlumatları ilə alma
-router.get('/online', auth, authorize('operator'), async (req, res) => {
+router.get('/online', auth, authorize('operator', 'dispatcher'), async (req, res) => {
   try {
     console.log('Online drivers endpoint called');
     
