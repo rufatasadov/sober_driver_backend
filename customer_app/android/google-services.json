@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1021692091337",
+    "project_id": "sober-driver-hayda",
+    "storage_bucket": "sober-driver-hayda.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1021692091337:android:5d7a3b406725c6088a6618",
+        "android_client_info": {
+          "package_name": "com.soberdriverhaydo.customer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCznFcAcwAu67BLMJDFZjtbRAUflH9j_wM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
