@@ -6,7 +6,11 @@ import 'core/theme/app_theme.dart';
 import 'core/services/api_service.dart';
 import 'core/services/socket_service.dart';
 import 'core/services/location_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'features/auth/presentation/cubit/auth_cubit.dart';
+import 'features/orders/presentation/cubit/orders_cubit.dart';
+import 'features/home/presentation/cubit/home_cubit.dart';
+import 'features/auth/presentation/screens/intro_screen.dart';
 import 'features/auth/presentation/screens/phone_input_screen.dart';
 import 'features/home/presentation/screens/home_screen.dart';
 import 'shared/widgets/loading_screen.dart';
@@ -28,19 +32,23 @@ class AyiqSurucuCustomerApp extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider(create: (context) => AuthCubit()),
+        BlocProvider(create: (context) => OrdersCubit()),
       ],
-      child: ScreenUtilInit(
-        designSize: const Size(375, 812), // iPhone X design size
-        minTextAdapt: true,
-        splitScreenMode: true,
-        builder: (context, child) {
-          return MaterialApp(
-            title: 'Ayiq Sürücü Customer',
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.lightTheme,
-            home: const AppInitializer(),
-          );
-        },
+      child: BlocProvider(
+        create: (context) => HomeCubit(ordersCubit: context.read<OrdersCubit>()),
+        child: ScreenUtilInit(
+          designSize: const Size(375, 812), // iPhone X design size
+          minTextAdapt: true,
+          splitScreenMode: true,
+          builder: (context, child) {
+            return MaterialApp(
+              title: 'Ayiq Sürücü Customer',
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.lightTheme,
+              home: const AppInitializer(),
+            );
+          },
+        ),
       ),
     );
   }
@@ -55,6 +63,7 @@ class AppInitializer extends StatefulWidget {
 
 class _AppInitializerState extends State<AppInitializer> {
   bool _isInitializing = true;
+  bool _hasSeenIntro = false;
 
   @override
   void initState() {
@@ -68,9 +77,18 @@ class _AppInitializerState extends State<AppInitializer> {
       final locationService = LocationService();
       await locationService.checkAndRequestPermissions();
 
+      // Load intro flag
+      final prefs = await SharedPreferences.getInstance();
+      _hasSeenIntro = prefs.getBool('intro_seen') ?? false;
+
       // Check if user is already logged in
       final authCubit = context.read<AuthCubit>();
       await authCubit.checkAuthStatus();
+
+      // DEV: If unauthenticated, skip OTP and authenticate directly
+      if (authCubit.state is AuthUnauthenticated) {
+        await authCubit.skipToAuthenticated();
+      }
 
       setState(() {
         _isInitializing = false;
@@ -98,7 +116,11 @@ class _AppInitializerState extends State<AppInitializer> {
           }
           return const HomeScreen();
         } else {
-          return const PhoneInputScreen();
+          // Show intro only once; then go to phone input
+          if (_hasSeenIntro) {
+            return const PhoneInputScreen();
+          }
+          return const IntroScreen();
         }
       },
     );

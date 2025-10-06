@@ -20,10 +20,7 @@ class OrderModel extends Equatable {
   final String? cancellationReason;
   final DateTime createdAt;
   final DateTime updatedAt;
-  
-  // Additional fields for display
-  final UserModel? customer;
-  final DriverModel? driver;
+  final UserModel? driver;
 
   const OrderModel({
     required this.id,
@@ -44,7 +41,6 @@ class OrderModel extends Equatable {
     this.cancellationReason,
     required this.createdAt,
     required this.updatedAt,
-    this.customer,
     this.driver,
   });
 
@@ -54,25 +50,24 @@ class OrderModel extends Equatable {
       orderNumber: json['orderNumber'] ?? '',
       customerId: json['customerId'] ?? '',
       driverId: json['driverId'],
-      pickup: json['pickup'] ?? {},
-      destination: json['destination'] ?? {},
+      pickup: Map<String, dynamic>.from(json['pickup'] ?? {}),
+      destination: Map<String, dynamic>.from(json['destination'] ?? {}),
       status: json['status'] ?? 'pending',
       estimatedTime: json['estimatedTime'],
       estimatedDistance: json['estimatedDistance']?.toDouble(),
-      fare: json['fare'] ?? {},
-      payment: json['payment'] ?? {},
-      rating: json['rating'],
-      timeline: json['timeline'] ?? [],
+      fare: Map<String, dynamic>.from(json['fare'] ?? {}),
+      payment: Map<String, dynamic>.from(json['payment'] ?? {}),
+      rating: json['rating'] != null 
+          ? Map<String, dynamic>.from(json['rating']) 
+          : null,
+      timeline: List<dynamic>.from(json['timeline'] ?? []),
       notes: json['notes'],
       cancelledBy: json['cancelledBy'],
       cancellationReason: json['cancellationReason'],
       createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
       updatedAt: DateTime.parse(json['updatedAt'] ?? DateTime.now().toIso8601String()),
-      customer: json['customer'] != null 
-          ? UserModel.fromJson(json['customer']) 
-          : null,
       driver: json['driver'] != null 
-          ? DriverModel.fromJson(json['driver']) 
+          ? UserModel.fromJson(json['driver']) 
           : null,
     );
   }
@@ -97,7 +92,6 @@ class OrderModel extends Equatable {
       'cancellationReason': cancellationReason,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
-      'customer': customer?.toJson(),
       'driver': driver?.toJson(),
     };
   }
@@ -121,8 +115,7 @@ class OrderModel extends Equatable {
     String? cancellationReason,
     DateTime? createdAt,
     DateTime? updatedAt,
-    UserModel? customer,
-    DriverModel? driver,
+    UserModel? driver,
   }) {
     return OrderModel(
       id: id ?? this.id,
@@ -143,22 +136,19 @@ class OrderModel extends Equatable {
       cancellationReason: cancellationReason ?? this.cancellationReason,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      customer: customer ?? this.customer,
       driver: driver ?? this.driver,
     );
   }
 
-  // Helper methods
+  // Convenience getters
   String get pickupAddress => pickup['address'] ?? '';
   String get destinationAddress => destination['address'] ?? '';
-  List<double> get pickupCoordinates => 
-      (pickup['coordinates'] as List?)?.cast<double>() ?? [];
-  List<double> get destinationCoordinates => 
-      (destination['coordinates'] as List?)?.cast<double>() ?? [];
+  List<double> get pickupCoordinates => List<double>.from(pickup['coordinates'] ?? []);
+  List<double> get destinationCoordinates => List<double>.from(destination['coordinates'] ?? []);
   
+  String get paymentMethod => payment['method'] ?? 'cash';
   double get totalFare => (fare['total'] ?? 0).toDouble();
   String get currency => fare['currency'] ?? 'AZN';
-  String get paymentMethod => payment['method'] ?? 'cash';
   
   bool get isPending => status == 'pending';
   bool get isAccepted => status == 'accepted';
@@ -168,104 +158,24 @@ class OrderModel extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        orderNumber,
-        customerId,
-        driverId,
-        pickup,
-        destination,
-        status,
-        estimatedTime,
-        estimatedDistance,
-        fare,
-        payment,
-        rating,
-        timeline,
-        notes,
-        cancelledBy,
-        cancellationReason,
-        createdAt,
-        updatedAt,
-        customer,
-        driver,
-      ];
-}
-
-class DriverModel extends Equatable {
-  final String id;
-  final String userId;
-  final String name;
-  final String phone;
-  final String licenseNumber;
-  final Map<String, dynamic> vehicleInfo;
-  final Map<String, dynamic> rating;
-  final Map<String, dynamic>? currentLocation;
-  final bool isOnline;
-
-  const DriverModel({
-    required this.id,
-    required this.userId,
-    required this.name,
-    required this.phone,
-    required this.licenseNumber,
-    required this.vehicleInfo,
-    required this.rating,
-    this.currentLocation,
-    required this.isOnline,
-  });
-
-  factory DriverModel.fromJson(Map<String, dynamic> json) {
-    return DriverModel(
-      id: json['id'] ?? '',
-      userId: json['userId'] ?? '',
-      name: json['name'] ?? '',
-      phone: json['phone'] ?? '',
-      licenseNumber: json['licenseNumber'] ?? '',
-      vehicleInfo: json['vehicleInfo'] ?? {},
-      rating: json['rating'] ?? {},
-      currentLocation: json['currentLocation'],
-      isOnline: json['isOnline'] ?? false,
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'userId': userId,
-      'name': name,
-      'phone': phone,
-      'licenseNumber': licenseNumber,
-      'vehicleInfo': vehicleInfo,
-      'rating': rating,
-      'currentLocation': currentLocation,
-      'isOnline': isOnline,
-    };
-  }
-
-  String get vehicleMake => vehicleInfo['make'] ?? '';
-  String get vehicleModel => vehicleInfo['model'] ?? '';
-  String get vehiclePlate => vehicleInfo['plateNumber'] ?? '';
-  String get vehicleColor => vehicleInfo['color'] ?? '';
-  int get vehicleYear => vehicleInfo['year'] ?? 0;
-  
-  double get averageRating => (rating['average'] ?? 0).toDouble();
-  int get ratingCount => rating['count'] ?? 0;
-  
-  List<double> get locationCoordinates {
-    if (currentLocation == null) return [];
-    return (currentLocation!['coordinates'] as List?)?.cast<double>() ?? [];
-  }
-
-  @override
-  List<Object?> get props => [
-        id,
-        userId,
-        name,
-        phone,
-        licenseNumber,
-        vehicleInfo,
-        rating,
-        currentLocation,
-        isOnline,
-      ];
+    id,
+    orderNumber,
+    customerId,
+    driverId,
+    pickup,
+    destination,
+    status,
+    estimatedTime,
+    estimatedDistance,
+    fare,
+    payment,
+    rating,
+    timeline,
+    notes,
+    cancelledBy,
+    cancellationReason,
+    createdAt,
+    updatedAt,
+    driver,
+  ];
 }

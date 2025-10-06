@@ -25,16 +25,12 @@ class AppColors {
   // Text Colors
   static const Color textPrimary = Color(0xFF212121);
   static const Color textSecondary = Color(0xFF757575);
-  static const Color textHint = Color(0xFF9E9E9E);
+  static const Color textDisabled = Color(0xFFBDBDBD);
   static const Color textOnPrimary = Color(0xFFFFFFFF);
   
   // Border Colors
   static const Color border = Color(0xFFE0E0E0);
-  static const Color borderLight = Color(0xFFF5F5F5);
-  
-  // Map Colors
-  static const Color mapPrimary = Color(0xFF1976D2);
-  static const Color mapSecondary = Color(0xFF388E3C);
+  static const Color divider = Color(0xFFE0E0E0);
   
   // Order Status Colors
   static const Color orderPending = Color(0xFFFF9800);
@@ -44,6 +40,40 @@ class AppColors {
   static const Color orderCancelled = Color(0xFFF44336);
   
   // Rating Colors
-  static const Color ratingActive = Color(0xFFFFD700);
+  static const Color ratingActive = Color(0xFFFFC107);
   static const Color ratingInactive = Color(0xFFE0E0E0);
+  
+  // Payment Method Colors
+  static const Color paymentCash = Color(0xFF4CAF50);
+  static const Color paymentCard = Color(0xFF2196F3);
+  static const Color paymentOnline = Color(0xFF9C27B0);
+  
+  // Map Colors
+  static const Color mapPrimary = Color(0xFF2E7D32);
+  static const Color mapSecondary = Color(0xFFFFC107);
+  static const Color mapAccent = Color(0xFF2196F3);
+  
+  // Notification Colors
+  static const Color notificationSuccess = Color(0xFF4CAF50);
+  static const Color notificationWarning = Color(0xFFFF9800);
+  static const Color notificationError = Color(0xFFF44336);
+  static const Color notificationInfo = Color(0xFF2196F3);
+  
+  // Gradient Colors
+  static const LinearGradient primaryGradient = LinearGradient(
+    colors: [primary, primaryLight],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  
+  static const LinearGradient secondaryGradient = LinearGradient(
+    colors: [secondary, secondaryLight],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+  
+  // Shadow Colors
+  static const Color shadowLight = Color(0x1A000000);
+  static const Color shadowMedium = Color(0x33000000);
+  static const Color shadowDark = Color(0x4D000000);
 }
