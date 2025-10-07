@@ -5,45 +5,56 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../cubit/auth_cubit.dart';
 import 'otp_verification_screen.dart';
-import 'registration_screen.dart';
 
-class PhoneInputScreen extends StatefulWidget {
-  const PhoneInputScreen({super.key});
+class RegistrationScreen extends StatefulWidget {
+  const RegistrationScreen({super.key});
 
   @override
-  State<PhoneInputScreen> createState() => _PhoneInputScreenState();
+  State<RegistrationScreen> createState() => _RegistrationScreenState();
 }
 
-class _PhoneInputScreenState extends State<PhoneInputScreen> {
-  final _phoneController = TextEditingController();
+class _RegistrationScreenState extends State<RegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
   bool _isLoading = false;
+  bool _agreeToTerms = false;
 
   @override
   void dispose() {
+    _nameController.dispose();
     _phoneController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
   void _sendOtp() {
-    if (_formKey.currentState!.validate()) {
+    if (_formKey.currentState!.validate() && _agreeToTerms) {
       final phone = _phoneController.text.trim();
       context.read<AuthCubit>().sendOtp(phone);
+    } else if (!_agreeToTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('İstifadə şərtləri ilə razı olmalısınız'),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
-  }
-
-  void _goToRegistration() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const RegistrationScreen(),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.primary,
+      appBar: AppBar(
+        backgroundColor: AppColors.primary,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
       body: BlocListener<AuthCubit, AuthState>(
         listener: (context, state) {
           if (state is AuthLoading) {
@@ -56,7 +67,11 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
             });
             Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (context) => OtpVerificationScreen(phone: state.phone),
+                builder: (context) => OtpVerificationScreen(
+                  phone: state.phone,
+                  name: _nameController.text.trim(),
+                  email: _emailController.text.trim(),
+                ),
               ),
             );
           } else if (state is AuthError) {
@@ -72,11 +87,11 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
           }
         },
         child: SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: EdgeInsets.all(24.w),
             child: Column(
               children: [
-                SizedBox(height: 60.h),
+                SizedBox(height: 20.h),
                 
                 // Logo and Title
                 Icon(
@@ -87,7 +102,7 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
                 SizedBox(height: 24.h),
                 
                 Text(
-                  'Ayiq Sürücü',
+                  'Qeydiyyat',
                   style: AppTheme.headlineLarge.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -96,7 +111,7 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
                 SizedBox(height: 8.h),
                 
                 Text(
-                  'Taksi sifariş etmək üçün telefon nömrənizi daxil edin',
+                  'Hesab yaratmaq üçün məlumatlarınızı daxil edin',
                   style: AppTheme.bodyMedium.copyWith(
                     color: Colors.white70,
                   ),
@@ -120,52 +135,62 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
                     textAlign: TextAlign.center,
                   ),
                 ),
-                SizedBox(height: 60.h),
+                SizedBox(height: 40.h),
                 
-                // Phone Input Form
-                Form(
-                  key: _formKey,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12.r),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: Padding(
-                      padding: EdgeInsets.all(24.w),
+                // Registration Form
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12.r),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(24.w),
+                    child: Form(
+                      key: _formKey,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Text(
-                            'Telefon nömrəsi',
+                            'Şəxsi məlumatlar',
                             style: AppTheme.titleMedium.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                           SizedBox(height: 16.h),
                           
+                          // Name field
+                          TextFormField(
+                            controller: _nameController,
+                            decoration: const InputDecoration(
+                              hintText: 'Ad və soyad',
+                              prefixIcon: Icon(Icons.person),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Ad və soyad tələb olunur';
+                              }
+                              if (value.length < 2) {
+                                return 'Ad minimum 2 simvol olmalıdır';
+                              }
+                              return null;
+                            },
+                          ),
+                          SizedBox(height: 16.h),
+                          
+                          // Phone field
                           TextFormField(
                             controller: _phoneController,
                             keyboardType: TextInputType.phone,
-                            decoration: InputDecoration(
+                            decoration: const InputDecoration(
                               hintText: '+994 XX XXX XX XX',
-                              prefixIcon: const Icon(Icons.phone),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8.r),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8.r),
-                                borderSide: const BorderSide(
-                                  color: AppColors.primary,
-                                  width: 2,
-                                ),
-                              ),
+                              prefixIcon: Icon(Icons.phone),
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -177,8 +202,59 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
                               return null;
                             },
                           ),
+                          SizedBox(height: 16.h),
+                          
+                          // Email field (optional)
+                          TextFormField(
+                            controller: _emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            decoration: const InputDecoration(
+                              hintText: 'Email (istəyə bağlı)',
+                              prefixIcon: Icon(Icons.email),
+                            ),
+                            validator: (value) {
+                              if (value != null && value.isNotEmpty) {
+                                if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                                  return 'Düzgün email daxil edin';
+                                }
+                              }
+                              return null;
+                            },
+                          ),
                           SizedBox(height: 24.h),
                           
+                          // Terms agreement
+                          Row(
+                            children: [
+                              Checkbox(
+                                value: _agreeToTerms,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _agreeToTerms = value ?? false;
+                                  });
+                                },
+                                activeColor: AppColors.primary,
+                              ),
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      _agreeToTerms = !_agreeToTerms;
+                                    });
+                                  },
+                                  child: Text(
+                                    'İstifadə şərtləri və məxfilik siyasəti ilə razıyam',
+                                    style: AppTheme.bodySmall.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 24.h),
+                          
+                          // Register button
                           ElevatedButton(
                             onPressed: _isLoading ? null : _sendOtp,
                             style: ElevatedButton.styleFrom(
@@ -214,20 +290,20 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
                 
                 SizedBox(height: 24.h),
                 
-                // Registration link
+                // Login link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'Hesabınız yoxdur? ',
+                      'Artıq hesabınız var? ',
                       style: AppTheme.bodyMedium.copyWith(
                         color: Colors.white70,
                       ),
                     ),
                     GestureDetector(
-                      onTap: _goToRegistration,
+                      onTap: () => Navigator.of(context).pop(),
                       child: Text(
-                        'Qeydiyyat',
+                        'Daxil olun',
                         style: AppTheme.bodyMedium.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
@@ -236,17 +312,6 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
                       ),
                     ),
                   ],
-                ),
-                
-                const Spacer(),
-                
-                // Footer
-                Text(
-                  'OTP göndərilməsi ilə siz istifadə şərtləri və məxfilik siyasəti ilə razısınız',
-                  style: AppTheme.bodySmall.copyWith(
-                    color: Colors.white60,
-                  ),
-                  textAlign: TextAlign.center,
                 ),
               ],
             ),

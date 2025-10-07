@@ -11,6 +11,12 @@ class UserModel extends Equatable {
   final String? profileImage;
   final DateTime? lastLogin;
   final DateTime createdAt;
+  final String? fcmToken;
+  final double? averageRating;
+  final int? ratingCount;
+  final String? vehicleMake;
+  final String? vehicleModel;
+  final String? vehiclePlate;
 
   const UserModel({
     required this.id,
@@ -23,6 +29,12 @@ class UserModel extends Equatable {
     this.profileImage,
     this.lastLogin,
     required this.createdAt,
+    this.fcmToken,
+    this.averageRating,
+    this.ratingCount,
+    this.vehicleMake,
+    this.vehicleModel,
+    this.vehiclePlate,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -39,6 +51,12 @@ class UserModel extends Equatable {
           ? DateTime.parse(json['lastLogin']) 
           : null,
       createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
+      fcmToken: json['fcmToken'],
+      averageRating: json['averageRating']?.toDouble(),
+      ratingCount: json['ratingCount'],
+      vehicleMake: json['vehicleMake'],
+      vehicleModel: json['vehicleModel'],
+      vehiclePlate: json['vehiclePlate'],
     );
   }
 
@@ -54,6 +72,12 @@ class UserModel extends Equatable {
       'profileImage': profileImage,
       'lastLogin': lastLogin?.toIso8601String(),
       'createdAt': createdAt.toIso8601String(),
+      'fcmToken': fcmToken,
+      'averageRating': averageRating,
+      'ratingCount': ratingCount,
+      'vehicleMake': vehicleMake,
+      'vehicleModel': vehicleModel,
+      'vehiclePlate': vehiclePlate,
     };
   }
 
@@ -68,6 +92,12 @@ class UserModel extends Equatable {
     String? profileImage,
     DateTime? lastLogin,
     DateTime? createdAt,
+    String? fcmToken,
+    double? averageRating,
+    int? ratingCount,
+    String? vehicleMake,
+    String? vehicleModel,
+    String? vehiclePlate,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -80,20 +110,38 @@ class UserModel extends Equatable {
       profileImage: profileImage ?? this.profileImage,
       lastLogin: lastLogin ?? this.lastLogin,
       createdAt: createdAt ?? this.createdAt,
+      fcmToken: fcmToken ?? this.fcmToken,
+      averageRating: averageRating ?? this.averageRating,
+      ratingCount: ratingCount ?? this.ratingCount,
+      vehicleMake: vehicleMake ?? this.vehicleMake,
+      vehicleModel: vehicleModel ?? this.vehicleModel,
+      vehiclePlate: vehiclePlate ?? this.vehiclePlate,
     );
   }
 
+  // Convenience getters
+  bool get isDriver => role == 'driver';
+  bool get isCustomer => role == 'customer';
+  bool get isOperator => role == 'operator';
+  bool get isAdmin => role == 'admin';
+
   @override
   List<Object?> get props => [
-        id,
-        name,
-        phone,
-        email,
-        role,
-        isVerified,
-        isActive,
-        profileImage,
-        lastLogin,
-        createdAt,
-      ];
+    id,
+    name,
+    phone,
+    email,
+    role,
+    isVerified,
+    isActive,
+    profileImage,
+    lastLogin,
+    createdAt,
+    fcmToken,
+    averageRating,
+    ratingCount,
+    vehicleMake,
+    vehicleModel,
+    vehiclePlate,
+  ];
 }

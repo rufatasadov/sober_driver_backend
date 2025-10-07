@@ -9,10 +9,14 @@ import '../../../home/presentation/screens/home_screen.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
   final String phone;
+  final String? name;
+  final String? email;
 
   const OtpVerificationScreen({
     super.key,
     required this.phone,
+    this.name,
+    this.email,
   });
 
   @override
@@ -30,7 +34,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
   );
   bool _isLoading = false;
   bool _isNewUser = false;
-  final _nameController = TextEditingController();
 
   @override
   void dispose() {
@@ -40,7 +43,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     for (var node in _focusNodes) {
       node.dispose();
     }
-    _nameController.dispose();
     super.dispose();
   }
 
@@ -50,7 +52,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
   void _verifyOtp() {
     if (_otpCode.length == 6) {
-      final name = _isNewUser ? _nameController.text.trim() : null;
+      final name = _isNewUser ? widget.name : null;
       context.read<AuthCubit>().verifyOtp(
         phone: widget.phone,
         otp: _otpCode,
@@ -69,7 +71,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       }
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -106,7 +107,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.message),
-                backgroundColor: Colors.red,
+                backgroundColor: AppColors.error,
               ),
             );
           } else if (state is AuthUnauthenticated) {
@@ -142,7 +143,17 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                 SizedBox(height: 8.h),
                 
                 Text(
-                  'Göndərilən kodu daxil edin',
+                  'TEST MODE: OTP yoxlanılması müvəqqəti olaraq deaktivdir',
+                  style: AppTheme.bodyMedium.copyWith(
+                    color: Colors.yellow,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 8.h),
+                
+                Text(
+                  'İstənilən 6 rəqəmli kodu daxil edin',
                   style: AppTheme.bodyMedium.copyWith(
                     color: Colors.white70,
                   ),
@@ -175,43 +186,19 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                     padding: EdgeInsets.all(24.w),
                     child: Column(
                       children: [
-                        if (_isNewUser) ...[
+                        if (_isNewUser && widget.name != null) ...[
                           Text(
-                            'Yeni istifadəçi kimi adınızı daxil edin',
+                            'Yeni istifadəçi: ${widget.name}',
                             style: AppTheme.titleMedium.copyWith(
                               fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
                             ),
                           ),
                           SizedBox(height: 16.h),
-                          
-                          TextFormField(
-                            controller: _nameController,
-                            decoration: InputDecoration(
-                              hintText: 'Adınızı daxil edin',
-                              prefixIcon: const Icon(Icons.person),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8.r),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8.r),
-                                borderSide: const BorderSide(
-                                  color: AppColors.primary,
-                                  width: 2,
-                                ),
-                              ),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Ad tələb olunur';
-                              }
-                              return null;
-                            },
-                          ),
-                          SizedBox(height: 24.h),
                         ],
                         
                         Text(
-                          _isNewUser ? 'OTP kodunu daxil edin' : 'OTP kodunu daxil edin',
+                          'OTP kodunu daxil edin',
                           style: AppTheme.titleMedium.copyWith(
                             fontWeight: FontWeight.w600,
                           ),

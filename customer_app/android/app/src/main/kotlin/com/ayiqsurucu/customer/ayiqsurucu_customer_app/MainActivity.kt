@@ -1,4 +1,4 @@
-package com.ayiqsurucu.customer.ayiqsurucu_customer_app
+package com.soberdriverhaydo.customer
 
 import io.flutter.embedding.android.FlutterActivity
 

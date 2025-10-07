@@ -1,10 +1,8 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/services/api_service.dart';
 import '../../../../shared/models/user_model.dart';
-import '../../../../core/constants/app_constants.dart';
 
 // States
 abstract class AuthState extends Equatable {
@@ -33,15 +31,6 @@ class AuthAuthenticated extends AuthState {
 
 class AuthUnauthenticated extends AuthState {}
 
-class AuthError extends AuthState {
-  final String message;
-
-  const AuthError(this.message);
-
-  @override
-  List<Object?> get props => [message];
-}
-
 class OtpSentState extends AuthState {
   final String phone;
 
@@ -66,53 +55,22 @@ class OtpVerifiedState extends AuthState {
   List<Object?> get props => [user, token];
 }
 
-// Events
-abstract class AuthEvent extends Equatable {
-  const AuthEvent();
+class ProfileUpdatedState extends AuthState {
+  final UserModel user;
+
+  const ProfileUpdatedState(this.user);
 
   @override
-  List<Object?> get props => [];
+  List<Object?> get props => [user];
 }
 
-class CheckAuthStatusEvent extends AuthEvent {}
+class AuthError extends AuthState {
+  final String message;
 
-class SendOtpEvent extends AuthEvent {
-  final String phone;
-
-  const SendOtpEvent(this.phone);
+  const AuthError(this.message);
 
   @override
-  List<Object?> get props => [phone];
-}
-
-class VerifyOtpEvent extends AuthEvent {
-  final String phone;
-  final String otp;
-  final String? name;
-
-  const VerifyOtpEvent({
-    required this.phone,
-    required this.otp,
-    this.name,
-  });
-
-  @override
-  List<Object?> get props => [phone, otp, name];
-}
-
-class LogoutEvent extends AuthEvent {}
-
-class UpdateProfileEvent extends AuthEvent {
-  final String? name;
-  final String? email;
-
-  const UpdateProfileEvent({
-    this.name,
-    this.email,
-  });
-
-  @override
-  List<Object?> get props => [name, email];
+  List<Object?> get props => [message];
 }
 
 // Cubit
@@ -125,27 +83,25 @@ class AuthCubit extends Cubit<AuthState> {
     try {
       emit(AuthLoading());
 
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString(AppConstants.tokenKey);
-      final userJson = prefs.getString(AppConstants.userKey);
+      if (!_apiService.isAuthenticated) {
+        emit(AuthUnauthenticated());
+        return;
+      }
 
-      if (token != null && userJson != null) {
-        // Verify token is still valid by getting user profile
-        final response = await _apiService.getUserProfile();
-        
-        if (response['success']) {
-          final user = UserModel.fromJson(response['user']);
-          emit(AuthAuthenticated(user: user, token: token));
-        } else {
-          // Token is invalid, clear stored data
-          await _clearStoredAuthData();
-          emit(AuthUnauthenticated());
-        }
+      final response = await _apiService.getUserProfile();
+      
+      if (response['success']) {
+        final user = UserModel.fromJson(response['user']);
+        emit(AuthAuthenticated(
+          user: user,
+          token: _apiService.authToken!,
+        ));
       } else {
+        await _apiService.logout();
         emit(AuthUnauthenticated());
       }
     } catch (e) {
-      emit(AuthError('Authentication check failed: ${e.toString()}'));
+      emit(AuthError('Failed to check auth status: ${e.toString()}'));
     }
   }
 
@@ -153,13 +109,18 @@ class AuthCubit extends Cubit<AuthState> {
     try {
       emit(AuthLoading());
 
-      final response = await _apiService.sendOtp(phone);
+      // TEMPORARY: Skip OTP check for testing
+      // Simulate successful OTP send
+      await Future.delayed(const Duration(seconds: 1));
+      emit(OtpSentState(phone));
       
-      if (response['success']) {
-        emit(OtpSentState(phone));
-      } else {
-        emit(AuthError(response['error'] ?? 'Failed to send OTP'));
-      }
+      // Original OTP code (commented out for now):
+      // final response = await _apiService.sendOtp(phone);
+      // if (response['success']) {
+      //   emit(OtpSentState(phone));
+      // } else {
+      //   emit(AuthError(response['error'] ?? 'Failed to send OTP'));
+      // }
     } catch (e) {
       emit(AuthError('Failed to send OTP: ${e.toString()}'));
     }
@@ -169,76 +130,70 @@ class AuthCubit extends Cubit<AuthState> {
     required String phone,
     required String otp,
     String? name,
+    String? email,
   }) async {
     try {
       emit(OtpVerifyingState());
 
-      final response = await _apiService.verifyOtp(
+      // TEMPORARY: Skip OTP verification for testing
+      // Simulate successful verification
+      await Future.delayed(const Duration(seconds: 1));
+      
+      // Create a mock user for testing
+      final mockUser = UserModel(
+        id: 'test-user-id',
+        name: name ?? 'Test User',
         phone: phone,
-        otp: otp,
-        name: name,
+        email: email,
+        role: 'customer',
+        isVerified: true,
+        isActive: true,
+        createdAt: DateTime.now(),
       );
-
-      if (response['success']) {
-        final user = UserModel.fromJson(response['user']);
-        final token = response['token'];
-
-        // Store auth data
-        await _storeAuthData(token, user);
-
-        emit(OtpVerifiedState(user: user, token: token));
-      } else {
-        emit(AuthError(response['error'] ?? 'Failed to verify OTP'));
-      }
+      
+      // Mock token
+      const mockToken = 'mock-jwt-token-for-testing';
+      await _apiService.setAuthToken(mockToken);
+      // Move app into Authenticated state so routing uses provider tree
+      emit(AuthAuthenticated(user: mockUser, token: mockToken));
+      
+      // Original OTP verification code (commented out for now):
+      // final response = await _apiService.verifyOtp(
+      //   phone: phone,
+      //   otp: otp,
+      //   name: name,
+      //   email: email,
+      // );
+      // 
+      // if (response['success']) {
+      //   final user = UserModel.fromJson(response['user']);
+      //   emit(OtpVerifiedState(
+      //     user: user,
+      //     token: response['token'],
+      //   ));
+      // } else {
+      //   emit(AuthError(response['error'] ?? 'Failed to verify OTP'));
+      // }
     } catch (e) {
       emit(AuthError('Failed to verify OTP: ${e.toString()}'));
     }
   }
 
-  Future<void> logout() async {
-    try {
-      emit(AuthLoading());
-
-      await _apiService.logout();
-      await _clearStoredAuthData();
-
-      emit(AuthUnauthenticated());
-    } catch (e) {
-      // Even if logout fails on server, clear local data
-      await _clearStoredAuthData();
-      emit(AuthUnauthenticated());
-    }
-  }
-
   Future<void> updateProfile({
-    String? name,
+    required String name,
     String? email,
   }) async {
     try {
-      final currentState = state;
-      if (currentState is! AuthAuthenticated) {
-        emit(const AuthError('User not authenticated'));
-        return;
-      }
-
       emit(AuthLoading());
 
       final response = await _apiService.updateProfile(
         name: name,
         email: email,
       );
-
+      
       if (response['success']) {
-        // Update the user data in the current state
-        final updatedUser = currentState.user.copyWith(
-          name: name ?? currentState.user.name,
-          email: email ?? currentState.user.email,
-        );
-
-        // Store updated user data
-        await _storeAuthData(currentState.token, updatedUser);
-
-        emit(AuthAuthenticated(user: updatedUser, token: currentState.token));
+        final user = UserModel.fromJson(response['user']);
+        emit(ProfileUpdatedState(user));
       } else {
         emit(AuthError(response['error'] ?? 'Failed to update profile'));
       }
@@ -247,15 +202,28 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
-  Future<void> _storeAuthData(String token, UserModel user) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(AppConstants.tokenKey, token);
-    await prefs.setString(AppConstants.userKey, user.toJson().toString());
+  Future<void> logout() async {
+    try {
+      await _apiService.logout();
+      emit(AuthUnauthenticated());
+    } catch (e) {
+      emit(AuthError('Failed to logout: ${e.toString()}'));
+    }
   }
 
-  Future<void> _clearStoredAuthData() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(AppConstants.tokenKey);
-    await prefs.remove(AppConstants.userKey);
+  // TEST/DEV: Skip OTP and authenticate directly
+  Future<void> skipToAuthenticated({String name = 'Test User', String phone = '+994500000000'}) async {
+    final mockUser = UserModel(
+      id: 'test-user-id',
+      name: name,
+      phone: phone,
+      role: 'customer',
+      isVerified: true,
+      isActive: true,
+      createdAt: DateTime.now(),
+    );
+    const mockToken = 'mock-jwt-token-for-testing';
+    await _apiService.setAuthToken(mockToken);
+    emit(AuthAuthenticated(user: mockUser, token: mockToken));
   }
 }
