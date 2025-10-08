@@ -1,7 +1,7 @@
 class AppConstants {
   // API Configuration
-  static const String baseUrl = 'http://65.21.25.57:14122/api';
-  static const String socketUrl = 'http://65.21.25.57:14122';
+  static const String baseUrl = 'http://81.162.55.58/api';
+  static const String socketUrl = 'http://81.162.55.58';
 
   // API Endpoints
   static const String sendOtpEndpoint = '/auth/send-otp';
@@ -11,11 +11,11 @@ class AppConstants {
   static const String updateProfileEndpoint = '/auth/profile';
   static const String fcmTokenEndpoint = '/auth/fcm-token';
   static const String logoutEndpoint = '/auth/logout';
-  
+
   // Orders Endpoints
   static const String ordersEndpoint = '/orders';
   static const String orderStatusEndpoint = '/orders';
-  
+
   // Socket Events
   static const String socketNewOrderEvent = 'new_order_available';
   static const String socketOrderStatusEvent = 'order_status_changed';
@@ -50,11 +50,11 @@ class AppConstants {
   // App Settings
   static const String appName = 'Ayiq Sürücü Customer';
   static const String appVersion = '1.0.0';
-  
+
   // Map Settings
   static const double mapZoom = 15.0;
   static const double mapZoomDriver = 18.0;
-  
+
   // Timeouts
   static const int apiTimeout = 30000; // 30 seconds
   static const int socketTimeout = 10000; // 10 seconds
