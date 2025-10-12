@@ -2,6 +2,7 @@ const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 const User = require('./User');
 const Driver = require('./Driver');
+const Setting = require('./Setting');
 
 const Order = sequelize.define('Order', {
   id: {
@@ -12,15 +13,7 @@ const Order = sequelize.define('Order', {
   orderNumber: {
     type: DataTypes.STRING,
     allowNull: false,
-    unique: true,
-    defaultValue: () => {
-      const date = new Date();
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-      return `ORD-${year}${month}${day}-${random}`;
-    }
+    unique: true
   },
   customerId: {
     type: DataTypes.UUID,
@@ -120,6 +113,17 @@ const Order = sequelize.define('Order', {
         // CustomerId yoxla
         if (!order.customerId) {
           throw new Error('customerId is required');
+        }
+
+        // Generate order number if not provided
+        if (!order.orderNumber) {
+          const prefix = await Setting.getValue('order_prefix', 'ORD');
+          const date = new Date();
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+          order.orderNumber = `${prefix}-${year}${month}${day}-${random}`;
         }
         
         console.log('Creating order with:', {

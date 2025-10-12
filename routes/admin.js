@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const { auth, authorize } = require('../middleware/auth');
 const { sequelize } = require('../config/database');
+const Setting = require('../models/Setting');
 
 // Middleware to check if user has admin privileges
 const requireAdmin = (req, res, next) => {
@@ -324,6 +325,113 @@ router.delete('/users/:id', auth, requireAdmin, async (req, res) => {
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
     console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get all settings
+router.get('/settings', auth, requireAdmin, async (req, res) => {
+  try {
+    const settings = await Setting.findAll({
+      order: [['key', 'ASC']]
+    });
+    
+    res.json({ settings });
+  } catch (error) {
+    console.error('Error fetching settings:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get a specific setting by key
+router.get('/settings/:key', auth, requireAdmin, async (req, res) => {
+  try {
+    const { key } = req.params;
+    const value = await Setting.getValue(key);
+    
+    if (value === null) {
+      return res.status(404).json({ error: 'Setting not found' });
+    }
+    
+    res.json({ key, value });
+  } catch (error) {
+    console.error('Error fetching setting:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update a setting
+router.put('/settings/:key', auth, requireAdmin, [
+  body('value').notEmpty().withMessage('Value is required'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { key } = req.params;
+    const { value, description } = req.body;
+
+    await Setting.setValue(key, value, description);
+
+    res.json({ 
+      message: 'Setting updated successfully',
+      key,
+      value
+    });
+  } catch (error) {
+    console.error('Error updating setting:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Create a new setting
+router.post('/settings', auth, requireAdmin, [
+  body('key').notEmpty().withMessage('Key is required'),
+  body('value').notEmpty().withMessage('Value is required'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { key, value, description } = req.body;
+
+    // Check if setting already exists
+    const existingSetting = await Setting.findOne({ where: { key } });
+    if (existingSetting) {
+      return res.status(400).json({ error: 'Setting with this key already exists' });
+    }
+
+    const setting = await Setting.create({ key, value, description });
+
+    res.status(201).json({ 
+      message: 'Setting created successfully',
+      setting
+    });
+  } catch (error) {
+    console.error('Error creating setting:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete a setting
+router.delete('/settings/:key', auth, requireAdmin, async (req, res) => {
+  try {
+    const { key } = req.params;
+
+    const setting = await Setting.findOne({ where: { key } });
+    if (!setting) {
+      return res.status(404).json({ error: 'Setting not found' });
+    }
+
+    await setting.destroy();
+
+    res.json({ message: 'Setting deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting setting:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

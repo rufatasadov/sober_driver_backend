@@ -4,6 +4,7 @@ const { auth, authorize } = require('../middleware/auth');
 const Order = require('../models/Order');
 const Driver = require('../models/Driver');
 const User = require('../models/User'); // Added for population
+const Setting = require('../models/Setting');
 const { 
   calculateDistance, 
   calculateFare, 
@@ -85,13 +86,14 @@ router.post('/', auth, [
     const fare = calculateFare(distance, estimatedTime);
 
     // Order number yarat
-    const generateOrderNumber = () => {
+    const generateOrderNumber = async () => {
+      const prefix = await Setting.getValue('order_prefix', 'ORD');
       const date = new Date();
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
       const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-      return `ORD-${year}${month}${day}-${random}`;
+      return `${prefix}-${year}${month}${day}-${random}`;
     };
 
     // Yeni sifariş yarat
@@ -102,7 +104,7 @@ router.post('/', auth, [
     });
     
     const orderData = {
-      orderNumber: generateOrderNumber(), // Manual order number yarat
+      orderNumber: await generateOrderNumber(), // Manual order number yarat
       customerId: customerId, // Müəyyən edilmiş müştəri ID-si
       pickup: {
         location: {
