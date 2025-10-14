@@ -336,6 +336,13 @@ router.put('/orders/:orderId', auth, authorize('admin', 'operator', 'dispatcher'
       return res.status(404).json({ error: 'Sifariş tapılmadı' });
     }
 
+    // Restrict operator from editing if order is already accepted by driver or beyond
+    const userRole = (req.user && (req.user.role?.name || req.user.role)) || 'operator';
+    const lockedStatuses = ['accepted', 'driver_assigned', 'driver_arrived', 'in_progress', 'completed'];
+    if (userRole === 'operator' && lockedStatuses.includes(order.status)) {
+      return res.status(403).json({ error: 'Operator bu statusda sifarişi redaktə edə bilməz' });
+    }
+
     const updates = {};
     if (pickup) {
       updates.pickup = pickup;
