@@ -94,6 +94,7 @@ class DashboardCubit extends Cubit<DashboardState> {
           'todayEarnings': _safeParseDouble(earningsMap['netEarnings']) ?? 0.0,
           'totalOrders': _safeParseInt(earningsMap['totalOrders']) ?? 0,
           'totalEarnings': _safeParseDouble(earningsMap['netEarnings']) ?? 0.0,
+          'balance': _safeParseDouble(earningsMap['balance']) ?? 0.0,
           'isOnline': _safeParseBool(statusMap['isOnline']) ?? true,
           'isAvailable': _safeParseBool(statusMap['isAvailable']) ?? true,
         };

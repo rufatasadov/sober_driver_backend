@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/localization/language_provider.dart';
 import '../cubit/orders_cubit.dart';
 
 class AssignedOrderNotificationWidget extends StatefulWidget {
@@ -132,7 +134,9 @@ class _AssignedOrderNotificationWidgetState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Yeni Sifariş Təyin Edildi',
+                          Provider.of<LanguageProvider>(
+                            context,
+                          ).getString('newOrderAssigned'),
                           style: AppTheme.heading3.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -140,7 +144,9 @@ class _AssignedOrderNotificationWidgetState
                         ),
                         SizedBox(height: 2.h),
                         Text(
-                          'Operator tərəfindən sizə təyin edildi',
+                          Provider.of<LanguageProvider>(
+                            context,
+                          ).getString('assignedByOperator'),
                           style: AppTheme.bodySmall.copyWith(
                             color: Colors.white.withOpacity(0.9),
                           ),
@@ -172,7 +178,7 @@ class _AssignedOrderNotificationWidgetState
                       ),
                       SizedBox(width: 8.w),
                       Text(
-                        'Sifariş №${widget.order.orderNumber}',
+                        '${Provider.of<LanguageProvider>(context).getString('orderNumber')}${widget.order.orderNumber}',
                         style: AppTheme.bodyMedium.copyWith(
                           color: AppColors.textPrimary,
                           fontWeight: FontWeight.w600,
@@ -194,7 +200,10 @@ class _AssignedOrderNotificationWidgetState
                       SizedBox(width: 8.w),
                       Expanded(
                         child: Text(
-                          widget.order.pickup?['address'] ?? 'Pickup location',
+                          widget.order.pickup['address'] ??
+                              Provider.of<LanguageProvider>(
+                                context,
+                              ).getString('pickupLocation'),
                           style: AppTheme.bodyMedium.copyWith(
                             color: AppColors.textPrimary,
                           ),
@@ -212,7 +221,10 @@ class _AssignedOrderNotificationWidgetState
                       SizedBox(width: 8.w),
                       Expanded(
                         child: Text(
-                          widget.order.destination?['address'] ?? 'Destination',
+                          widget.order.destination['address'] ??
+                              Provider.of<LanguageProvider>(
+                                context,
+                              ).getString('destination'),
                           style: AppTheme.bodyMedium.copyWith(
                             color: AppColors.textPrimary,
                           ),
@@ -259,7 +271,9 @@ class _AssignedOrderNotificationWidgetState
                             ),
                           ),
                           child: Text(
-                            'Rədd Et',
+                            Provider.of<LanguageProvider>(
+                              context,
+                            ).getString('reject'),
                             style: AppTheme.bodyMedium.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
@@ -279,7 +293,9 @@ class _AssignedOrderNotificationWidgetState
                             ),
                           ),
                           child: Text(
-                            'Qəbul Et',
+                            Provider.of<LanguageProvider>(
+                              context,
+                            ).getString('accept'),
                             style: AppTheme.bodyMedium.copyWith(
                               fontWeight: FontWeight.w600,
                             ),

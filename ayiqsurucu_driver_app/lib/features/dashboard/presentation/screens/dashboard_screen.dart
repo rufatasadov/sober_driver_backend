@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/localization/language_provider.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../orders/presentation/screens/orders_screen.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
@@ -585,7 +587,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Salam, ${user?['name'] ?? 'Sürücü'}! 👋',
+                      Provider.of<LanguageProvider>(context)
+                          .getString('welcomeDriver')
+                          .replaceAll(
+                            '{name}',
+                            user?['name'] ??
+                                Provider.of<LanguageProvider>(
+                                  context,
+                                ).getString('driver'),
+                          ),
                       style: AppTheme.heading2.copyWith(
                         fontSize: 22.sp,
                         fontWeight: FontWeight.bold,
@@ -594,8 +604,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     SizedBox(height: 4.h),
                     Text(
                       isOnline
-                          ? 'Onlayn və hazırsınız'
-                          : 'Hazır olduğunuzda işə başlaya bilərsiniz',
+                          ? Provider.of<LanguageProvider>(
+                            context,
+                          ).getString('onlineReady')
+                          : Provider.of<LanguageProvider>(
+                            context,
+                          ).getString('readyToStart'),
                       style: AppTheme.bodyMedium.copyWith(
                         color: AppColors.textSecondary,
                       ),
@@ -1560,7 +1574,9 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Ünvan məlumatları kopyalandı'),
+            content: Text(
+              Provider.of<LanguageProvider>(context).getString('addressCopied'),
+            ),
             backgroundColor: AppColors.success,
             duration: const Duration(seconds: 2),
           ),
@@ -1571,7 +1587,9 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Mətn paylaşma xətası: $e'),
+            content: Text(
+              '${Provider.of<LanguageProvider>(context).getString('textShareError')}: $e',
+            ),
             backgroundColor: AppColors.error,
           ),
         );
@@ -1586,7 +1604,7 @@ class _HomeScreenState extends State<HomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Bugünkü Statistikalar',
+            Provider.of<LanguageProvider>(context).getString('todayStats'),
             style: AppTheme.heading3.copyWith(fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 16.h),
@@ -1594,7 +1612,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Expanded(
                 child: _buildModernStatCard(
-                  'Sifarişlər',
+                  Provider.of<LanguageProvider>(context).getString('orders'),
                   '${stats['todayOrders'] ?? 0}',
                   Icons.assignment_rounded,
                   AppColors.info,
@@ -1603,7 +1621,7 @@ class _HomeScreenState extends State<HomeScreen> {
               SizedBox(width: 12.w),
               Expanded(
                 child: _buildModernStatCard(
-                  'Qazanc',
+                  Provider.of<LanguageProvider>(context).getString('earnings'),
                   '${(stats['todayEarnings'] ?? 0.0).toStringAsFixed(2)} ₼',
                   Icons.trending_up_rounded,
                   AppColors.success,
@@ -1878,7 +1896,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       SizedBox(width: 6.w),
                       Text(
-                        'Balans',
+                        Provider.of<LanguageProvider>(
+                          context,
+                        ).getString('balance'),
                         style: AppTheme.bodySmall.copyWith(
                           color: AppColors.primary,
                           fontSize: 12.sp,
@@ -1890,7 +1910,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   SizedBox(height: 6.h),
                   Text(
-                    '${stats['totalEarnings']?.toStringAsFixed(2) ?? '0.00'} ₼',
+                    '${stats['balance']?.toStringAsFixed(2) ?? '0.00'} ₼',
                     style: AppTheme.heading3.copyWith(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.bold,
@@ -1900,7 +1920,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   SizedBox(height: 2.h),
                   Text(
-                    'Bugün: ${(stats['todayEarnings'] ?? 0.0).toStringAsFixed(2)} ₼',
+                    '${Provider.of<LanguageProvider>(context).getString('today')}: ${(stats['todayEarnings'] ?? 0.0).toStringAsFixed(2)} ₼',
                     style: AppTheme.bodySmall.copyWith(
                       color: AppColors.textSecondary,
                       fontSize: 11.sp,

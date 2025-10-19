@@ -613,6 +613,7 @@ router.get('/earnings', auth, authorize('driver'), async (req, res) => {
         totalEarnings,
         commission,
         netEarnings,
+        balance: parseFloat(driver.balance), // Add driver balance
         orders: completedOrders.map(order => ({
           id: order.id,
           orderNumber: order.orderNumber,

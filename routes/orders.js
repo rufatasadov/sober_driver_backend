@@ -463,6 +463,22 @@ router.patch('/:orderId/status', auth, [
       const driver = await Driver.findByPk(order.driverId);
       if (driver) {
         driver.isAvailable = true;
+        
+        // Deduct 10% of order fare from driver balance when order is completed
+        if (status === 'completed' && order.fare) {
+          const deductionAmount = parseFloat(order.fare) * 0.10; // 10% of fare
+          const currentBalance = parseFloat(driver.balance);
+          const newBalance = currentBalance - deductionAmount;
+          
+          // Ensure balance doesn't go below 0
+          if (newBalance >= 0) {
+            driver.balance = newBalance;
+            console.log(`Driver ${driver.id} balance deducted: ${deductionAmount} AZN (10% of ${order.fare} AZN fare). New balance: ${newBalance} AZN`);
+          } else {
+            console.log(`Driver ${driver.id} balance would go negative. Deduction skipped. Current balance: ${currentBalance} AZN, would deduct: ${deductionAmount} AZN`);
+          }
+        }
+        
         await driver.save();
         console.log(`Driver ${driver.id} freed up after order ${order.id} ${status}`);
       }

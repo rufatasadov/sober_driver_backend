@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/localization/language_provider.dart';
 import '../cubit/orders_cubit.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
@@ -157,8 +159,14 @@ class _ActiveOrderWidgetState extends State<ActiveOrderWidget> {
               Expanded(
                 child: _buildCompactLocation(
                   icon: Icons.my_location,
-                  label: 'Götürmə',
-                  address: widget.order.pickup['address'] ?? 'Ünvan yoxdur',
+                  label: Provider.of<LanguageProvider>(
+                    context,
+                  ).getString('pickup'),
+                  address:
+                      widget.order.pickup['address'] ??
+                      Provider.of<LanguageProvider>(
+                        context,
+                      ).getString('noAddress'),
                   color: AppColors.success,
                 ),
               ),
@@ -167,9 +175,14 @@ class _ActiveOrderWidgetState extends State<ActiveOrderWidget> {
               Expanded(
                 child: _buildCompactLocation(
                   icon: Icons.location_on,
-                  label: 'Təhvil',
+                  label: Provider.of<LanguageProvider>(
+                    context,
+                  ).getString('delivery'),
                   address:
-                      widget.order.destination['address'] ?? 'Ünvan yoxdur',
+                      widget.order.destination['address'] ??
+                      Provider.of<LanguageProvider>(
+                        context,
+                      ).getString('noAddress'),
                   color: AppColors.primary,
                 ),
               ),
@@ -266,7 +279,7 @@ class _ActiveOrderWidgetState extends State<ActiveOrderWidget> {
                     minimumSize: Size.zero,
                   ),
                   child: Text(
-                    'Ətraflı',
+                    Provider.of<LanguageProvider>(context).getString('details'),
                     style: AppTheme.caption.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -395,15 +408,23 @@ class _ActiveOrderWidgetState extends State<ActiveOrderWidget> {
   }
 
   String _getStatusText(String status) {
+    final languageProvider = Provider.of<LanguageProvider>(
+      context,
+      listen: false,
+    );
     switch (status) {
       case 'accepted':
-        return 'Qəbul Edildi';
+        return languageProvider.getString('accepted');
       case 'driver_assigned':
-        return 'Sürücü Təyin Edildi';
+        return languageProvider.getString('driverAssigned');
       case 'driver_arrived':
-        return 'Çatdı';
+        return languageProvider.getString('driverArrived');
       case 'in_progress':
-        return 'Gedişdə';
+        return languageProvider.getString('inProgress');
+      case 'completed':
+        return languageProvider.getString('completed');
+      case 'cancelled':
+        return languageProvider.getString('cancelled');
       default:
         return status;
     }

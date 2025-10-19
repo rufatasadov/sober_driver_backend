@@ -67,6 +67,11 @@ const Driver = sequelize.define('Driver', {
     type: DataTypes.DECIMAL(5, 2),
     defaultValue: 20.00
   },
+  balance: {
+    type: DataTypes.DECIMAL(10, 2),
+    defaultValue: 0.00,
+    allowNull: false
+  },
   lastActive: {
     type: DataTypes.DATE,
     allowNull: true
