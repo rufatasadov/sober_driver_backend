@@ -12,6 +12,7 @@ import '../../../profile/presentation/screens/earnings_screen.dart';
 import '../../../notifications/presentation/screens/notifications_screen.dart';
 import '../../../orders/presentation/widgets/new_order_notification_widget.dart';
 import '../../../orders/presentation/widgets/broadcast_order_notification_widget.dart';
+import '../../../orders/presentation/widgets/assigned_order_notification_widget.dart';
 import '../../../orders/presentation/screens/order_details_screen.dart';
 import '../../../orders/presentation/cubit/orders_cubit.dart';
 import '../cubit/dashboard_cubit.dart';
@@ -187,6 +188,8 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _showNewOrderNotification = false;
   Order? _broadcastOrder;
   bool _showBroadcastOrderNotification = false;
+  Order? _assignedOrder;
+  bool _showAssignedOrderNotification = false;
 
   @override
   void initState() {
@@ -194,6 +197,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Listen for new orders
     _listenForNewOrders();
     _listenForBroadcastOrders();
+    _listenForAssignedOrders();
     // Start location tracking
     _startLocationTracking();
     // Check and auto-set online status
@@ -213,6 +217,14 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final ordersCubit = context.read<OrdersCubit>();
       ordersCubit.setBroadcastOrderCallback(_showBroadcastOrder);
+    });
+  }
+
+  void _listenForAssignedOrders() {
+    // Set callback for assigned order notifications
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ordersCubit = context.read<OrdersCubit>();
+      ordersCubit.setOrderAssignedCallback(_showAssignedOrder);
     });
   }
 
@@ -284,6 +296,20 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  void _showAssignedOrder(Order order) {
+    setState(() {
+      _assignedOrder = order;
+      _showAssignedOrderNotification = true;
+    });
+  }
+
+  void _dismissAssignedOrder() {
+    setState(() {
+      _showAssignedOrderNotification = false;
+      _assignedOrder = null;
+    });
+  }
+
   Future<void> _acceptOrder(Order order) async {
     final ordersCubit = context.read<OrdersCubit>();
     final dashboardCubit = context.read<DashboardCubit>();
@@ -299,6 +325,7 @@ class _HomeScreenState extends State<HomeScreen> {
         );
         _dismissNewOrder();
         _dismissBroadcastOrder();
+        _dismissAssignedOrder();
 
         // Check and auto-set online status after accepting order
         await dashboardCubit.checkAndAutoSetOnlineStatus(ordersCubit);
@@ -492,6 +519,22 @@ class _HomeScreenState extends State<HomeScreen> {
                     onAccept: () => _acceptOrder(_broadcastOrder!),
                     onReject: () => _rejectOrder(_broadcastOrder!),
                     onDismiss: _dismissBroadcastOrder,
+                  ),
+                ),
+
+              // Assigned Order Notification Overlay
+              if (_showAssignedOrderNotification && _assignedOrder != null)
+                Positioned(
+                  top:
+                      (_showNewOrderNotification ? 200.h : 0) +
+                      (_showBroadcastOrderNotification ? 200.h : 0),
+                  left: 0,
+                  right: 0,
+                  child: AssignedOrderNotificationWidget(
+                    order: _assignedOrder!,
+                    onAccept: () => _acceptOrder(_assignedOrder!),
+                    onReject: () => _rejectOrder(_assignedOrder!),
+                    onDismiss: _dismissAssignedOrder,
                   ),
                 ),
             ],

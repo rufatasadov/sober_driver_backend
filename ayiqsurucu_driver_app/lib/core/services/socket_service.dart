@@ -22,6 +22,8 @@ class SocketService {
       StreamController<Map<String, dynamic>>.broadcast();
   final StreamController<Map<String, dynamic>> _orderAcceptedByOtherController =
       StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<Map<String, dynamic>> _orderAssignedController =
+      StreamController<Map<String, dynamic>>.broadcast();
 
   // Streams
   Stream<Map<String, dynamic>> get newOrderStream => _newOrderController.stream;
@@ -33,6 +35,8 @@ class SocketService {
       _broadcastOrderController.stream;
   Stream<Map<String, dynamic>> get orderAcceptedByOtherStream =>
       _orderAcceptedByOtherController.stream;
+  Stream<Map<String, dynamic>> get orderAssignedStream =>
+      _orderAssignedController.stream;
 
   bool get isConnected => _isConnected;
   IO.Socket? get socket => _socket;
@@ -116,8 +120,8 @@ class SocketService {
     });
 
     _socket!.on('new_order_assigned', (data) {
-      print('📦 New order assigned: $data');
-      _newOrderController.add(Map<String, dynamic>.from(data));
+      print('📦 New order assigned by operator: $data');
+      _orderAssignedController.add(Map<String, dynamic>.from(data));
     });
 
     _socket!.on('new_order_available', (data) {
@@ -264,6 +268,7 @@ class SocketService {
     _driverLocationController.close();
     _broadcastOrderController.close();
     _orderAcceptedByOtherController.close();
+    _orderAssignedController.close();
   }
 
   // Check connection status

@@ -153,6 +153,9 @@ class OrdersCubit extends Cubit<OrdersState> {
   // Callback for new order notifications
   Function(Order)? _newOrderCallback;
 
+  // Callback for order assigned notifications
+  Function(Order)? _orderAssignedCallback;
+
   // Callback for broadcast order notifications
   Function(Order)? _broadcastOrderCallback;
 
@@ -369,16 +372,51 @@ class OrdersCubit extends Cubit<OrdersState> {
 
   // Complete order
   Future<bool> completeOrder(String orderId) async {
-    return await updateOrderStatus(orderId: orderId, status: 'completed');
+    try {
+      final success = await updateOrderStatus(
+        orderId: orderId,
+        status: 'completed',
+      );
+
+      if (success) {
+        // Update driver status to available after completing order
+        final socketService = SocketService();
+        socketService.updateStatus(isOnline: true, isAvailable: true);
+        print(
+          'OrdersCubit: Driver status updated to available after completing order',
+        );
+      }
+
+      return success;
+    } catch (e) {
+      print('OrdersCubit: Error completing order: $e');
+      return false;
+    }
   }
 
   // Cancel order
   Future<bool> cancelOrder(String orderId, {String? reason}) async {
-    return await updateOrderStatus(
-      orderId: orderId,
-      status: 'cancelled',
-      notes: reason,
-    );
+    try {
+      final success = await updateOrderStatus(
+        orderId: orderId,
+        status: 'cancelled',
+        notes: reason,
+      );
+
+      if (success) {
+        // Update driver status to available after cancelling order
+        final socketService = SocketService();
+        socketService.updateStatus(isOnline: true, isAvailable: true);
+        print(
+          'OrdersCubit: Driver status updated to available after cancelling order',
+        );
+      }
+
+      return success;
+    } catch (e) {
+      print('OrdersCubit: Error cancelling order: $e');
+      return false;
+    }
   }
 
   // Get order by ID
@@ -410,6 +448,10 @@ class OrdersCubit extends Cubit<OrdersState> {
   }
 
   // Set callback for broadcast order notifications
+  void setOrderAssignedCallback(Function(Order) callback) {
+    _orderAssignedCallback = callback;
+  }
+
   void setBroadcastOrderCallback(Function(Order) callback) {
     _broadcastOrderCallback = callback;
   }
@@ -428,6 +470,12 @@ class OrdersCubit extends Cubit<OrdersState> {
     _socketService.broadcastOrderStream.listen((orderData) {
       print('OrdersCubit: Broadcast order received via socket: $orderData');
       _handleBroadcastOrder(orderData);
+    });
+
+    // Listen for orders assigned by operator
+    _socketService.orderAssignedStream.listen((orderData) {
+      print('OrdersCubit: Order assigned by operator: $orderData');
+      _handleOrderAssigned(orderData);
     });
 
     // Listen for orders accepted by other drivers
@@ -484,6 +532,52 @@ class OrdersCubit extends Cubit<OrdersState> {
       }
     } catch (e) {
       print('OrdersCubit: Error handling new order: $e');
+    }
+  }
+
+  // Handle order assigned by operator
+  void _handleOrderAssigned(Map<String, dynamic> orderData) {
+    try {
+      final assignedOrder = Order.fromJson(orderData);
+
+      // Call the callback to show notification
+      if (_orderAssignedCallback != null) {
+        print(
+          'OrdersCubit: Calling order assigned callback for: ${assignedOrder.orderNumber}',
+        );
+        _orderAssignedCallback!(assignedOrder);
+      }
+
+      if (state is OrdersLoaded) {
+        final currentState = state as OrdersLoaded;
+        final updatedActiveOrders = List<Order>.from(currentState.activeOrders);
+
+        // Check if order already exists
+        final existingIndex = updatedActiveOrders.indexWhere(
+          (order) => order.id == assignedOrder.id,
+        );
+        if (existingIndex == -1) {
+          // Add new assigned order to active orders
+          updatedActiveOrders.add(assignedOrder);
+
+          emit(
+            OrdersLoaded(
+              pendingOrders: currentState.pendingOrders,
+              activeOrders: updatedActiveOrders,
+              completedOrders: currentState.completedOrders,
+            ),
+          );
+
+          print(
+            'OrdersCubit: Assigned order added to active orders: ${assignedOrder.orderNumber}',
+          );
+        }
+      } else {
+        // If not loaded, refresh orders
+        getDriverOrders();
+      }
+    } catch (e) {
+      print('OrdersCubit: Error handling assigned order: $e');
     }
   }
 

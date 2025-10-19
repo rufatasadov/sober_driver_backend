@@ -458,6 +458,16 @@ router.patch('/:orderId/status', auth, [
       notes: notes || order.notes
     });
 
+    // If status moved to completed/cancelled -> free up driver
+    if ((status === 'completed' || status === 'cancelled') && order.driverId) {
+      const driver = await Driver.findByPk(order.driverId);
+      if (driver) {
+        driver.isAvailable = true;
+        await driver.save();
+        console.log(`Driver ${driver.id} freed up after order ${order.id} ${status}`);
+      }
+    }
+
     res.json({
       message: 'Status uğurla yeniləndi',
       order: {
@@ -512,6 +522,16 @@ router.post('/:orderId/cancel', auth, [
       cancellationReason: reason,
       timeline
     });
+
+    // Free up driver if order was cancelled
+    if (order.driverId) {
+      const driver = await Driver.findByPk(order.driverId);
+      if (driver) {
+        driver.isAvailable = true;
+        await driver.save();
+        console.log(`Driver ${driver.id} freed up after order ${order.id} cancelled`);
+      }
+    }
 
     res.json({
       message: 'Sifariş uğurla ləğv edildi',
