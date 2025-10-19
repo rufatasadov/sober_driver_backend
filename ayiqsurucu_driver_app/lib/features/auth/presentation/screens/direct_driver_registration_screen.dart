@@ -24,11 +24,6 @@ class _DirectDriverRegistrationScreenState
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _licenseController = TextEditingController();
-  final _makeController = TextEditingController();
-  final _modelController = TextEditingController();
-  final _yearController = TextEditingController();
-  final _colorController = TextEditingController();
-  final _plateController = TextEditingController();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -37,7 +32,6 @@ class _DirectDriverRegistrationScreenState
   @override
   void initState() {
     super.initState();
-    _yearController.text = DateTime.now().year.toString();
   }
 
   @override
@@ -48,11 +42,6 @@ class _DirectDriverRegistrationScreenState
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _licenseController.dispose();
-    _makeController.dispose();
-    _modelController.dispose();
-    _yearController.dispose();
-    _colorController.dispose();
-    _plateController.dispose();
     super.dispose();
   }
 
@@ -72,18 +61,9 @@ class _DirectDriverRegistrationScreenState
       );
 
       if (userSuccess) {
-        // Then register as driver
-        final vehicleInfo = {
-          'make': _makeController.text.trim(),
-          'model': _modelController.text.trim(),
-          'year': int.parse(_yearController.text.trim()),
-          'color': _colorController.text.trim(),
-          'plateNumber': _plateController.text.trim(),
-        };
-
+        // Then register as driver (without vehicle info)
         final driverSuccess = await authCubit.registerDriver(
           licenseNumber: _licenseController.text.trim(),
-          vehicleInfo: vehicleInfo,
         );
 
         if (driverSuccess) {
@@ -130,40 +110,6 @@ class _DirectDriverRegistrationScreenState
             ],
           ),
     );
-  }
-
-  Future<void> _selectYear() async {
-    final currentYear = DateTime.now().year;
-    final years = List.generate(30, (index) => currentYear - index);
-
-    final selectedYear = await showDialog<int>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('İl seçin'),
-            content: SizedBox(
-              width: double.maxFinite,
-              height: 300.h,
-              child: ListView.builder(
-                itemCount: years.length,
-                itemBuilder: (context, index) {
-                  final year = years[index];
-                  return ListTile(
-                    title: Text(year.toString()),
-                    selected: year.toString() == _yearController.text,
-                    onTap: () => Navigator.pop(context, year),
-                  );
-                },
-              ),
-            ),
-          ),
-    );
-
-    if (selectedYear != null) {
-      setState(() {
-        _yearController.text = selectedYear.toString();
-      });
-    }
   }
 
   @override

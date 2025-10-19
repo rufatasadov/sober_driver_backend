@@ -11,12 +11,7 @@ const router = express.Router();
 
 // Sürücü qeydiyyatı
 router.post('/register', auth, [
-  body('licenseNumber').notEmpty().withMessage('Sürücülük vəsiqəsi nömrəsi tələb olunur'),
-  body('vehicleInfo.make').optional().notEmpty().withMessage('Avtomobil markası boş ola bilməz'),
-  body('vehicleInfo.model').optional().notEmpty().withMessage('Avtomobil modeli boş ola bilməz'),
-  body('vehicleInfo.year').optional().isInt({ min: 1990, max: new Date().getFullYear() }).withMessage('Düzgün il daxil edin'),
-  body('vehicleInfo.color').optional().notEmpty().withMessage('Avtomobil rəngi boş ola bilməz'),
-  body('vehicleInfo.plateNumber').optional().notEmpty().withMessage('Nömrə nişanı boş ola bilməz')
+  body('licenseNumber').notEmpty().withMessage('Sürücülük vəsiqəsi nömrəsi tələb olunur')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
