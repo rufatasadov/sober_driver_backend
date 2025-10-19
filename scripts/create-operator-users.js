@@ -1,4 +1,4 @@
-const { Sequelize } = require('sequelize');
+const { Sequelize, Op } = require('sequelize');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
@@ -87,18 +87,20 @@ async function createOperatorUsers() {
 
     for (const userData of users) {
       try {
-        // Check if user already exists
-        const existingUser = await User.findOne({
-          where: {
-            $or: [
-              { username: userData.username },
-              { phone: userData.phone },
-              { email: userData.email }
-            ]
-          }
+        // Check if user already exists (simplified approach)
+        const existingUserByUsername = await User.findOne({
+          where: { username: userData.username }
+        });
+        
+        const existingUserByPhone = await User.findOne({
+          where: { phone: userData.phone }
+        });
+        
+        const existingUserByEmail = await User.findOne({
+          where: { email: userData.email }
         });
 
-        if (existingUser) {
+        if (existingUserByUsername || existingUserByPhone || existingUserByEmail) {
           console.log(`⚠️  User "${userData.username}" already exists. Skipping...`);
           continue;
         }
