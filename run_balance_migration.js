@@ -6,7 +6,7 @@ console.log('🔄 Running balance migration for drivers...');
 
 try {
   // Read the migration SQL file
-  const migrationPath = path.join(__dirname, 'add_balance_to_drivers.sql');
+  const migrationPath = path.join(__dirname, 'migrations', 'add_balance_to_drivers.sql');
   const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
   
   console.log('📄 Migration SQL:');
