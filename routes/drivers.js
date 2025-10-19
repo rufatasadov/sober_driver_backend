@@ -12,11 +12,11 @@ const router = express.Router();
 // Sürücü qeydiyyatı
 router.post('/register', auth, [
   body('licenseNumber').notEmpty().withMessage('Sürücülük vəsiqəsi nömrəsi tələb olunur'),
-  body('vehicleInfo.make').notEmpty().withMessage('Avtomobil markası tələb olunur'),
-  body('vehicleInfo.model').notEmpty().withMessage('Avtomobil modeli tələb olunur'),
-  body('vehicleInfo.year').isInt({ min: 1990, max: new Date().getFullYear() }).withMessage('Düzgün il daxil edin'),
-  body('vehicleInfo.color').notEmpty().withMessage('Avtomobil rəngi tələb olunur'),
-  body('vehicleInfo.plateNumber').notEmpty().withMessage('Nömrə nişanı tələb olunur')
+  body('vehicleInfo.make').optional().notEmpty().withMessage('Avtomobil markası boş ola bilməz'),
+  body('vehicleInfo.model').optional().notEmpty().withMessage('Avtomobil modeli boş ola bilməz'),
+  body('vehicleInfo.year').optional().isInt({ min: 1990, max: new Date().getFullYear() }).withMessage('Düzgün il daxil edin'),
+  body('vehicleInfo.color').optional().notEmpty().withMessage('Avtomobil rəngi boş ola bilməz'),
+  body('vehicleInfo.plateNumber').optional().notEmpty().withMessage('Nömrə nişanı boş ola bilməz')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -38,22 +38,25 @@ router.post('/register', auth, [
       return res.status(400).json({ error: 'Bu sürücülük vəsiqəsi artıq istifadə olunub' });
     }
 
-    const existingPlate = await Driver.findOne({ 
-      where: { 
-        vehicleInfo: { 
-          plateNumber: vehicleInfo.plateNumber 
+    // Only check plate number uniqueness if vehicleInfo and plateNumber are provided
+    if (vehicleInfo && vehicleInfo.plateNumber) {
+      const existingPlate = await Driver.findOne({ 
+        where: { 
+          vehicleInfo: { 
+            plateNumber: vehicleInfo.plateNumber 
+          } 
         } 
-      } 
-    });
-    if (existingPlate) {
-      return res.status(400).json({ error: 'Bu nömrə nişanı artıq istifadə olunub' });
+      });
+      if (existingPlate) {
+        return res.status(400).json({ error: 'Bu nömrə nişanı artıq istifadə olunub' });
+      }
     }
 
     // Yeni sürücü yarat
     const driver = await Driver.create({
       userId: req.user.id,
       licenseNumber,
-      vehicleInfo,
+      vehicleInfo: vehicleInfo || {},
       documents: documents || {},
       status: 'pending'
     });

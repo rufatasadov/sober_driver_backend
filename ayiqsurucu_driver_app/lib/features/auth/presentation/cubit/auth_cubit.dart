@@ -241,7 +241,7 @@ class AuthCubit extends Cubit<AuthState> {
   // Driver registration
   Future<bool> registerDriver({
     required String licenseNumber,
-    required Map<String, dynamic> vehicleInfo,
+    Map<String, dynamic>? vehicleInfo,
     Map<String, dynamic>? documents,
   }) async {
     try {
@@ -251,7 +251,7 @@ class AuthCubit extends Cubit<AuthState> {
         AppConstants.driverRegisterEndpoint,
         data: {
           'licenseNumber': licenseNumber,
-          'vehicleInfo': vehicleInfo,
+          if (vehicleInfo != null) 'vehicleInfo': vehicleInfo,
           if (documents != null) 'documents': documents,
         },
       );
