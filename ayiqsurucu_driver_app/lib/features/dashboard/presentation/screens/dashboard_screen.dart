@@ -68,25 +68,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     _buildBottomNavItem(
                       Icons.home_rounded,
-                      'Ana Səhifə',
+                      Provider.of<LanguageProvider>(context).getString('home'),
                       0,
                       hasActiveOrder,
                     ),
                     _buildBottomNavItem(
                       Icons.assignment_rounded,
-                      'Sifarişlər',
+                      Provider.of<LanguageProvider>(
+                        context,
+                      ).getString('orders'),
                       1,
                       hasActiveOrder,
                     ),
                     _buildBottomNavItem(
                       Icons.attach_money_rounded,
-                      'Qazanc',
+                      Provider.of<LanguageProvider>(
+                        context,
+                      ).getString('earnings'),
                       2,
                       hasActiveOrder,
                     ),
                     _buildBottomNavItem(
                       Icons.person_rounded,
-                      'Profil',
+                      Provider.of<LanguageProvider>(
+                        context,
+                      ).getString('profile'),
                       3,
                       hasActiveOrder,
                     ),
@@ -200,6 +206,8 @@ class _HomeScreenState extends State<HomeScreen> {
     _listenForNewOrders();
     _listenForBroadcastOrders();
     _listenForAssignedOrders();
+    // Setup dashboard refresh callback
+    _setupDashboardRefreshCallback();
     // Start location tracking
     _startLocationTracking();
     // Check and auto-set online status
@@ -227,6 +235,23 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final ordersCubit = context.read<OrdersCubit>();
       ordersCubit.setOrderAssignedCallback(_showAssignedOrder);
+    });
+  }
+
+  void _setupDashboardRefreshCallback() {
+    // Set callback for dashboard refresh after order completion
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ordersCubit = context.read<OrdersCubit>();
+      ordersCubit.setDashboardRefreshCallback(_refreshDashboardData);
+    });
+  }
+
+  void _refreshDashboardData() {
+    // Refresh dashboard data to update balance after order completion
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final dashboardCubit = context.read<DashboardCubit>();
+      dashboardCubit.loadDashboardData();
+      print('Dashboard: Refreshing data after order completion');
     });
   }
 
@@ -379,7 +404,7 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: AppColors.background,
         elevation: 0,
         title: Text(
-          'Ayiq Sürücü',
+          'Peregon hayda',
           style: AppTheme.heading3.copyWith(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.bold,

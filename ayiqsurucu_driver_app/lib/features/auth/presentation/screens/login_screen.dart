@@ -131,7 +131,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     // App title
                     Text(
-                      'Ayiq Sürücü',
+                      'Peregon hayda',
                       style: AppTheme.heading1.copyWith(
                         color: AppColors.primary,
                       ),

@@ -1,7 +1,7 @@
 {
   "name": "ayiqsurucu-backend",
   "version": "1.0.0",
-  "description": "Ayiq Sürücü Backend API",
+  "description": "Peregon hayda Backend API",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -9,7 +9,8 @@
     "test": "jest",
     "create-operator": "node scripts/create-operator.js",
     "setup-operators": "node scripts/create-operator-users.js",
-    "start-postgres": "net start postgresql-x64-13"
+    "start-postgres": "net start postgresql-x64-13",
+    "migrate-addresses": "node run_addresses_migration.js"
   },
   "dependencies": {
     "express": "^4.18.2",
@@ -40,6 +41,6 @@
     "booking",
     "api"
   ],
-  "author": "Ayiq Sürücü Team",
+  "author": "Peregon hayda Team",
   "license": "MIT"
 }

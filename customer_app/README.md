@@ -1,4 +1,4 @@
-# Ayiq Sürücü Customer App
+# Peregon hayda Customer App
 
 Flutter müştəri tətbiqi - taksi sifariş sistemi üçün mobil tətbiq.
 

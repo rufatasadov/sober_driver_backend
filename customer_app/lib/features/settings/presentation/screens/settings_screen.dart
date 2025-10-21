@@ -83,10 +83,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Navigator.of(context).pop();
               context.read<AuthCubit>().logout();
             },
-            child: const Text(
-              'Çıx',
-              style: TextStyle(color: AppColors.error),
-            ),
+            child: const Text('Çıx', style: TextStyle(color: AppColors.error)),
           ),
         ],
       ),
@@ -125,9 +122,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tənzimləmələr'),
-      ),
+      appBar: AppBar(title: const Text('Tənzimləmələr')),
       body: ListView(
         padding: EdgeInsets.all(16.w),
         children: [
@@ -145,7 +140,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                   SizedBox(height: 16.h),
-                  
+
                   // Notifications
                   _buildSwitchTile(
                     icon: Icons.notifications,
@@ -154,9 +149,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     value: _notificationsEnabled,
                     onChanged: _saveNotificationsSetting,
                   ),
-                  
+
                   SizedBox(height: 8.h),
-                  
+
                   // Location
                   _buildSwitchTile(
                     icon: Icons.location_on,
@@ -165,9 +160,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     value: _locationEnabled,
                     onChanged: _saveLocationSetting,
                   ),
-                  
+
                   SizedBox(height: 8.h),
-                  
+
                   // Language
                   _buildDropdownTile(
                     icon: Icons.language,
@@ -181,9 +176,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                     onChanged: _saveLanguageSetting,
                   ),
-                  
+
                   SizedBox(height: 8.h),
-                  
+
                   // Theme
                   _buildDropdownTile(
                     icon: Icons.palette,
@@ -201,9 +196,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
-          
+
           SizedBox(height: 16.h),
-          
+
           // Privacy & Security
           Card(
             child: Padding(
@@ -218,7 +213,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                   SizedBox(height: 16.h),
-                  
+
                   _buildListTile(
                     icon: Icons.privacy_tip,
                     title: 'Məxfilik siyasəti',
@@ -232,9 +227,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       );
                     },
                   ),
-                  
+
                   SizedBox(height: 8.h),
-                  
+
                   _buildListTile(
                     icon: Icons.security,
                     title: 'İstifadə şərtləri',
@@ -248,9 +243,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       );
                     },
                   ),
-                  
+
                   SizedBox(height: 8.h),
-                  
+
                   _buildListTile(
                     icon: Icons.lock,
                     title: 'Şifrə dəyişdir',
@@ -268,9 +263,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
-          
+
           SizedBox(height: 16.h),
-          
+
           // Storage & Cache
           Card(
             child: Padding(
@@ -285,16 +280,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                   SizedBox(height: 16.h),
-                  
+
                   _buildListTile(
                     icon: Icons.storage,
                     title: 'Keş təmizlə',
                     subtitle: 'Tətbiq məlumatlarını təmizlə',
                     onTap: _clearCache,
                   ),
-                  
+
                   SizedBox(height: 8.h),
-                  
+
                   _buildListTile(
                     icon: Icons.delete_forever,
                     title: 'Məlumatları sil',
@@ -304,7 +299,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         context: context,
                         builder: (context) => AlertDialog(
                           title: const Text('Məlumatları sil'),
-                          content: const Text('Bütün məlumatları silmək istədiyinizə əminsiniz? Bu əməliyyat geri alına bilməz.'),
+                          content: const Text(
+                            'Bütün məlumatları silmək istədiyinizə əminsiniz? Bu əməliyyat geri alına bilməz.',
+                          ),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.of(context).pop(),
@@ -335,9 +332,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
-          
+
           SizedBox(height: 16.h),
-          
+
           // Account Actions
           Card(
             child: Padding(
@@ -352,7 +349,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                   SizedBox(height: 16.h),
-                  
+
                   _buildListTile(
                     icon: Icons.info,
                     title: 'Tətbiq haqqında',
@@ -360,7 +357,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onTap: () {
                       showAboutDialog(
                         context: context,
-                        applicationName: 'Ayiq Sürücü',
+                        applicationName: 'Peregon hayda',
                         applicationVersion: '1.0.0',
                         applicationIcon: const Icon(
                           Icons.local_taxi,
@@ -373,9 +370,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       );
                     },
                   ),
-                  
+
                   SizedBox(height: 8.h),
-                  
+
                   _buildListTile(
                     icon: Icons.logout,
                     title: 'Çıxış',
@@ -496,10 +493,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: EdgeInsets.symmetric(vertical: 8.h),
         child: Row(
           children: [
-            Icon(
-              icon,
-              color: textColor ?? AppColors.primary,
-            ),
+            Icon(icon, color: textColor ?? AppColors.primary),
             SizedBox(width: 12.w),
             Expanded(
               child: Column(

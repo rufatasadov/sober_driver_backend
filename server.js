@@ -16,6 +16,7 @@ const operatorRoutes = require('./routes/operator');
 const dispatcherRoutes = require('./routes/dispatcher');
 const paymentRoutes = require('./routes/payments');
 const notificationRoutes = require('./routes/notifications');
+const addressRoutes = require('./routes/addresses');
 
 const { setupSocketHandlers } = require('./socket/socketHandlers');
 
@@ -56,12 +57,13 @@ app.use('/api/operator', operatorRoutes);
 app.use('/api/dispatcher', dispatcherRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/addresses', addressRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ 
     status: 'OK', 
-    message: 'Ayiq Sürücü API is running',
+    message: 'Peregon hayda API is running',
     timestamp: new Date().toISOString()
   });
 });

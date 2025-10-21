@@ -9,7 +9,7 @@ const sendOTP = async (phoneNumber, otp) => {
   try {
     // Development üçün console-a yazdır
     console.log(`📱 OTP göndərildi: ${phoneNumber} - Kod: ${otp}`);
-    console.log(`💬 Mesaj: Ayiq Sürücü tətbiqi üçün OTP kodunuz: ${otp}. Kod 5 dəqiqə ərzində etibarlıdır.`);
+    console.log(`💬 Mesaj: Peregon hayda tətbiqi üçün OTP kodunuz: ${otp}. Kod 5 dəqiqə ərzində etibarlıdır.`);
     
     // Production-da burada SMS göndərmə servisi əlavə edilə bilər
     // Məsələn: AWS SNS, MessageBird, və ya başqa SMS provider

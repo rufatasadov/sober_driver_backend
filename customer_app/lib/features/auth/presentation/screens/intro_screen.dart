@@ -18,7 +18,7 @@ class _IntroScreenState extends State<IntroScreen> {
 
   final List<IntroPage> _pages = [
     IntroPage(
-      title: 'Ayiq Sürücü ilə tanış olun',
+      title: 'Peregon hayda ilə tanış olun',
       description: 'Taksi sifariş etmək heç vaxt bu qədər asan olmamışdır',
       image: Icons.local_taxi,
       color: AppColors.primary,
@@ -63,9 +63,7 @@ class _IntroScreenState extends State<IntroScreen> {
   void _goToAuth() {
     _markIntroSeen().then((_) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => const PhoneInputScreen(),
-        ),
+        MaterialPageRoute(builder: (context) => const PhoneInputScreen()),
       );
     });
   }
@@ -99,7 +97,7 @@ class _IntroScreenState extends State<IntroScreen> {
                 ],
               ),
             ),
-            
+
             // Page view
             Expanded(
               child: PageView.builder(
@@ -115,7 +113,7 @@ class _IntroScreenState extends State<IntroScreen> {
                 },
               ),
             ),
-            
+
             // Page indicators
             Padding(
               padding: EdgeInsets.symmetric(vertical: 24.h),
@@ -127,7 +125,7 @@ class _IntroScreenState extends State<IntroScreen> {
                 ),
               ),
             ),
-            
+
             // Next button
             Padding(
               padding: EdgeInsets.all(24.w),
@@ -172,15 +170,11 @@ class _IntroScreenState extends State<IntroScreen> {
               color: page.color.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              page.image,
-              size: 100.sp,
-              color: page.color,
-            ),
+            child: Icon(page.image, size: 100.sp, color: page.color),
           ),
-          
+
           SizedBox(height: 48.h),
-          
+
           // Title
           Text(
             page.title,
@@ -190,15 +184,13 @@ class _IntroScreenState extends State<IntroScreen> {
             ),
             textAlign: TextAlign.center,
           ),
-          
+
           SizedBox(height: 16.h),
-          
+
           // Description
           Text(
             page.description,
-            style: AppTheme.bodyLarge.copyWith(
-              color: AppColors.textSecondary,
-            ),
+            style: AppTheme.bodyLarge.copyWith(color: AppColors.textSecondary),
             textAlign: TextAlign.center,
           ),
         ],
@@ -212,9 +204,7 @@ class _IntroScreenState extends State<IntroScreen> {
       width: _currentPage == index ? 24.w : 8.w,
       height: 8.h,
       decoration: BoxDecoration(
-        color: _currentPage == index 
-            ? AppColors.primary 
-            : AppColors.border,
+        color: _currentPage == index ? AppColors.primary : AppColors.border,
         borderRadius: BorderRadius.circular(4.r),
       ),
     );

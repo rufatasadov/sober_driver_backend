@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/services/api_service.dart';
 import '../../../../core/services/socket_service.dart';
@@ -155,6 +156,9 @@ class OrdersCubit extends Cubit<OrdersState> {
 
   // Callback for order assigned notifications
   Function(Order)? _orderAssignedCallback;
+
+  // Callback for dashboard refresh after order completion
+  VoidCallback? _dashboardRefreshCallback;
 
   // Callback for broadcast order notifications
   Function(Order)? _broadcastOrderCallback;
@@ -385,12 +389,35 @@ class OrdersCubit extends Cubit<OrdersState> {
         print(
           'OrdersCubit: Driver status updated to available after completing order',
         );
+
+        // Refresh dashboard data to update balance information
+        // This will trigger a refresh of the balance display
+        _refreshDashboardData();
       }
 
       return success;
     } catch (e) {
       print('OrdersCubit: Error completing order: $e');
       return false;
+    }
+  }
+
+  // Refresh dashboard data after order completion
+  void _refreshDashboardData() {
+    try {
+      print(
+        'OrdersCubit: Triggering dashboard data refresh for balance update',
+      );
+
+      // Call the dashboard refresh callback if it's set
+      if (_dashboardRefreshCallback != null) {
+        _dashboardRefreshCallback!();
+        print('OrdersCubit: Dashboard refresh callback executed');
+      } else {
+        print('OrdersCubit: No dashboard refresh callback set');
+      }
+    } catch (e) {
+      print('OrdersCubit: Error refreshing dashboard data: $e');
     }
   }
 
@@ -410,6 +437,9 @@ class OrdersCubit extends Cubit<OrdersState> {
         print(
           'OrdersCubit: Driver status updated to available after cancelling order',
         );
+
+        // Refresh dashboard data to update balance information
+        _refreshDashboardData();
       }
 
       return success;
@@ -450,6 +480,10 @@ class OrdersCubit extends Cubit<OrdersState> {
   // Set callback for broadcast order notifications
   void setOrderAssignedCallback(Function(Order) callback) {
     _orderAssignedCallback = callback;
+  }
+
+  void setDashboardRefreshCallback(VoidCallback callback) {
+    _dashboardRefreshCallback = callback;
   }
 
   void setBroadcastOrderCallback(Function(Order) callback) {

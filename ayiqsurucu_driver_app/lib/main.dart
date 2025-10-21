@@ -46,7 +46,7 @@ class AyiqSurucuDriverApp extends StatelessWidget {
         splitScreenMode: true,
         builder: (context, child) {
           return MaterialApp(
-            title: 'Ayiq Sürücü Driver',
+            title: 'Peregon hayda Driver',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
             home: const AppInitializer(),

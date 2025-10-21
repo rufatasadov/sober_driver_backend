@@ -75,6 +75,7 @@ class DashboardCubit extends Cubit<DashboardState> {
 
       try {
         earningsMap = Map<String, dynamic>.from(earningsData);
+        print('DashboardCubit: Earnings data structure: $earningsMap');
       } catch (e) {
         print('DashboardCubit: Error converting earnings data: $e');
         earningsMap = {};
@@ -89,12 +90,19 @@ class DashboardCubit extends Cubit<DashboardState> {
 
       // Map earnings data to stats format
       if (earningsMap.isNotEmpty) {
+        // Extract earnings data from nested structure
+        final earnings = earningsMap['earnings'] as Map<String, dynamic>? ?? {};
+        final balance = _safeParseDouble(earnings['balance']) ?? 0.0;
+
+        print('DashboardCubit: Extracted earnings: $earnings');
+        print('DashboardCubit: Balance value: $balance');
+
         return {
-          'todayOrders': _safeParseInt(earningsMap['totalOrders']) ?? 0,
-          'todayEarnings': _safeParseDouble(earningsMap['netEarnings']) ?? 0.0,
-          'totalOrders': _safeParseInt(earningsMap['totalOrders']) ?? 0,
-          'totalEarnings': _safeParseDouble(earningsMap['netEarnings']) ?? 0.0,
-          'balance': _safeParseDouble(earningsMap['balance']) ?? 0.0,
+          'todayOrders': _safeParseInt(earnings['totalOrders']) ?? 0,
+          'todayEarnings': _safeParseDouble(earnings['netEarnings']) ?? 0.0,
+          'totalOrders': _safeParseInt(earnings['totalOrders']) ?? 0,
+          'totalEarnings': _safeParseDouble(earnings['netEarnings']) ?? 0.0,
+          'balance': balance,
           'isOnline': _safeParseBool(statusMap['isOnline']) ?? true,
           'isAvailable': _safeParseBool(statusMap['isAvailable']) ?? true,
         };

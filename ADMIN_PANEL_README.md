@@ -1,8 +1,8 @@
-# Admin Panel - Ayiq Sürücü
+# Admin Panel - Peregon hayda
 
 ## Overview
 
-The Admin Panel provides comprehensive system administration capabilities for the Ayiq Sürücü application, including role-based access control, user management, and parametric table management.
+The Admin Panel provides comprehensive system administration capabilities for the Peregon hayda application, including role-based access control, user management, and parametric table management.
 
 ## Features
 

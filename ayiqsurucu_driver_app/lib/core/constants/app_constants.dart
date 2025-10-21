@@ -73,7 +73,7 @@ class AppConstants {
 
   // Notification Settings
   static const String notificationChannelId = 'ayiqsurucu_driver_channel';
-  static const String notificationChannelName = 'Ayiq Sürücü Driver';
+  static const String notificationChannelName = 'Peregon hayda Driver';
   static const String notificationChannelDescription =
       'Driver notifications for orders and updates';
 }
