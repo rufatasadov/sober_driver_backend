@@ -83,16 +83,16 @@ const Address = sequelize.define('Address', {
 });
 
 // Static methods for address operations
-Address.searchAddresses = async function(query, limit = 10) {
+Address.searchAddresses = async function(searchQuery, limit = 10) {
   try {
-    const searchQuery = query.toLowerCase().trim();
+    const query = searchQuery.toLowerCase().trim();
     
-    if (!searchQuery) {
+    if (!query) {
       return [];
     }
 
     // Split query into individual words for better matching
-    const queryWords = searchQuery.split(/\s+/).filter(word => word.length > 0);
+    const queryWords = query.split(/\s+/).filter(word => word.length > 0);
     
     // Build the search conditions
     const searchConditions = [];
@@ -103,7 +103,7 @@ Address.searchAddresses = async function(query, limit = 10) {
       (to_tsvector('english', address_text) @@ plainto_tsquery('english', :searchQuery) OR
        to_tsvector('english', formatted_address) @@ plainto_tsquery('english', :searchQuery))
     `);
-    replacements.searchQuery = searchQuery;
+    replacements.searchQuery = query;
     
     // Keyword array search
     if (queryWords.length > 0) {
@@ -127,7 +127,7 @@ Address.searchAddresses = async function(query, limit = 10) {
     
     const whereClause = searchConditions.join(' OR ');
     
-    const query = `
+    const sqlQuery = `
       SELECT 
         id,
         address_text,
@@ -154,9 +154,9 @@ Address.searchAddresses = async function(query, limit = 10) {
       LIMIT :limit;
     `;
     
-    replacements.exactMatch = `%${searchQuery}%`;
+    replacements.exactMatch = `%${query}%`;
     
-    const [results] = await sequelize.query(query, {
+    const [results] = await sequelize.query(sqlQuery, {
       replacements,
       type: sequelize.QueryTypes.SELECT,
     });
