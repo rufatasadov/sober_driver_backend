@@ -11,20 +11,16 @@ const addressSearchService = new AddressSearchService();
  * @desc Search addresses with local database and Google Maps fallback
  * @access Public
  */
-router.get('/search', [
-  body('query').notEmpty().withMessage('Search query is required'),
-  body('limit').optional().isInt({ min: 1, max: 20 }).withMessage('Limit must be between 1 and 20'),
-], async (req, res) => {
+router.get('/search', async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
+    const { query, limit = 10 } = req.query;
+    
+    if (!query || query.trim().length === 0) {
       return res.status(400).json({ 
         success: false,
-        errors: errors.array() 
+        error: 'Search query is required'
       });
     }
-
-    const { query, limit = 10 } = req.query;
     
     console.log(`🔍 Address search request: "${query}", limit: ${limit}`);
     
@@ -58,22 +54,28 @@ router.get('/search', [
  * @desc Get address by coordinates (reverse geocoding)
  * @access Public
  */
-router.get('/reverse-geocode', [
-  body('latitude').isFloat().withMessage('Valid latitude is required'),
-  body('longitude').isFloat().withMessage('Valid longitude is required'),
-], async (req, res) => {
+router.get('/reverse-geocode', async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ 
-        success: false,
-        errors: errors.array() 
-      });
-    }
-
     const { latitude, longitude } = req.query;
     
-    console.log(`📍 Reverse geocoding request: ${latitude}, ${longitude}`);
+    if (!latitude || !longitude) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Latitude and longitude are required'
+      });
+    }
+    
+    const lat = parseFloat(latitude);
+    const lng = parseFloat(longitude);
+    
+    if (isNaN(lat) || isNaN(lng)) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Valid latitude and longitude are required'
+      });
+    }
+    
+    console.log(`📍 Reverse geocoding request: ${lat}, ${lng}`);
     
     const result = await addressSearchService.getAddressByCoordinates(
       parseFloat(latitude), 
@@ -178,9 +180,7 @@ router.post('/add', [
  * @desc Get popular addresses
  * @access Public
  */
-router.get('/popular', [
-  body('limit').optional().isInt({ min: 1, max: 50 }).withMessage('Limit must be between 1 and 50'),
-], async (req, res) => {
+router.get('/popular', async (req, res) => {
   try {
     const { limit = 10 } = req.query;
     
