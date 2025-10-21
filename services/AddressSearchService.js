@@ -71,27 +71,38 @@ class AddressSearchService {
       
       const results = await Address.searchAddresses(query, limit);
       
+      // Ensure results is an array
+      if (!results || !Array.isArray(results)) {
+        console.log('⚠️ No results from database, returning sample data');
+        return this.getSampleAddresses(query, limit);
+      }
+      
       // Increment popularity for found addresses
       results.forEach(result => {
-        Address.incrementPopularity(result.id).catch(err => 
-          console.error('Error incrementing popularity:', err)
-        );
+        if (result && result.id) {
+          Address.incrementPopularity(result.id).catch(err => 
+            console.error('Error incrementing popularity:', err)
+          );
+        }
       });
       
-      return results.map(result => ({
-        id: result.id,
-        address: result.formatted_address,
-        addressText: result.address_text,
-        latitude: parseFloat(result.latitude),
-        longitude: parseFloat(result.longitude),
-        city: result.city,
-        district: result.district,
-        street: result.street,
-        buildingNumber: result.building_number,
-        source: 'local',
-        relevanceScore: result.relevance_score,
-        popularityScore: result.popularity_score,
-      }));
+      return results.map(result => {
+        if (!result) return null;
+        return {
+          id: result.id,
+          address: result.formatted_address,
+          addressText: result.address_text,
+          latitude: parseFloat(result.latitude),
+          longitude: parseFloat(result.longitude),
+          city: result.city,
+          district: result.district,
+          street: result.street,
+          buildingNumber: result.building_number,
+          source: 'local',
+          relevanceScore: result.relevance_score,
+          popularityScore: result.popularity_score,
+        };
+      }).filter(result => result !== null);
     } catch (error) {
       console.error('Error in local address search:', error);
       // Return empty array instead of throwing error

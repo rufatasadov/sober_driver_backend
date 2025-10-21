@@ -161,10 +161,12 @@ Address.searchAddresses = async function(searchQuery, limit = 10) {
       type: sequelize.QueryTypes.SELECT,
     });
     
-    return results;
+    // Ensure we always return an array
+    return Array.isArray(results) ? results : [];
   } catch (error) {
     console.error('Error searching addresses:', error);
-    throw error;
+    // Return empty array instead of throwing error
+    return [];
   }
 };
 
