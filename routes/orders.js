@@ -466,16 +466,30 @@ router.patch('/:orderId/status', auth, [
         
         // Deduct 10% of order fare from driver balance when order is completed
         if (status === 'completed' && order.fare) {
-          const deductionAmount = parseFloat(order.fare) * 0.10; // 10% of fare
-          const currentBalance = parseFloat(driver.balance);
-          const newBalance = currentBalance - deductionAmount;
+          // Handle different fare structures (object vs number)
+          let fareAmount = 0;
+          if (typeof order.fare === 'object' && order.fare.total) {
+            fareAmount = parseFloat(order.fare.total);
+          } else if (typeof order.fare === 'number') {
+            fareAmount = order.fare;
+          } else if (typeof order.fare === 'string') {
+            fareAmount = parseFloat(order.fare);
+          }
           
-          // Ensure balance doesn't go below 0
-          if (newBalance >= 0) {
-            driver.balance = newBalance;
-            console.log(`Driver ${driver.id} balance deducted: ${deductionAmount} AZN (10% of ${order.fare} AZN fare). New balance: ${newBalance} AZN`);
+          if (fareAmount > 0) {
+            const deductionAmount = fareAmount * 0.10; // 10% of fare
+            const currentBalance = parseFloat(driver.balance);
+            const newBalance = currentBalance - deductionAmount;
+            
+            // Ensure balance doesn't go below 0
+            if (newBalance >= 0) {
+              driver.balance = newBalance;
+              console.log(`Driver ${driver.id} balance deducted: ${deductionAmount.toFixed(2)} AZN (10% of ${fareAmount.toFixed(2)} AZN fare). New balance: ${newBalance.toFixed(2)} AZN`);
+            } else {
+              console.log(`Driver ${driver.id} balance would go negative. Deduction skipped. Current balance: ${currentBalance.toFixed(2)} AZN, would deduct: ${deductionAmount.toFixed(2)} AZN`);
+            }
           } else {
-            console.log(`Driver ${driver.id} balance would go negative. Deduction skipped. Current balance: ${currentBalance} AZN, would deduct: ${deductionAmount} AZN`);
+            console.log(`Driver ${driver.id} order ${order.id} has invalid fare amount: ${order.fare}`);
           }
         }
         

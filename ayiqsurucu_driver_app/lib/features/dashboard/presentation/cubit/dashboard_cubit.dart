@@ -213,6 +213,47 @@ class DashboardCubit extends Cubit<DashboardState> {
     }
   }
 
+  // Refresh only balance data
+  Future<void> refreshBalance() async {
+    try {
+      print('DashboardCubit: Refreshing balance data...');
+
+      final response = await _apiService.get(
+        AppConstants.dashboardStatsEndpoint,
+      );
+      final data = _apiService.handleResponse(response);
+
+      // Convert to Map safely
+      Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
+
+      if (dataMap['earnings'] != null &&
+          dataMap['earnings']['balance'] != null) {
+        final newBalance =
+            _safeParseDouble(dataMap['earnings']['balance']) ?? 0.0;
+
+        // Update current state with new balance
+        if (state is DashboardLoaded) {
+          final currentState = state as DashboardLoaded;
+          final updatedStats = Map<String, dynamic>.from(currentState.stats);
+          updatedStats['balance'] = newBalance;
+
+          print(
+            'DashboardCubit: Balance updated to: ${newBalance.toStringAsFixed(2)} AZN',
+          );
+
+          emit(
+            DashboardLoaded(
+              stats: updatedStats,
+              recentOrders: currentState.recentOrders,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('DashboardCubit: Error refreshing balance: $e');
+    }
+  }
+
   // Refresh dashboard data
   Future<void> refresh() async {
     await loadDashboardData();

@@ -16,6 +16,7 @@ import '../../../orders/presentation/widgets/new_order_notification_widget.dart'
 import '../../../orders/presentation/widgets/broadcast_order_notification_widget.dart';
 import '../../../orders/presentation/widgets/assigned_order_notification_widget.dart';
 import '../../../orders/presentation/screens/order_details_screen.dart';
+import '../widgets/animated_balance_widget.dart';
 import '../../../orders/presentation/cubit/orders_cubit.dart';
 import '../cubit/dashboard_cubit.dart';
 import '../../../../core/services/location_tracking_service.dart';
@@ -248,10 +249,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _refreshDashboardData() {
     // Refresh dashboard data to update balance after order completion
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final dashboardCubit = context.read<DashboardCubit>();
-      dashboardCubit.loadDashboardData();
-      print('Dashboard: Refreshing data after order completion');
+
+      // First refresh only balance for faster update
+      await dashboardCubit.refreshBalance();
+      print('Dashboard: Balance refreshed after order completion');
+
+      // Then refresh full dashboard data
+      await dashboardCubit.loadDashboardData();
+      print('Dashboard: Full dashboard data refreshed');
+
+      // Also refresh orders to ensure consistency
+      final ordersCubit = context.read<OrdersCubit>();
+      ordersCubit.getDriverOrders();
     });
   }
 
@@ -511,7 +522,13 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             const Spacer(),
                             // Balance section at bottom
-                            _buildBalanceSection(stats),
+                            AnimatedBalanceWidget(
+                              balance: stats['balance']?.toDouble() ?? 0.0,
+                              todayEarnings:
+                                  stats['todayEarnings']?.toDouble() ?? 0.0,
+                              isUpdating:
+                                  false, // You can add state to track if balance is updating
+                            ),
                             SizedBox(height: 12.h), // Small gap before nav
                           ],
                         ),
@@ -1875,113 +1892,6 @@ class _HomeScreenState extends State<HomeScreen> {
         await dashboardCubit.checkAndAutoSetOnlineStatus(ordersCubit);
       }
     }
-  }
-
-  Widget _buildBalanceSection(Map<dynamic, dynamic> stats) {
-    return Container(
-      margin: EdgeInsets.fromLTRB(16.w, 8.w, 16.w, 0),
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              AppColors.primary.withOpacity(0.05),
-              AppColors.primary.withOpacity(0.02),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(16.r),
-          border: Border.all(
-            color: AppColors.primary.withOpacity(0.15),
-            width: 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withOpacity(0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.account_balance_wallet_outlined,
-                        color: AppColors.primary,
-                        size: 16.sp,
-                      ),
-                      SizedBox(width: 6.w),
-                      Text(
-                        Provider.of<LanguageProvider>(
-                          context,
-                        ).getString('balance'),
-                        style: AppTheme.bodySmall.copyWith(
-                          color: AppColors.primary,
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 6.h),
-                  Text(
-                    '${stats['balance']?.toStringAsFixed(2) ?? '0.00'} ₼',
-                    style: AppTheme.heading3.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20.sp,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  SizedBox(height: 2.h),
-                  Text(
-                    '${Provider.of<LanguageProvider>(context).getString('today')}: ${(stats['todayEarnings'] ?? 0.0).toStringAsFixed(2)} ₼',
-                    style: AppTheme.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
-                      fontSize: 11.sp,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: EdgeInsets.all(10.w),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.primary.withOpacity(0.1),
-                    AppColors.primary.withOpacity(0.05),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(12.r),
-                border: Border.all(
-                  color: AppColors.primary.withOpacity(0.2),
-                  width: 1,
-                ),
-              ),
-              child: Icon(
-                Icons.trending_up_rounded,
-                color: AppColors.primary,
-                size: 18.sp,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   String _getElapsedTimeSinceLastUpdate(Order order) {

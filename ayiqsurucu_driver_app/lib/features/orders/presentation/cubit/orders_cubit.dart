@@ -132,12 +132,32 @@ class OrdersLoaded extends OrdersState {
   final List<Order> pendingOrders;
   final List<Order> activeOrders;
   final List<Order> completedOrders;
+  final String? updatingOrderId;
+  final String? updatingStatus;
 
   OrdersLoaded({
     required this.pendingOrders,
     required this.activeOrders,
     required this.completedOrders,
+    this.updatingOrderId,
+    this.updatingStatus,
   });
+
+  OrdersLoaded copyWith({
+    List<Order>? pendingOrders,
+    List<Order>? activeOrders,
+    List<Order>? completedOrders,
+    String? updatingOrderId,
+    String? updatingStatus,
+  }) {
+    return OrdersLoaded(
+      pendingOrders: pendingOrders ?? this.pendingOrders,
+      activeOrders: activeOrders ?? this.activeOrders,
+      completedOrders: completedOrders ?? this.completedOrders,
+      updatingOrderId: updatingOrderId ?? this.updatingOrderId,
+      updatingStatus: updatingStatus ?? this.updatingStatus,
+    );
+  }
 }
 
 class OrdersError extends OrdersState {
@@ -247,6 +267,8 @@ class OrdersCubit extends Cubit<OrdersState> {
             pendingOrders: pendingOrders,
             activeOrders: activeOrders,
             completedOrders: completedOrders,
+            updatingOrderId: null,
+            updatingStatus: null,
           ),
         );
       } else {
@@ -255,6 +277,8 @@ class OrdersCubit extends Cubit<OrdersState> {
             pendingOrders: [],
             activeOrders: [],
             completedOrders: [],
+            updatingOrderId: null,
+            updatingStatus: null,
           ),
         );
       }
@@ -341,14 +365,23 @@ class OrdersCubit extends Cubit<OrdersState> {
     }
   }
 
-  // Update order status
+  // Update order status with animation
   Future<bool> updateOrderStatus({
     required String orderId,
     required String status,
     String? notes,
   }) async {
     try {
-      emit(OrdersLoading());
+      // Show updating state with animation
+      if (state is OrdersLoaded) {
+        final currentState = state as OrdersLoaded;
+        emit(
+          currentState.copyWith(
+            updatingOrderId: orderId,
+            updatingStatus: status,
+          ),
+        );
+      }
 
       final response = await _apiService.patch(
         '${AppConstants.ordersEndpoint}/$orderId/status',
@@ -361,17 +394,118 @@ class OrdersCubit extends Cubit<OrdersState> {
       Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
 
       if (response.statusCode == 200 || dataMap['success'] == true) {
-        // Refresh orders
+        // Update order in current state with animation
+        await _updateOrderInState(orderId, status);
+
+        // Wait a bit for animation to complete
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        // Refresh orders to get latest data
         await getDriverOrders();
         return true;
+      }
+
+      // Clear updating state on error
+      if (state is OrdersLoaded) {
+        final currentState = state as OrdersLoaded;
+        emit(
+          currentState.copyWith(updatingOrderId: null, updatingStatus: null),
+        );
       }
 
       emit(OrdersError('Failed to update order status'));
       return false;
     } catch (e) {
+      // Clear updating state on error
+      if (state is OrdersLoaded) {
+        final currentState = state as OrdersLoaded;
+        emit(
+          currentState.copyWith(updatingOrderId: null, updatingStatus: null),
+        );
+      }
       emit(OrdersError(e.toString()));
       return false;
     }
+  }
+
+  // Update order in current state for smooth animation
+  Future<void> _updateOrderInState(String orderId, String newStatus) async {
+    if (state is! OrdersLoaded) return;
+
+    final currentState = state as OrdersLoaded;
+
+    // Find the order in current lists
+    Order? orderToUpdate;
+    List<Order> updatedPendingOrders = List.from(currentState.pendingOrders);
+    List<Order> updatedActiveOrders = List.from(currentState.activeOrders);
+    List<Order> updatedCompletedOrders = List.from(
+      currentState.completedOrders,
+    );
+
+    // Find and remove order from current list
+    orderToUpdate = updatedPendingOrders.firstWhere(
+      (order) => order.id == orderId,
+      orElse:
+          () => updatedActiveOrders.firstWhere(
+            (order) => order.id == orderId,
+            orElse:
+                () => updatedCompletedOrders.firstWhere(
+                  (order) => order.id == orderId,
+                  orElse: () => throw StateError('Order not found'),
+                ),
+          ),
+    );
+
+    // Remove from current list
+    updatedPendingOrders.removeWhere((order) => order.id == orderId);
+    updatedActiveOrders.removeWhere((order) => order.id == orderId);
+    updatedCompletedOrders.removeWhere((order) => order.id == orderId);
+
+    // Create updated order
+    final updatedOrder = Order(
+      id: orderToUpdate.id,
+      orderNumber: orderToUpdate.orderNumber,
+      customerId: orderToUpdate.customerId,
+      driverId: orderToUpdate.driverId,
+      pickup: orderToUpdate.pickup,
+      destination: orderToUpdate.destination,
+      status: newStatus,
+      estimatedTime: orderToUpdate.estimatedTime,
+      estimatedDistance: orderToUpdate.estimatedDistance,
+      fare: orderToUpdate.fare,
+      paymentMethod: orderToUpdate.paymentMethod,
+      notes: orderToUpdate.notes,
+      createdAt: orderToUpdate.createdAt,
+      updatedAt: DateTime.now(),
+      customer: orderToUpdate.customer,
+      customerPhone: orderToUpdate.customerPhone,
+      etaMinutes: orderToUpdate.etaMinutes,
+    );
+
+    // Add to appropriate list based on new status
+    if (newStatus == 'pending') {
+      updatedPendingOrders.add(updatedOrder);
+    } else if ([
+      'accepted',
+      'in_progress',
+      'driver_assigned',
+      'driver_arrived',
+    ].contains(newStatus)) {
+      updatedActiveOrders.add(updatedOrder);
+    } else if (['completed', 'cancelled'].contains(newStatus)) {
+      updatedCompletedOrders.add(updatedOrder);
+    }
+
+    // Emit updated state
+    emit(
+      OrdersLoaded(
+        pendingOrders: updatedPendingOrders,
+        activeOrders: updatedActiveOrders,
+        completedOrders: updatedCompletedOrders,
+        updatingOrderId: orderId,
+        updatingStatus: newStatus,
+      ),
+    );
   }
 
   // Start order

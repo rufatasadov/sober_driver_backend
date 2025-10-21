@@ -15,26 +15,7 @@ class SoundNotificationService {
   Future<void> initialize() async {
     try {
       // Set audio context for better performance
-      await _audioPlayer.setAudioContext(
-        AudioContext(
-          iOS: AudioContextIOS(
-            defaultToSpeaker: true,
-            category: AVAudioSessionCategory.playback,
-            options: [
-              AVAudioSessionOptions.defaultToSpeaker,
-              AVAudioSessionOptions.allowBluetooth,
-              AVAudioSessionOptions.allowBluetoothA2DP,
-            ],
-          ),
-          android: AudioContextAndroid(
-            isSpeakerphoneOn: true,
-            stayAwake: true,
-            contentType: AndroidContentType.sonification,
-            usageType: AndroidUsageType.notification,
-            audioFocus: AndroidAudioFocus.gainTransientMayDuck,
-          ),
-        ),
-      );
+      await _audioPlayer.setAudioContext(AudioContext());
 
       print('🔊 SoundNotificationService initialized');
     } catch (e) {
