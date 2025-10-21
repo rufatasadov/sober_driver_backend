@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/localization/language_provider.dart';
 import '../../../../shared/widgets/loading_screen.dart';
+import '../../../orders/presentation/cubit/orders_cubit.dart';
 import '../cubit/profile_cubit.dart';
 import 'edit_profile_screen.dart';
 import 'profile_settings_screen.dart';
@@ -417,6 +418,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             );
           },
         ),
+        SizedBox(height: 12.h),
+        _buildSoundSettingsButton(context, languageProvider),
       ],
     );
   }
@@ -454,6 +457,89 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSoundSettingsButton(
+    BuildContext context,
+    LanguageProvider languageProvider,
+  ) {
+    return BlocBuilder<OrdersCubit, OrdersState>(
+      builder: (context, ordersState) {
+        final ordersCubit = context.read<OrdersCubit>();
+        final isSoundEnabled = ordersCubit.isSoundEnabled;
+
+        return InkWell(
+          onTap: () {
+            ordersCubit.setSoundEnabled(!isSoundEnabled);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  isSoundEnabled
+                      ? languageProvider.getString('soundDisabled')
+                      : languageProvider.getString('soundEnabled'),
+                ),
+                backgroundColor:
+                    isSoundEnabled ? AppColors.warning : AppColors.success,
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(12.r),
+          child: Container(
+            padding: EdgeInsets.all(16.w),
+            decoration: BoxDecoration(
+              color: (isSoundEnabled ? AppColors.success : AppColors.warning)
+                  .withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12.r),
+              border: Border.all(
+                color: (isSoundEnabled ? AppColors.success : AppColors.warning)
+                    .withOpacity(0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  isSoundEnabled ? Icons.volume_up : Icons.volume_off,
+                  color: isSoundEnabled ? AppColors.success : AppColors.warning,
+                  size: 24.sp,
+                ),
+                SizedBox(width: 16.w),
+                Expanded(
+                  child: Text(
+                    languageProvider.getString('soundNotifications'),
+                    style: AppTheme.bodyMedium.copyWith(
+                      color:
+                          isSoundEnabled
+                              ? AppColors.success
+                              : AppColors.warning,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Switch(
+                  value: isSoundEnabled,
+                  onChanged: (value) {
+                    ordersCubit.setSoundEnabled(value);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          value
+                              ? languageProvider.getString('soundEnabled')
+                              : languageProvider.getString('soundDisabled'),
+                        ),
+                        backgroundColor:
+                            value ? AppColors.success : AppColors.warning,
+                      ),
+                    );
+                  },
+                  activeColor: AppColors.success,
+                  inactiveThumbColor: AppColors.warning,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

@@ -221,7 +221,7 @@
             ],
             "body": {"mode": "raw", "raw": "{\n  \"driverId\": \"{{driver_id}}\"\n}"},
             "url": {"raw": "{{base_url}}/api/operator/orders/{{order_id}}/assign-driver", "host": ["{{base_url}}"], "path": ["api", "operator", "orders", "{{order_id}}", "assign-driver"]},
-            "description": "Assign a driver to an order"
+            "description": "Assign a driver to an order. Emits 'new_order_assigned' socket event to driver with complete order data including 'id' field."
           }
         },
         {
@@ -729,7 +729,7 @@
             ],
             "body": {"mode": "raw", "raw": "{\n  \"driverId\": \"{{driver_id}}\"\n}"},
             "url": {"raw": "{{base_url}}/api/dispatcher/orders/{{order_id}}/assign-driver", "host": ["{{base_url}}"], "path": ["api", "dispatcher", "orders", "{{order_id}}", "assign-driver"]},
-            "description": "Assign driver to order (dispatcher)"
+            "description": "Assign driver to order (dispatcher). Emits 'new_order_assigned' socket event to driver with complete order data including 'id' field."
           }
         },
         {

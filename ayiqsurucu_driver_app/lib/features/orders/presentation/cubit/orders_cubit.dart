@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/services/api_service.dart';
 import '../../../../core/services/socket_service.dart';
+import '../../../../core/services/sound_notification_service.dart';
 import '../../../../core/constants/app_constants.dart';
 
 // Order Model
@@ -149,6 +150,7 @@ class OrdersError extends OrdersState {
 class OrdersCubit extends Cubit<OrdersState> {
   final ApiService _apiService = ApiService();
   final SocketService _socketService = SocketService();
+  final SoundNotificationService _soundService = SoundNotificationService();
   StreamSubscription? _newOrderSubscription;
 
   // Callback for new order notifications
@@ -168,6 +170,9 @@ class OrdersCubit extends Cubit<OrdersState> {
     Future.delayed(const Duration(seconds: 2), () {
       _initializeSocketListeners();
     });
+
+    // Initialize sound service
+    _soundService.initialize();
   }
 
   // Getters
@@ -490,6 +495,13 @@ class OrdersCubit extends Cubit<OrdersState> {
     _broadcastOrderCallback = callback;
   }
 
+  // Sound control methods
+  void setSoundEnabled(bool enabled) {
+    _soundService.setSoundEnabled(enabled);
+  }
+
+  bool get isSoundEnabled => _soundService.isSoundEnabled;
+
   // Initialize socket listeners
   void _initializeSocketListeners() {
     print('OrdersCubit: Initializing socket listeners...');
@@ -525,6 +537,9 @@ class OrdersCubit extends Cubit<OrdersState> {
   void _handleNewOrder(Map<String, dynamic> orderData) {
     try {
       final newOrder = Order.fromJson(orderData);
+
+      // Play sound notification for new order
+      _soundService.playNewOrderSound();
 
       // Call the callback to show notification
       if (_newOrderCallback != null) {
@@ -574,6 +589,9 @@ class OrdersCubit extends Cubit<OrdersState> {
     try {
       final assignedOrder = Order.fromJson(orderData);
 
+      // Play sound notification for assigned order
+      _soundService.playAssignedOrderSound();
+
       // Call the callback to show notification
       if (_orderAssignedCallback != null) {
         print(
@@ -619,6 +637,9 @@ class OrdersCubit extends Cubit<OrdersState> {
   void _handleBroadcastOrder(Map<String, dynamic> orderData) {
     try {
       final broadcastOrder = Order.fromJson(orderData);
+
+      // Play sound notification for broadcast order
+      _soundService.playBroadcastOrderSound();
 
       // Call the callback to show broadcast notification
       if (_broadcastOrderCallback != null) {
@@ -698,6 +719,7 @@ class OrdersCubit extends Cubit<OrdersState> {
   @override
   Future<void> close() {
     _newOrderSubscription?.cancel();
+    _soundService.dispose();
     return super.close();
   }
 }

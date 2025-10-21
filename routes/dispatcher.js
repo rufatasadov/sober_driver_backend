@@ -255,15 +255,25 @@ router.post('/orders/:orderId/assign-driver', auth, authorize('dispatcher'), [
     if (io) {
       // Sürücüyə bildir
       io.to(`driver_${driver.userId}`).emit('new_order_assigned', {
-        orderId: order.id,
+        id: order.id,
         orderNumber: order.orderNumber,
+        customerId: order.customerId,
+        driverId: order.driverId,
         pickup: order.pickup,
         destination: order.destination,
+        status: order.status,
+        estimatedTime: order.estimatedTime,
+        estimatedDistance: order.estimatedDistance,
         fare: order.fare,
+        paymentMethod: order.payment?.method || 'cash',
+        notes: order.notes,
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt,
         customer: {
           name: order.customer?.name || 'Müştəri',
           phone: order.customer?.phone || 'N/A'
         },
+        customerPhone: order.customer?.phone || 'N/A',
         etaMinutes: 15 // Default ETA
       });
 
