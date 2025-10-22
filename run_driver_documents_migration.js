@@ -8,7 +8,7 @@ async function runMigration() {
     console.log('🚀 Starting driver documents migration...');
     
     // Read migration SQL file
-    const migrationPath = path.join(__dirname, 'add_driver_documents_fields.sql');
+    const migrationPath = path.join(__dirname, 'migrations/add_driver_documents_fields.sql');
     const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
     
     // Execute migration
