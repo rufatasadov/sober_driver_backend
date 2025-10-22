@@ -20,6 +20,8 @@ class AuthAuthenticated extends AuthState {
 
 class AuthUnauthenticated extends AuthState {}
 
+class AuthDriverDeactivated extends AuthState {}
+
 class AuthError extends AuthState {
   final String message;
 
@@ -64,6 +66,12 @@ class AuthCubit extends Cubit<AuthState> {
 
         if (driverJson != null) {
           driver = Map<String, dynamic>.from(Uri.splitQueryString(driverJson));
+        }
+
+        // Check if driver is deactivated
+        if (driver != null && driver['isActive'] == false) {
+          emit(AuthDriverDeactivated());
+          return;
         }
 
         emit(
@@ -171,14 +179,21 @@ class AuthCubit extends Cubit<AuthState> {
       if (dataMap['token'] != null) {
         final token = dataMap['token'];
         final user = dataMap['user'];
+        final driver = dataMap['driver'];
+
+        // Check if driver is active
+        if (driver != null && driver['isActive'] == false) {
+          emit(AuthDriverDeactivated());
+          return false;
+        }
 
         // Store auth data
-        await _storeAuthData(token, user);
+        await _storeAuthData(token, user, driver);
 
         // Set token in API service
         await _apiService.setAuthToken(token);
 
-        emit(AuthAuthenticated(token: token, user: user));
+        emit(AuthAuthenticated(token: token, user: user, driver: driver));
         return true;
       }
 
@@ -436,10 +451,17 @@ class AuthCubit extends Cubit<AuthState> {
   }
 
   // Store auth data locally
-  Future<void> _storeAuthData(String token, Map<String, dynamic> user) async {
+  Future<void> _storeAuthData(
+    String token,
+    Map<String, dynamic> user, [
+    Map<String, dynamic>? driver,
+  ]) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(AppConstants.tokenKey, token);
     await prefs.setString(AppConstants.userKey, user.toString());
+    if (driver != null) {
+      await prefs.setString(AppConstants.driverKey, driver.toString());
+    }
   }
 
   // Store driver data locally

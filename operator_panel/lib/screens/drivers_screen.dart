@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/driver_provider.dart';
@@ -531,62 +532,160 @@ class _AddDriverDialogState extends State<AddDriverDialog> {
   }
 }
 
-class DriverDetailsDialog extends StatelessWidget {
+class DriverDetailsDialog extends StatefulWidget {
   final Map<String, dynamic> driver;
 
   const DriverDetailsDialog({super.key, required this.driver});
 
   @override
+  State<DriverDetailsDialog> createState() => _DriverDetailsDialogState();
+}
+
+class _DriverDetailsDialogState extends State<DriverDetailsDialog> {
+  @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(driver['user']?['name'] ?? 'Sürücü'),
-      content: SingleChildScrollView(
+    return Dialog(
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.9,
+        height: MediaQuery.of(context).size.height * 0.8,
+        padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
           children: [
-            _buildDetailRow(AppStrings.name, driver['user']?['name'] ?? 'N/A'),
-            _buildDetailRow(
-                AppStrings.phone, driver['user']?['phone'] ?? 'N/A'),
-            _buildDetailRow(
-                AppStrings.email, driver['user']?['email'] ?? 'N/A'),
-            _buildDetailRow(
-                AppStrings.licenseNumber, driver['licenseNumber'] ?? 'N/A'),
-            _buildDetailRow(AppStrings.vehicleMake,
-                driver['vehicleInfo']?['make'] ?? 'N/A'),
-            _buildDetailRow(AppStrings.vehicleModel,
-                driver['vehicleInfo']?['model'] ?? 'N/A'),
-            _buildDetailRow(AppStrings.plateNumber,
-                driver['vehicleInfo']?['plateNumber'] ?? 'N/A'),
-            _buildDetailRow(AppStrings.rating,
-                '${driver['rating']?['average']?.toStringAsFixed(1) ?? '0.0'} (${driver['rating']?['count'] ?? 0} qiymətləndirmə)'),
-            _buildDetailRow(AppStrings.totalEarnings,
-                '${driver['earnings']?['total'] ?? 0} ₼'),
-            _buildDetailRow(AppStrings.todayEarnings,
-                '${driver['earnings']?['today'] ?? 0} ₼'),
-            _buildDetailRow(
-                AppStrings.status,
-                driver['isOnline'] == true
-                    ? AppStrings.online
-                    : AppStrings.offline),
-            _buildDetailRow(
-                AppStrings.registeredAt, _formatDateTime(driver['createdAt'])),
+            // Header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Sürücü Detalları',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            const Divider(),
+
+            // Content
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Basic Information
+                    _buildSectionTitle('Əsas Məlumatlar'),
+                    _buildDetailRow(
+                        'Ad', widget.driver['user']?['name'] ?? 'N/A'),
+                    _buildDetailRow(
+                        'Telefon', widget.driver['user']?['phone'] ?? 'N/A'),
+                    _buildDetailRow(
+                        'Email', widget.driver['user']?['email'] ?? 'N/A'),
+                    _buildDetailRow('Sürücülük vəsiqəsi',
+                        widget.driver['licenseNumber'] ?? 'N/A'),
+                    _buildDetailRow('Faktiki ünvan',
+                        widget.driver['actualAddress'] ?? 'N/A'),
+                    _buildDetailRow('Vəsiqə bitmə tarixi',
+                        _formatDate(widget.driver['licenseExpiryDate'])),
+
+                    const SizedBox(height: 20),
+
+                    // Vehicle Information
+                    _buildSectionTitle('Avtomobil Məlumatları'),
+                    _buildDetailRow('Marka',
+                        widget.driver['vehicleInfo']?['make'] ?? 'N/A'),
+                    _buildDetailRow('Model',
+                        widget.driver['vehicleInfo']?['model'] ?? 'N/A'),
+                    _buildDetailRow('Nömrə nişanı',
+                        widget.driver['vehicleInfo']?['plateNumber'] ?? 'N/A'),
+
+                    const SizedBox(height: 20),
+
+                    // Documents
+                    _buildSectionTitle('Sənədlər'),
+                    _buildDocumentRow('Şəxsiyyət vəsiqəsi (Ön)',
+                        widget.driver['identityCardFront']),
+                    _buildDocumentRow('Şəxsiyyət vəsiqəsi (Arxa)',
+                        widget.driver['identityCardBack']),
+                    _buildDocumentRow('Sürücülük vəsiqəsi (Ön)',
+                        widget.driver['licenseFront']),
+                    _buildDocumentRow('Sürücülük vəsiqəsi (Arxa)',
+                        widget.driver['licenseBack']),
+
+                    const SizedBox(height: 20),
+
+                    // Statistics
+                    _buildSectionTitle('Statistika'),
+                    _buildDetailRow('Reytinq',
+                        '${widget.driver['rating']?['average']?.toStringAsFixed(1) ?? '0.0'} (${widget.driver['rating']?['count'] ?? 0} qiymətləndirmə)'),
+                    _buildDetailRow('Ümumi qazanç',
+                        '${widget.driver['earnings']?['total'] ?? 0} ₼'),
+                    _buildDetailRow('Bugünkü qazanç',
+                        '${widget.driver['earnings']?['today'] ?? 0} ₼'),
+                    _buildDetailRow(
+                        'Balans', '${widget.driver['balance'] ?? 0} ₼'),
+
+                    const SizedBox(height: 20),
+
+                    // Status
+                    _buildSectionTitle('Status'),
+                    _buildDetailRow(
+                        'Onlayn status',
+                        widget.driver['isOnline'] == true
+                            ? 'Onlayn'
+                            : 'Oflayn'),
+                    _buildDetailRow(
+                        'Müsaitlik',
+                        widget.driver['isAvailable'] == true
+                            ? 'Müsait'
+                            : 'Məşğul'),
+                    _buildDetailRow(
+                        'Aktiv status',
+                        widget.driver['isActive'] == true
+                            ? 'Aktiv'
+                            : 'Deaktiv'),
+                    _buildDetailRow('Qeydiyyat tarixi',
+                        _formatDateTime(widget.driver['createdAt'])),
+                  ],
+                ),
+              ),
+            ),
+
+            const Divider(),
+
+            // Actions
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Bağla'),
+                ),
+                CustomButton(
+                  onPressed: () => _toggleDriverActive(),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        widget.driver['isActive'] == true
+                            ? Icons.pause
+                            : Icons.play_arrow,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(widget.driver['isActive'] == true
+                          ? 'Deaktiv et'
+                          : 'Aktiv et'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(AppStrings.close),
-        ),
-        CustomButton(
-          onPressed: () {
-            Navigator.of(context).pop();
-            // TODO: Implement edit driver
-          },
-          child: Text(AppStrings.edit),
-        ),
-      ],
     );
   }
 
@@ -609,10 +708,157 @@ class DriverDetailsDialog extends StatelessWidget {
     );
   }
 
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12, top: 8),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: Colors.blue,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDocumentRow(String label, String? imagePath) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSizes.paddingSmall),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          Expanded(
+            child: imagePath != null && imagePath.isNotEmpty
+                ? GestureDetector(
+                    onTap: () => _showImageDialog(imagePath),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.blue),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.image, color: Colors.blue),
+                          const SizedBox(width: 8),
+                          const Text('Şəkli gör',
+                              style: TextStyle(color: Colors.blue)),
+                        ],
+                      ),
+                    ),
+                  )
+                : const Text('Yüklənməyib',
+                    style: TextStyle(color: Colors.grey)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showImageDialog(String imagePath) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.8,
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: Column(
+            children: [
+              AppBar(
+                title: const Text('Sənəd'),
+                automaticallyImplyLeading: false,
+                actions: [
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  child: imagePath.startsWith('http')
+                      ? Image.network(imagePath, fit: BoxFit.contain)
+                      : imagePath.startsWith('/') || imagePath.contains('\\')
+                          ? Image.file(
+                              File(imagePath),
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Center(
+                                  child: Text('Şəkil yüklənə bilmədi'),
+                                );
+                              },
+                            )
+                          : const Center(
+                              child: Text('Şəkil yüklənə bilmədi'),
+                            ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _toggleDriverActive() async {
+    try {
+      final driverProvider =
+          Provider.of<DriverProvider>(context, listen: false);
+      final currentStatus = widget.driver['isActive'] ?? true;
+      final newStatus = !currentStatus;
+
+      await driverProvider.toggleDriverActive(widget.driver['id'], newStatus);
+
+      setState(() {
+        widget.driver['isActive'] = newStatus;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Sürücü ${newStatus ? 'aktiv' : 'deaktiv'} edildi',
+          ),
+          backgroundColor: newStatus ? AppColors.success : AppColors.warning,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
+  String _formatDate(String? dateTime) {
+    if (dateTime == null) return 'N/A';
+    try {
+      final date = DateTime.parse(dateTime);
+      return '${date.day}/${date.month}/${date.year}';
+    } catch (e) {
+      return 'N/A';
+    }
+  }
+
   String _formatDateTime(String? dateTime) {
     if (dateTime == null) return 'N/A';
-    final date = DateTime.parse(dateTime);
-    return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute}';
+    try {
+      final date = DateTime.parse(dateTime);
+      return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute}';
+    } catch (e) {
+      return 'N/A';
+    }
   }
 }
 

@@ -111,23 +111,7 @@ class _SyncfusionDriversDataGridState extends State<SyncfusionDriversDataGrid> {
             allowSorting: true,
             allowFiltering: true,
           ),
-          GridColumn(
-            columnName: 'email',
-            label: Container(
-              padding: const EdgeInsets.all(8.0),
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Email',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.text,
-                ),
-              ),
-            ),
-            minimumWidth: 120,
-            allowSorting: true,
-            allowFiltering: true,
-          ),
+          // Email column removed - hidden from display
           GridColumn(
             columnName: 'licenseNumber',
             label: Container(
@@ -243,7 +227,7 @@ class _SyncfusionDriversDataGridState extends State<SyncfusionDriversDataGrid> {
                 ),
               ),
             ),
-            minimumWidth: 100,
+            minimumWidth: 120,
             allowSorting: false,
             allowFiltering: false,
           ),
@@ -293,10 +277,7 @@ class DriverDataGridSource extends DataGridSource {
             columnName: 'phone',
             value: driver['user']?['phone'] ?? 'N/A',
           ),
-          DataGridCell<String>(
-            columnName: 'email',
-            value: driver['user']?['email'] ?? 'N/A',
-          ),
+          // Email removed from display
           DataGridCell<String>(
             columnName: 'licenseNumber',
             value: driver['licenseNumber'] ?? 'N/A',
@@ -324,7 +305,7 @@ class DriverDataGridSource extends DataGridSource {
             value: driver['createdAt'] != null
                 ? DateFormat('dd.MM.yyyy')
                     .format(DateTime.parse(driver['createdAt']))
-                : 'N/A',
+                : 'Tarix yoxdur',
           ),
           DataGridCell<Widget>(
             columnName: 'actions',
@@ -367,26 +348,34 @@ class DriverDataGridSource extends DataGridSource {
     Color textColor;
     String statusText;
 
-    switch (status.toLowerCase()) {
-      case 'online':
-        backgroundColor = AppColors.success.withOpacity(0.1);
-        textColor = AppColors.success;
-        statusText = AppStrings.online;
-        break;
-      case 'offline':
-        backgroundColor = AppColors.error.withOpacity(0.1);
-        textColor = AppColors.error;
-        statusText = AppStrings.offline;
-        break;
-      case 'busy':
-        backgroundColor = AppColors.warning.withOpacity(0.1);
-        textColor = AppColors.warning;
-        statusText = AppStrings.busy;
-        break;
-      default:
-        backgroundColor = Colors.grey.withOpacity(0.1);
-        textColor = Colors.grey;
-        statusText = 'Naməlum';
+    // Determine status based on isOnline and isAvailable
+    if (status == 'online' || status == 'offline' || status == 'busy') {
+      switch (status.toLowerCase()) {
+        case 'online':
+          backgroundColor = AppColors.success.withOpacity(0.1);
+          textColor = AppColors.success;
+          statusText = 'Onlayn';
+          break;
+        case 'offline':
+          backgroundColor = AppColors.error.withOpacity(0.1);
+          textColor = AppColors.error;
+          statusText = 'Oflayn';
+          break;
+        case 'busy':
+          backgroundColor = AppColors.warning.withOpacity(0.1);
+          textColor = AppColors.warning;
+          statusText = 'Məşğul';
+          break;
+        default:
+          backgroundColor = Colors.grey.withOpacity(0.1);
+          textColor = Colors.grey;
+          statusText = 'Oflayn';
+      }
+    } else {
+      // Default to offline if status is not recognized
+      backgroundColor = AppColors.error.withOpacity(0.1);
+      textColor = AppColors.error;
+      statusText = 'Oflayn';
     }
 
     return Container(
@@ -473,48 +462,61 @@ class DriverDataGridSource extends DataGridSource {
   }
 
   Widget _buildActionButtons(Map<String, dynamic> driver) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        IconButton(
-          icon: Icon(
-            Icons.visibility,
-            size: 16,
-            color: AppColors.primary,
+    return Container(
+      width: 120, // Fixed width to prevent overflow
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          IconButton(
+            icon: Icon(
+              Icons.visibility,
+              size: 14,
+              color: AppColors.primary,
+            ),
+            onPressed: () => _onDriverTap(driver),
+            tooltip: 'Ətraflı bax',
+            padding: EdgeInsets.all(2),
+            constraints: BoxConstraints(minWidth: 24, minHeight: 24),
           ),
-          onPressed: () => _onDriverTap(driver),
-          tooltip: 'Ətraflı bax',
-        ),
-        IconButton(
-          icon: Icon(
-            Icons.edit,
-            size: 16,
-            color: AppColors.info,
+          IconButton(
+            icon: Icon(
+              Icons.edit,
+              size: 14,
+              color: AppColors.info,
+            ),
+            onPressed: () => _onEditDriver(driver),
+            tooltip: 'Redaktə et',
+            padding: EdgeInsets.all(2),
+            constraints: BoxConstraints(minWidth: 24, minHeight: 24),
           ),
-          onPressed: () => _onEditDriver(driver),
-          tooltip: 'Redaktə et',
-        ),
-        IconButton(
-          icon: Icon(
-            driver['isOnline'] == true
-                ? Icons.visibility_off
-                : Icons.visibility,
-            size: 16,
-            color: AppColors.warning,
+          IconButton(
+            icon: Icon(
+              driver['isActive'] == true
+                  ? Icons.pause_circle_outline
+                  : Icons.play_circle_outline,
+              size: 14,
+              color: driver['isActive'] == true
+                  ? AppColors.warning
+                  : AppColors.success,
+            ),
+            onPressed: () => _onToggleStatus(driver),
+            tooltip: driver['isActive'] == true ? 'Deaktiv et' : 'Aktiv et',
+            padding: EdgeInsets.all(2),
+            constraints: BoxConstraints(minWidth: 24, minHeight: 24),
           ),
-          onPressed: () => _onToggleStatus(driver),
-          tooltip: driver['isOnline'] == true ? 'Offlayn et' : 'Onlayn et',
-        ),
-        IconButton(
-          icon: Icon(
-            Icons.delete,
-            size: 16,
-            color: AppColors.error,
+          IconButton(
+            icon: Icon(
+              Icons.delete,
+              size: 14,
+              color: AppColors.error,
+            ),
+            onPressed: () => _onDeleteDriver(driver),
+            tooltip: 'Sil',
+            padding: EdgeInsets.all(2),
+            constraints: BoxConstraints(minWidth: 24, minHeight: 24),
           ),
-          onPressed: () => _onDeleteDriver(driver),
-          tooltip: 'Sil',
-        ),
-      ],
+        ],
+      ),
     );
   }
 

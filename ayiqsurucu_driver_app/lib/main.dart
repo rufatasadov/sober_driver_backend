@@ -11,6 +11,7 @@ import 'core/localization/language_provider.dart';
 import 'features/auth/presentation/cubit/auth_cubit.dart';
 import 'features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
+import 'features/auth/presentation/screens/driver_deactivated_screen.dart';
 import 'features/profile/presentation/cubit/profile_cubit.dart';
 import 'features/orders/presentation/cubit/orders_cubit.dart';
 import 'features/notifications/presentation/cubit/notifications_cubit.dart';
@@ -112,6 +113,8 @@ class _AppInitializerState extends State<AppInitializer> {
             SocketService().initialize(authToken: state.token);
           }
           return const DashboardScreen();
+        } else if (state is AuthDriverDeactivated) {
+          return const DriverDeactivatedScreen();
         } else {
           return const LoginScreen();
         }

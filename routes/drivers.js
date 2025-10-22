@@ -76,13 +76,16 @@ router.post('/register', auth, [
       licenseFront,
       licenseBack,
       status: 'pending',
-      isActive: true
+      isActive: false // Default olaraq deaktiv
     });
 
     // İstifadəçi rolunu yenilə
     const user = await User.findByPk(req.user.id);
     if (user) {
-      await user.update({ role: 'driver' });
+      await user.update({ 
+        role: 'driver',
+        role_id: 2 // Driver role ID (assuming driver role has ID 2)
+      });
     }
 
     res.status(201).json({
