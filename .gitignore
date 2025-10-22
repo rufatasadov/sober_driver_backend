@@ -5,9 +5,6 @@ yarn-debug.log*
 yarn-error.log*
 
 
-#operator_panel
-operator_panel/
-
 # Environment variables
 .env
 .env.local
