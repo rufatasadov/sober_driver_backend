@@ -31,6 +31,42 @@ const Driver = sequelize.define('Driver', {
     allowNull: true,
     defaultValue: {}
   },
+  // Yeni sahələr
+  identityCardFront: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: 'Şəxsiyyət vəsiqəsinin ön tərəfi'
+  },
+  identityCardBack: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: 'Şəxsiyyət vəsiqəsinin arxa tərəfi'
+  },
+  licenseFront: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: 'Sürücülük vəsiqəsinin ön tərəfi'
+  },
+  licenseBack: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: 'Sürücülük vəsiqəsinin arxa tərəfi'
+  },
+  actualAddress: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    comment: 'Faktiki ünvan'
+  },
+  licenseExpiryDate: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: 'Sürücülük vəsiqəsinin bitmə tarixi'
+  },
+  isActive: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
+    comment: 'Sürücünün aktiv/deaktiv statusu'
+  },
   isOnline: {
     type: DataTypes.BOOLEAN,
     defaultValue: false

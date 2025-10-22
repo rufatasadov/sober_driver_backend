@@ -1086,10 +1086,16 @@ router.post('/drivers', auth, authorize('admin', 'operator', 'dispatcher'), [
   body('name').notEmpty().withMessage('Ad tələb olunur'),
   body('phone').notEmpty().withMessage('Telefon nömrəsi tələb olunur'),
   body('licenseNumber').notEmpty().withMessage('Sürücülük vəsiqəsi tələb olunur'),
+  body('actualAddress').notEmpty().withMessage('Faktiki ünvan tələb olunur'),
+  body('licenseExpiryDate').notEmpty().withMessage('Sürücülük vəsiqəsinin bitmə tarixi tələb olunur'),
   body('vehicleMake').optional().notEmpty().withMessage('Avtomobil markası boş ola bilməz'),
   body('vehicleModel').optional().notEmpty().withMessage('Avtomobil modeli boş ola bilməz'),
   body('plateNumber').optional().notEmpty().withMessage('Nömrə nişanı boş ola bilməz'),
-  body('email').optional().isEmail().withMessage('Düzgün email daxil edin')
+  body('email').optional().isEmail().withMessage('Düzgün email daxil edin'),
+  body('identityCardFront').optional().isString().withMessage('Şəxsiyyət vəsiqəsi ön tərəfi'),
+  body('identityCardBack').optional().isString().withMessage('Şəxsiyyət vəsiqəsi arxa tərəfi'),
+  body('licenseFront').optional().isString().withMessage('Sürücülük vəsiqəsi ön tərəfi'),
+  body('licenseBack').optional().isString().withMessage('Sürücülük vəsiqəsi arxa tərəfi')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -1099,7 +1105,13 @@ router.post('/drivers', auth, authorize('admin', 'operator', 'dispatcher'), [
 
     const { 
       name, phone, email, licenseNumber, 
-      vehicleMake, vehicleModel, plateNumber 
+      vehicleMake, vehicleModel, plateNumber,
+      actualAddress,
+      licenseExpiryDate,
+      identityCardFront,
+      identityCardBack,
+      licenseFront,
+      licenseBack
     } = req.body;
 
     // Telefon nömrəsinin mövcudluğunu yoxla
@@ -1134,9 +1146,16 @@ router.post('/drivers', auth, authorize('admin', 'operator', 'dispatcher'), [
     const driverData = {
       userId: user.id,
       licenseNumber,
+      actualAddress,
+      licenseExpiryDate: new Date(licenseExpiryDate),
+      identityCardFront,
+      identityCardBack,
+      licenseFront,
+      licenseBack,
       isOnline: false,
       isAvailable: false,
-      status: 'approved'
+      status: 'approved',
+      isActive: true
     };
 
     // Əgər avtomobil məlumatları verilibsə, əlavə et

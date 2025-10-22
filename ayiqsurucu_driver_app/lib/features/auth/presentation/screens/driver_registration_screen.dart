@@ -52,6 +52,11 @@ class _DriverRegistrationScreenState extends State<DriverRegistrationScreen> {
     try {
       final success = await authCubit.registerDriver(
         licenseNumber: _licenseController.text.trim(),
+        actualAddress:
+            'Not provided', // Default value for old registration flow
+        licenseExpiryDate: DateTime.now().add(
+          const Duration(days: 365),
+        ), // Default 1 year from now
       );
 
       if (success) {

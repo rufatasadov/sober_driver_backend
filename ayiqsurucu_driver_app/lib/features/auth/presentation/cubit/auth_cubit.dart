@@ -241,6 +241,12 @@ class AuthCubit extends Cubit<AuthState> {
   // Driver registration
   Future<bool> registerDriver({
     required String licenseNumber,
+    required String actualAddress,
+    required DateTime licenseExpiryDate,
+    String? identityCardFront,
+    String? identityCardBack,
+    String? licenseFront,
+    String? licenseBack,
     Map<String, dynamic>? vehicleInfo,
     Map<String, dynamic>? documents,
   }) async {
@@ -251,6 +257,12 @@ class AuthCubit extends Cubit<AuthState> {
         AppConstants.driverRegisterEndpoint,
         data: {
           'licenseNumber': licenseNumber,
+          'actualAddress': actualAddress,
+          'licenseExpiryDate': licenseExpiryDate.toIso8601String(),
+          if (identityCardFront != null) 'identityCardFront': identityCardFront,
+          if (identityCardBack != null) 'identityCardBack': identityCardBack,
+          if (licenseFront != null) 'licenseFront': licenseFront,
+          if (licenseBack != null) 'licenseBack': licenseBack,
           if (vehicleInfo != null) 'vehicleInfo': vehicleInfo,
           if (documents != null) 'documents': documents,
         },

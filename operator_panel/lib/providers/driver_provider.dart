@@ -193,6 +193,30 @@ class DriverProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> toggleDriverActive(String driverId, bool isActive) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('${ApiEndpoints.drivers}/$driverId/toggle-active'),
+        headers: {
+          'Authorization': 'Bearer ${await _getToken()}',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({'isActive': isActive}),
+      );
+
+      if (response.statusCode == 200) {
+        await loadDrivers();
+        return true;
+      } else {
+        final data = json.decode(response.body);
+        throw Exception(data['error'] ?? 'Sürücü statusu dəyişdirilmədi');
+      }
+    } catch (e) {
+      print('Toggle driver active error: $e');
+      rethrow;
+    }
+  }
+
   Future<bool> deleteDriver(String driverId) async {
     try {
       final response = await http.delete(

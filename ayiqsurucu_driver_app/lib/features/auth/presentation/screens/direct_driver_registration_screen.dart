@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/loading_screen.dart';
+import '../../../../shared/widgets/privacy_policy_widget.dart';
+import '../../../../shared/widgets/image_upload_widget.dart';
 import '../cubit/auth_cubit.dart';
 import '../../../dashboard/presentation/screens/dashboard_screen.dart';
 
@@ -24,10 +26,21 @@ class _DirectDriverRegistrationScreenState
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _licenseController = TextEditingController();
+  final _actualAddressController = TextEditingController();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _privacyPolicyAccepted = false;
+
+  // Image paths
+  String? _identityCardFront;
+  String? _identityCardBack;
+  String? _licenseFront;
+  String? _licenseBack;
+
+  // License expiry date
+  DateTime? _licenseExpiryDate;
 
   @override
   void initState() {
@@ -42,11 +55,22 @@ class _DirectDriverRegistrationScreenState
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _licenseController.dispose();
+    _actualAddressController.dispose();
     super.dispose();
   }
 
   Future<void> _registerDriver() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (!_privacyPolicyAccepted) {
+      _showErrorDialog('Please accept the terms and conditions to continue.');
+      return;
+    }
+
+    if (_licenseExpiryDate == null) {
+      _showErrorDialog('Please select license expiry date.');
+      return;
+    }
 
     final authCubit = context.read<AuthCubit>();
     setState(() => _isLoading = true);
@@ -64,6 +88,12 @@ class _DirectDriverRegistrationScreenState
         // Then register as driver (without vehicle info)
         final driverSuccess = await authCubit.registerDriver(
           licenseNumber: _licenseController.text.trim(),
+          actualAddress: _actualAddressController.text.trim(),
+          licenseExpiryDate: _licenseExpiryDate!,
+          identityCardFront: _identityCardFront,
+          identityCardBack: _identityCardBack,
+          licenseFront: _licenseFront,
+          licenseBack: _licenseBack,
         );
 
         if (driverSuccess) {
@@ -341,6 +371,165 @@ class _DirectDriverRegistrationScreenState
                       return 'Sürücülük vəsiqəsi nömrəsi tələb olunur';
                     }
                     return null;
+                  },
+                ),
+
+                SizedBox(height: 16.h),
+
+                // Actual Address
+                TextFormField(
+                  controller: _actualAddressController,
+                  decoration: InputDecoration(
+                    labelText: 'Faktiki ünvan',
+                    hintText: 'Yaşadığınız ünvanı daxil edin',
+                    prefixIcon: Icon(
+                      Icons.location_on,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Faktiki ünvan tələb olunur';
+                    }
+                    return null;
+                  },
+                ),
+
+                SizedBox(height: 16.h),
+
+                // License Expiry Date
+                GestureDetector(
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.now().add(
+                        const Duration(days: 365),
+                      ),
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 3650)),
+                    );
+                    if (date != null) {
+                      setState(() {
+                        _licenseExpiryDate = date;
+                      });
+                    }
+                  },
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 12.w,
+                      vertical: 16.h,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: AppColors.textSecondary.withOpacity(0.3),
+                      ),
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_today,
+                          color: AppColors.textSecondary,
+                        ),
+                        SizedBox(width: 12.w),
+                        Expanded(
+                          child: Text(
+                            _licenseExpiryDate != null
+                                ? '${_licenseExpiryDate!.day}/${_licenseExpiryDate!.month}/${_licenseExpiryDate!.year}'
+                                : 'Sürücülük vəsiqəsinin bitmə tarixi',
+                            style: AppTheme.bodyMedium.copyWith(
+                              color:
+                                  _licenseExpiryDate != null
+                                      ? AppColors.textPrimary
+                                      : AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                        Icon(
+                          Icons.arrow_drop_down,
+                          color: AppColors.textSecondary,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                SizedBox(height: 24.h),
+
+                // Documents Section
+                Text('Sənədlər', style: AppTheme.heading3),
+                SizedBox(height: 16.h),
+
+                // Identity Card Front
+                ImageUploadWidget(
+                  label: 'Şəxsiyyət vəsiqəsi (Ön tərəf)',
+                  currentImagePath: _identityCardFront,
+                  onImageSelected: (path) {
+                    setState(() {
+                      _identityCardFront = path;
+                    });
+                  },
+                  isRequired: true,
+                  frontOrBack: 'front',
+                ),
+
+                SizedBox(height: 16.h),
+
+                // Identity Card Back
+                ImageUploadWidget(
+                  label: 'Şəxsiyyət vəsiqəsi (Arxa tərəf)',
+                  currentImagePath: _identityCardBack,
+                  onImageSelected: (path) {
+                    setState(() {
+                      _identityCardBack = path;
+                    });
+                  },
+                  isRequired: true,
+                  frontOrBack: 'back',
+                ),
+
+                SizedBox(height: 16.h),
+
+                // License Front
+                ImageUploadWidget(
+                  label: 'Sürücülük vəsiqəsi (Ön tərəf)',
+                  currentImagePath: _licenseFront,
+                  onImageSelected: (path) {
+                    setState(() {
+                      _licenseFront = path;
+                    });
+                  },
+                  isRequired: true,
+                  frontOrBack: 'front',
+                ),
+
+                SizedBox(height: 16.h),
+
+                // License Back
+                ImageUploadWidget(
+                  label: 'Sürücülük vəsiqəsi (Arxa tərəf)',
+                  currentImagePath: _licenseBack,
+                  onImageSelected: (path) {
+                    setState(() {
+                      _licenseBack = path;
+                    });
+                  },
+                  isRequired: true,
+                  frontOrBack: 'back',
+                ),
+
+                SizedBox(height: 24.h),
+
+                // Privacy Policy Section
+                Text('Terms and Conditions', style: AppTheme.heading3),
+                SizedBox(height: 16.h),
+
+                PrivacyPolicyWidget(
+                  isAccepted: _privacyPolicyAccepted,
+                  onChanged: (value) {
+                    setState(() {
+                      _privacyPolicyAccepted = value;
+                    });
                   },
                 ),
 

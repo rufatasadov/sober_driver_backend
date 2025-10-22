@@ -11,7 +11,13 @@ const router = express.Router();
 
 // Sürücü qeydiyyatı
 router.post('/register', auth, [
-  body('licenseNumber').notEmpty().withMessage('Sürücülük vəsiqəsi nömrəsi tələb olunur')
+  body('licenseNumber').notEmpty().withMessage('Sürücülük vəsiqəsi nömrəsi tələb olunur'),
+  body('actualAddress').notEmpty().withMessage('Faktiki ünvan tələb olunur'),
+  body('licenseExpiryDate').notEmpty().withMessage('Sürücülük vəsiqəsinin bitmə tarixi tələb olunur'),
+  body('identityCardFront').optional().isString().withMessage('Şəxsiyyət vəsiqəsi ön tərəfi'),
+  body('identityCardBack').optional().isString().withMessage('Şəxsiyyət vəsiqəsi arxa tərəfi'),
+  body('licenseFront').optional().isString().withMessage('Sürücülük vəsiqəsi ön tərəfi'),
+  body('licenseBack').optional().isString().withMessage('Sürücülük vəsiqəsi arxa tərəfi')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -25,7 +31,17 @@ router.post('/register', auth, [
       return res.status(400).json({ error: 'Siz artıq sürücü kimi qeydiyyatdan keçmisiniz' });
     }
 
-    const { licenseNumber, vehicleInfo, documents } = req.body;
+    const { 
+      licenseNumber, 
+      vehicleInfo, 
+      documents,
+      actualAddress,
+      licenseExpiryDate,
+      identityCardFront,
+      identityCardBack,
+      licenseFront,
+      licenseBack
+    } = req.body;
 
     // Lisenziya və nömrə nişanının unikallığını yoxla
     const existingLicense = await Driver.findOne({ where: { licenseNumber } });
@@ -53,7 +69,14 @@ router.post('/register', auth, [
       licenseNumber,
       vehicleInfo: vehicleInfo || {},
       documents: documents || {},
-      status: 'pending'
+      actualAddress,
+      licenseExpiryDate: new Date(licenseExpiryDate),
+      identityCardFront,
+      identityCardBack,
+      licenseFront,
+      licenseBack,
+      status: 'pending',
+      isActive: true
     });
 
     // İstifadəçi rolunu yenilə
@@ -73,6 +96,39 @@ router.post('/register', auth, [
     });
   } catch (error) {
     console.error('Sürücü qeydiyyat xətası:', error);
+    res.status(500).json({ error: 'Server xətası' });
+  }
+});
+
+// Sürücünü aktiv/deaktiv etmə (Admin)
+router.patch('/:id/toggle-active', auth, authorize('admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isActive } = req.body;
+
+    const driver = await Driver.findByPk(id, {
+      include: [{ model: User, as: 'user' }]
+    });
+
+    if (!driver) {
+      return res.status(404).json({ error: 'Sürücü tapılmadı' });
+    }
+
+    await driver.update({ isActive });
+
+    res.json({
+      message: `Sürücü ${isActive ? 'aktiv' : 'deaktiv'} edildi`,
+      driver: {
+        id: driver.id,
+        name: driver.user?.name,
+        phone: driver.user?.phone,
+        licenseNumber: driver.licenseNumber,
+        isActive: driver.isActive,
+        status: driver.status
+      }
+    });
+  } catch (error) {
+    console.error('Sürücü aktiv/deaktiv etmə xətası:', error);
     res.status(500).json({ error: 'Server xətası' });
   }
 });

@@ -1,4 +1,4 @@
-package com.ayiqsurucu.driver.ayiqsurucu_driver
+package com.peregonhayda.driver
 
 import io.flutter.embedding.android.FlutterActivity
 

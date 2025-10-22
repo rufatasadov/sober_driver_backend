@@ -239,13 +239,17 @@ class _DriversScreenState extends State<DriversScreen> {
     try {
       final driverProvider =
           Provider.of<DriverProvider>(context, listen: false);
-      final newStatus = driver['isOnline'] == true ? false : true;
-      await driverProvider.updateDriver(driver['_id'], {'isOnline': newStatus});
+      final currentStatus = driver['isActive'] ?? true;
+      final newStatus = !currentStatus;
+
+      await driverProvider.toggleDriverActive(driver['id'], newStatus);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Sürücü statusu uğurla dəyişdirildi'),
-          backgroundColor: AppColors.success,
+          content: Text(
+            'Sürücü ${newStatus ? 'aktiv' : 'deaktiv'} edildi',
+          ),
+          backgroundColor: newStatus ? AppColors.success : AppColors.warning,
         ),
       );
     } catch (e) {
@@ -275,6 +279,27 @@ class _AddDriverDialogState extends State<AddDriverDialog> {
   final _makeController = TextEditingController();
   final _modelController = TextEditingController();
   final _plateController = TextEditingController();
+  final _actualAddressController = TextEditingController();
+
+  // New fields
+  DateTime? _licenseExpiryDate;
+  String? _identityCardFront;
+  String? _identityCardBack;
+  String? _licenseFront;
+  String? _licenseBack;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
+    _licenseController.dispose();
+    _makeController.dispose();
+    _modelController.dispose();
+    _plateController.dispose();
+    _actualAddressController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -326,6 +351,66 @@ class _AddDriverDialogState extends State<AddDriverDialog> {
                 },
               ),
               const SizedBox(height: AppSizes.padding),
+
+              // Actual Address
+              CustomTextField(
+                controller: _actualAddressController,
+                labelText: 'Faktiki ünvan',
+                hintText: 'Yaşadığı ünvan',
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return AppStrings.requiredField;
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: AppSizes.padding),
+
+              // License Expiry Date
+              GestureDetector(
+                onTap: () async {
+                  final date = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now().add(const Duration(days: 365)),
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(const Duration(days: 3650)),
+                  );
+                  if (date != null) {
+                    setState(() {
+                      _licenseExpiryDate = date;
+                    });
+                  }
+                },
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.calendar_today, color: Colors.grey),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _licenseExpiryDate != null
+                              ? '${_licenseExpiryDate!.day}/${_licenseExpiryDate!.month}/${_licenseExpiryDate!.year}'
+                              : 'Sürücülük vəsiqəsinin bitmə tarixi',
+                          style: TextStyle(
+                            color: _licenseExpiryDate != null
+                                ? Colors.black
+                                : Colors.grey,
+                          ),
+                        ),
+                      ),
+                      const Icon(Icons.arrow_drop_down, color: Colors.grey),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSizes.padding),
+
               // Vehicle information section (optional for sober driver service)
               const SizedBox(height: AppSizes.padding),
               Text(
@@ -381,6 +466,16 @@ class _AddDriverDialogState extends State<AddDriverDialog> {
 
   void _submitDriver() async {
     if (_formKey.currentState!.validate()) {
+      if (_licenseExpiryDate == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sürücülük vəsiqəsinin bitmə tarixini seçin'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
       try {
         final driverProvider =
             Provider.of<DriverProvider>(context, listen: false);
@@ -393,6 +488,13 @@ class _AddDriverDialogState extends State<AddDriverDialog> {
               ? null
               : _emailController.text.trim(),
           'licenseNumber': _licenseController.text.trim(),
+          'actualAddress': _actualAddressController.text.trim(),
+          'licenseExpiryDate': _licenseExpiryDate!.toIso8601String(),
+          if (_identityCardFront != null)
+            'identityCardFront': _identityCardFront,
+          if (_identityCardBack != null) 'identityCardBack': _identityCardBack,
+          if (_licenseFront != null) 'licenseFront': _licenseFront,
+          if (_licenseBack != null) 'licenseBack': _licenseBack,
         };
 
         // Only add vehicle information if provided
