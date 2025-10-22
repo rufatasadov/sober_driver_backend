@@ -244,6 +244,7 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final ordersCubit = context.read<OrdersCubit>();
       ordersCubit.setDashboardRefreshCallback(_refreshDashboardData);
+      ordersCubit.setDismissNotificationsCallback(_dismissAllNotifications);
     });
   }
 
@@ -348,6 +349,18 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  void _dismissAllNotifications() {
+    setState(() {
+      _showNewOrderNotification = false;
+      _newOrder = null;
+      _showBroadcastOrderNotification = false;
+      _broadcastOrder = null;
+      _showAssignedOrderNotification = false;
+      _assignedOrder = null;
+    });
+    print('Dashboard: All notifications dismissed after order completion');
+  }
+
   Future<void> _acceptOrder(Order order) async {
     final ordersCubit = context.read<OrdersCubit>();
     final dashboardCubit = context.read<DashboardCubit>();
@@ -361,9 +374,10 @@ class _HomeScreenState extends State<HomeScreen> {
             backgroundColor: AppColors.success,
           ),
         );
-        _dismissNewOrder();
-        _dismissBroadcastOrder();
-        _dismissAssignedOrder();
+        // Don't dismiss notifications here - only dismiss when order is completed
+        // _dismissNewOrder();
+        // _dismissBroadcastOrder();
+        // _dismissAssignedOrder();
 
         // Check and auto-set online status after accepting order
         await dashboardCubit.checkAndAutoSetOnlineStatus(ordersCubit);
@@ -391,8 +405,9 @@ class _HomeScreenState extends State<HomeScreen> {
             backgroundColor: AppColors.warning,
           ),
         );
-        _dismissNewOrder();
-        _dismissBroadcastOrder();
+        // Don't dismiss notifications here - only dismiss when order is completed
+        // _dismissNewOrder();
+        // _dismissBroadcastOrder();
 
         // Check and auto-set online status after rejecting order
         await dashboardCubit.checkAndAutoSetOnlineStatus(ordersCubit);
@@ -526,8 +541,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               balance: stats['balance']?.toDouble() ?? 0.0,
                               todayEarnings:
                                   stats['todayEarnings']?.toDouble() ?? 0.0,
-                              isUpdating:
-                                  false, // You can add state to track if balance is updating
+                              isUpdating: state is DashboardLoading,
                             ),
                             SizedBox(height: 12.h), // Small gap before nav
                           ],

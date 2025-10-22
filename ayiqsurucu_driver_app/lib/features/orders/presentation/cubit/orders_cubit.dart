@@ -182,6 +182,9 @@ class OrdersCubit extends Cubit<OrdersState> {
   // Callback for dashboard refresh after order completion
   VoidCallback? _dashboardRefreshCallback;
 
+  // Callback for dismissing notifications when order is completed
+  VoidCallback? _dismissNotificationsCallback;
+
   // Callback for broadcast order notifications
   Function(Order)? _broadcastOrderCallback;
 
@@ -532,12 +535,32 @@ class OrdersCubit extends Cubit<OrdersState> {
         // Refresh dashboard data to update balance information
         // This will trigger a refresh of the balance display
         _refreshDashboardData();
+
+        // Dismiss notifications when order is completed
+        _dismissNotifications();
       }
 
       return success;
     } catch (e) {
       print('OrdersCubit: Error completing order: $e');
       return false;
+    }
+  }
+
+  // Dismiss notifications when order is completed
+  void _dismissNotifications() {
+    try {
+      print('OrdersCubit: Dismissing notifications after order completion');
+
+      // Call the dismiss notifications callback if it's set
+      if (_dismissNotificationsCallback != null) {
+        _dismissNotificationsCallback!();
+        print('OrdersCubit: Notifications dismissed successfully');
+      } else {
+        print('OrdersCubit: No dismiss notifications callback set');
+      }
+    } catch (e) {
+      print('OrdersCubit: Error dismissing notifications: $e');
     }
   }
 
@@ -623,6 +646,10 @@ class OrdersCubit extends Cubit<OrdersState> {
 
   void setDashboardRefreshCallback(VoidCallback callback) {
     _dashboardRefreshCallback = callback;
+  }
+
+  void setDismissNotificationsCallback(VoidCallback callback) {
+    _dismissNotificationsCallback = callback;
   }
 
   void setBroadcastOrderCallback(Function(Order) callback) {

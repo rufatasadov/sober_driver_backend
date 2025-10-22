@@ -458,6 +458,20 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                           'Tarix',
                           _formatDateTime(widget.order.createdAt),
                         ),
+                        if (widget.order.updatedAt != null)
+                          _buildInfoRow(
+                            'Son yenilənmə',
+                            _formatDateTime(widget.order.updatedAt!),
+                          ),
+                        _buildInfoRow(
+                          'Yaradılma vaxtı',
+                          _formatDetailedDateTime(widget.order.createdAt),
+                        ),
+                        if (widget.order.updatedAt != null)
+                          _buildInfoRow(
+                            'Yenilənmə vaxtı',
+                            _formatDetailedDateTime(widget.order.updatedAt!),
+                          ),
 
                         if (widget.order.notes != null &&
                             widget.order.notes!.isNotEmpty) ...[
@@ -799,6 +813,35 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       default:
         return status;
     }
+  }
+
+  String _formatDetailedDateTime(DateTime date) {
+    final months = [
+      'Yanvar',
+      'Fevral',
+      'Mart',
+      'Aprel',
+      'May',
+      'İyun',
+      'İyul',
+      'Avqust',
+      'Sentyabr',
+      'Oktyabr',
+      'Noyabr',
+      'Dekabr',
+    ];
+
+    final weekdays = [
+      'Bazar ertəsi',
+      'Çərşənbə axşamı',
+      'Çərşənbə',
+      'Cümə axşamı',
+      'Cümə',
+      'Şənbə',
+      'Bazar',
+    ];
+
+    return '${weekdays[date.weekday - 1]}, ${date.day} ${months[date.month - 1]} ${date.year}, ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
   String _formatDateTime(DateTime date) {
