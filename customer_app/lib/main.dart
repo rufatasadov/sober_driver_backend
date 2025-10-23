@@ -35,14 +35,15 @@ class AyiqSurucuCustomerApp extends StatelessWidget {
         BlocProvider(create: (context) => OrdersCubit()),
       ],
       child: BlocProvider(
-        create: (context) => HomeCubit(ordersCubit: context.read<OrdersCubit>()),
+        create: (context) =>
+            HomeCubit(ordersCubit: context.read<OrdersCubit>()),
         child: ScreenUtilInit(
           designSize: const Size(375, 812), // iPhone X design size
           minTextAdapt: true,
           splitScreenMode: true,
           builder: (context, child) {
             return MaterialApp(
-              title: 'Ayiq Sürücü Customer',
+              title: 'Peregon hayda Customer',
               debugShowCheckedModeBanner: false,
               theme: AppTheme.lightTheme,
               home: const AppInitializer(),

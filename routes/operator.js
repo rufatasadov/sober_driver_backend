@@ -164,15 +164,25 @@ router.post('/orders/:orderId/assign-driver', auth, authorize('admin', 'operator
       console.log(`Operator: Emitting new_order_assigned to driver_${driver.userId}`);
       // Sürücüyə bildir
       io.to(`driver_${driver.userId}`).emit('new_order_assigned', {
-        orderId: order.id,
+        id: order.id,
         orderNumber: order.orderNumber,
+        customerId: order.customerId,
+        driverId: order.driverId,
         pickup: order.pickup,
         destination: order.destination,
+        status: order.status,
+        estimatedTime: order.estimatedTime,
+        estimatedDistance: order.estimatedDistance,
         fare: order.fare,
+        paymentMethod: order.payment?.method || 'cash',
+        notes: order.notes,
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt,
         customer: {
           name: order.customer?.name || 'Müştəri',
           phone: order.customer?.phone || 'N/A'
         },
+        customerPhone: order.customer?.phone || 'N/A',
         etaMinutes: 15 // Default ETA
       });
 
@@ -334,6 +344,13 @@ router.put('/orders/:orderId', auth, authorize('admin', 'operator', 'dispatcher'
 
     if (!order) {
       return res.status(404).json({ error: 'Sifariş tapılmadı' });
+    }
+
+    // Restrict operator from editing if order is already accepted by driver or beyond
+    const userRole = (req.user && (req.user.role?.name || req.user.role)) || 'operator';
+    const lockedStatuses = ['accepted', 'driver_assigned', 'driver_arrived', 'in_progress', 'completed'];
+    if (userRole === 'operator' && lockedStatuses.includes(order.status)) {
+      return res.status(403).json({ error: 'Operator bu statusda sifarişi redaktə edə bilməz' });
     }
 
     const updates = {};
@@ -1069,10 +1086,16 @@ router.post('/drivers', auth, authorize('admin', 'operator', 'dispatcher'), [
   body('name').notEmpty().withMessage('Ad tələb olunur'),
   body('phone').notEmpty().withMessage('Telefon nömrəsi tələb olunur'),
   body('licenseNumber').notEmpty().withMessage('Sürücülük vəsiqəsi tələb olunur'),
+  body('actualAddress').notEmpty().withMessage('Faktiki ünvan tələb olunur'),
+  body('licenseExpiryDate').notEmpty().withMessage('Sürücülük vəsiqəsinin bitmə tarixi tələb olunur'),
   body('vehicleMake').optional().notEmpty().withMessage('Avtomobil markası boş ola bilməz'),
   body('vehicleModel').optional().notEmpty().withMessage('Avtomobil modeli boş ola bilməz'),
   body('plateNumber').optional().notEmpty().withMessage('Nömrə nişanı boş ola bilməz'),
-  body('email').optional().isEmail().withMessage('Düzgün email daxil edin')
+  body('email').optional().isEmail().withMessage('Düzgün email daxil edin'),
+  body('identityCardFront').optional().isString().withMessage('Şəxsiyyət vəsiqəsi ön tərəfi'),
+  body('identityCardBack').optional().isString().withMessage('Şəxsiyyət vəsiqəsi arxa tərəfi'),
+  body('licenseFront').optional().isString().withMessage('Sürücülük vəsiqəsi ön tərəfi'),
+  body('licenseBack').optional().isString().withMessage('Sürücülük vəsiqəsi arxa tərəfi')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -1082,7 +1105,13 @@ router.post('/drivers', auth, authorize('admin', 'operator', 'dispatcher'), [
 
     const { 
       name, phone, email, licenseNumber, 
-      vehicleMake, vehicleModel, plateNumber 
+      vehicleMake, vehicleModel, plateNumber,
+      actualAddress,
+      licenseExpiryDate,
+      identityCardFront,
+      identityCardBack,
+      licenseFront,
+      licenseBack
     } = req.body;
 
     // Telefon nömrəsinin mövcudluğunu yoxla
@@ -1117,9 +1146,16 @@ router.post('/drivers', auth, authorize('admin', 'operator', 'dispatcher'), [
     const driverData = {
       userId: user.id,
       licenseNumber,
+      actualAddress,
+      licenseExpiryDate: new Date(licenseExpiryDate),
+      identityCardFront,
+      identityCardBack,
+      licenseFront,
+      licenseBack,
       isOnline: false,
       isAvailable: false,
-      status: 'approved'
+      status: 'approved',
+      isActive: true
     };
 
     // Əgər avtomobil məlumatları verilibsə, əlavə et

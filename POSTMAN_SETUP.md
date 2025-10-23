@@ -1,11 +1,11 @@
 # 📮 Postman Collection Setup Guide
 
-Bu təlimat Ayiq Sürücü API-ni test etmək üçün Postman collection-unu quraşdırmaq və istifadə etmək üçündür.
+Bu təlimat Peregon hayda API-ni test etmək üçün Postman collection-unu quraşdırmaq və istifadə etmək üçündür.
 
 ## 📋 Tələblər
 
 - Postman Desktop App (v10.0 və ya daha yuxarı)
-- Ayiq Sürücü Backend API işləyir (localhost:3000)
+- Peregon hayda Backend API işləyir (localhost:3000)
 - PostgreSQL verilənlər bazası qoşulub
 
 ## 🚀 Quraşdırma Addımları
@@ -24,7 +24,7 @@ Bu təlimat Ayiq Sürücü API-ni test etmək üçün Postman collection-unu qur
    - "Import" düyməsinə basın
 
 3. **Environment Seç:**
-   - Sağ üst küncdə "Ayiq Sürücü - Development" environment-ni seçin
+   - Sağ üst küncdə "Peregon hayda - Development" environment-ni seçin
 
 ### 2. Backend API-ni Başlat
 

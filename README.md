@@ -1,4 +1,4 @@
-# Ayiq Sürücü - Backend API
+# Peregon hayda - Backend API
 
 Bu layihə taxi sifariş sistemi üçün tam funksional backend API-dir. Sistem müştəri, sürücü, operator, dispetçer və admin modullarını dəstəkləyir.
 

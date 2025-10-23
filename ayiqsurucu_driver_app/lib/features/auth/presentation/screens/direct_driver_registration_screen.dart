@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/loading_screen.dart';
+import '../../../../shared/widgets/privacy_policy_widget.dart';
+import '../../../../shared/widgets/image_upload_widget.dart';
 import '../cubit/auth_cubit.dart';
 import '../../../dashboard/presentation/screens/dashboard_screen.dart';
 
@@ -24,20 +26,25 @@ class _DirectDriverRegistrationScreenState
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _licenseController = TextEditingController();
-  final _makeController = TextEditingController();
-  final _modelController = TextEditingController();
-  final _yearController = TextEditingController();
-  final _colorController = TextEditingController();
-  final _plateController = TextEditingController();
+  final _actualAddressController = TextEditingController();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _privacyPolicyAccepted = false;
+
+  // Image paths
+  String? _identityCardFront;
+  String? _identityCardBack;
+  String? _licenseFront;
+  String? _licenseBack;
+
+  // License expiry date
+  DateTime? _licenseExpiryDate;
 
   @override
   void initState() {
     super.initState();
-    _yearController.text = DateTime.now().year.toString();
   }
 
   @override
@@ -48,16 +55,22 @@ class _DirectDriverRegistrationScreenState
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _licenseController.dispose();
-    _makeController.dispose();
-    _modelController.dispose();
-    _yearController.dispose();
-    _colorController.dispose();
-    _plateController.dispose();
+    _actualAddressController.dispose();
     super.dispose();
   }
 
   Future<void> _registerDriver() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (!_privacyPolicyAccepted) {
+      _showErrorDialog('Please accept the terms and conditions to continue.');
+      return;
+    }
+
+    if (_licenseExpiryDate == null) {
+      _showErrorDialog('Please select license expiry date.');
+      return;
+    }
 
     final authCubit = context.read<AuthCubit>();
     setState(() => _isLoading = true);
@@ -72,18 +85,15 @@ class _DirectDriverRegistrationScreenState
       );
 
       if (userSuccess) {
-        // Then register as driver
-        final vehicleInfo = {
-          'make': _makeController.text.trim(),
-          'model': _modelController.text.trim(),
-          'year': int.parse(_yearController.text.trim()),
-          'color': _colorController.text.trim(),
-          'plateNumber': _plateController.text.trim(),
-        };
-
+        // Then register as driver (without vehicle info)
         final driverSuccess = await authCubit.registerDriver(
           licenseNumber: _licenseController.text.trim(),
-          vehicleInfo: vehicleInfo,
+          actualAddress: _actualAddressController.text.trim(),
+          licenseExpiryDate: _licenseExpiryDate!,
+          identityCardFront: _identityCardFront,
+          identityCardBack: _identityCardBack,
+          licenseFront: _licenseFront,
+          licenseBack: _licenseBack,
         );
 
         if (driverSuccess) {
@@ -130,40 +140,6 @@ class _DirectDriverRegistrationScreenState
             ],
           ),
     );
-  }
-
-  Future<void> _selectYear() async {
-    final currentYear = DateTime.now().year;
-    final years = List.generate(30, (index) => currentYear - index);
-
-    final selectedYear = await showDialog<int>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('İl seçin'),
-            content: SizedBox(
-              width: double.maxFinite,
-              height: 300.h,
-              child: ListView.builder(
-                itemCount: years.length,
-                itemBuilder: (context, index) {
-                  final year = years[index];
-                  return ListTile(
-                    title: Text(year.toString()),
-                    selected: year.toString() == _yearController.text,
-                    onTap: () => Navigator.pop(context, year),
-                  );
-                },
-              ),
-            ),
-          ),
-    );
-
-    if (selectedYear != null) {
-      setState(() {
-        _yearController.text = selectedYear.toString();
-      });
-    }
   }
 
   @override
@@ -398,119 +374,166 @@ class _DirectDriverRegistrationScreenState
                   },
                 ),
 
+                SizedBox(height: 16.h),
+
+                // Actual Address
+                TextFormField(
+                  controller: _actualAddressController,
+                  decoration: InputDecoration(
+                    labelText: 'Faktiki ünvan',
+                    hintText: 'Yaşadığınız ünvanı daxil edin',
+                    prefixIcon: Icon(
+                      Icons.location_on,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Faktiki ünvan tələb olunur';
+                    }
+                    return null;
+                  },
+                ),
+
+                SizedBox(height: 16.h),
+
+                // License Expiry Date
+                GestureDetector(
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.now().add(
+                        const Duration(days: 365),
+                      ),
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 3650)),
+                    );
+                    if (date != null) {
+                      setState(() {
+                        _licenseExpiryDate = date;
+                      });
+                    }
+                  },
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 12.w,
+                      vertical: 16.h,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: AppColors.textSecondary.withOpacity(0.3),
+                      ),
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_today,
+                          color: AppColors.textSecondary,
+                        ),
+                        SizedBox(width: 12.w),
+                        Expanded(
+                          child: Text(
+                            _licenseExpiryDate != null
+                                ? '${_licenseExpiryDate!.day}/${_licenseExpiryDate!.month}/${_licenseExpiryDate!.year}'
+                                : 'Sürücülük vəsiqəsinin bitmə tarixi',
+                            style: AppTheme.bodyMedium.copyWith(
+                              color:
+                                  _licenseExpiryDate != null
+                                      ? AppColors.textPrimary
+                                      : AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                        Icon(
+                          Icons.arrow_drop_down,
+                          color: AppColors.textSecondary,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
                 SizedBox(height: 24.h),
 
-                // Vehicle Info Section
-                Text('Avtomobil Məlumatları', style: AppTheme.heading3),
+                // Documents Section
+                Text('Sənədlər', style: AppTheme.heading3),
                 SizedBox(height: 16.h),
 
-                // Make
-                TextFormField(
-                  controller: _makeController,
-                  decoration: InputDecoration(
-                    labelText: 'Marka',
-                    hintText: 'Toyota',
-                    prefixIcon: Icon(
-                      Icons.directions_car,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Marka tələb olunur';
-                    }
-                    return null;
+                // Identity Card Front
+                ImageUploadWidget(
+                  label: 'Şəxsiyyət vəsiqəsi (Ön tərəf)',
+                  currentImagePath: _identityCardFront,
+                  onImageSelected: (path) {
+                    setState(() {
+                      _identityCardFront = path;
+                    });
+                  },
+                  isRequired: true,
+                  frontOrBack: 'front',
+                ),
+
+                SizedBox(height: 16.h),
+
+                // Identity Card Back
+                ImageUploadWidget(
+                  label: 'Şəxsiyyət vəsiqəsi (Arxa tərəf)',
+                  currentImagePath: _identityCardBack,
+                  onImageSelected: (path) {
+                    setState(() {
+                      _identityCardBack = path;
+                    });
+                  },
+                  isRequired: true,
+                  frontOrBack: 'back',
+                ),
+
+                SizedBox(height: 16.h),
+
+                // License Front
+                ImageUploadWidget(
+                  label: 'Sürücülük vəsiqəsi (Ön tərəf)',
+                  currentImagePath: _licenseFront,
+                  onImageSelected: (path) {
+                    setState(() {
+                      _licenseFront = path;
+                    });
+                  },
+                  isRequired: true,
+                  frontOrBack: 'front',
+                ),
+
+                SizedBox(height: 16.h),
+
+                // License Back
+                ImageUploadWidget(
+                  label: 'Sürücülük vəsiqəsi (Arxa tərəf)',
+                  currentImagePath: _licenseBack,
+                  onImageSelected: (path) {
+                    setState(() {
+                      _licenseBack = path;
+                    });
+                  },
+                  isRequired: true,
+                  frontOrBack: 'back',
+                ),
+
+                SizedBox(height: 24.h),
+
+                // Privacy Policy Section
+                Text('Terms and Conditions', style: AppTheme.heading3),
+                SizedBox(height: 16.h),
+
+                PrivacyPolicyWidget(
+                  isAccepted: _privacyPolicyAccepted,
+                  onChanged: (value) {
+                    setState(() {
+                      _privacyPolicyAccepted = value;
+                    });
                   },
                 ),
 
-                SizedBox(height: 16.h),
-
-                // Model
-                TextFormField(
-                  controller: _modelController,
-                  decoration: InputDecoration(
-                    labelText: 'Model',
-                    hintText: 'Camry',
-                    prefixIcon: Icon(
-                      Icons.car_rental,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Model tələb olunur';
-                    }
-                    return null;
-                  },
-                ),
-
-                SizedBox(height: 16.h),
-
-                // Year
-                TextFormField(
-                  controller: _yearController,
-                  readOnly: true,
-                  decoration: InputDecoration(
-                    labelText: 'İl',
-                    hintText: '2020',
-                    prefixIcon: Icon(
-                      Icons.calendar_today,
-                      color: AppColors.textSecondary,
-                    ),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        Icons.arrow_drop_down,
-                        color: AppColors.textSecondary,
-                      ),
-                      onPressed: _selectYear,
-                    ),
-                  ),
-                  onTap: _selectYear,
-                ),
-
-                SizedBox(height: 16.h),
-
-                // Color
-                TextFormField(
-                  controller: _colorController,
-                  decoration: InputDecoration(
-                    labelText: 'Rəng',
-                    hintText: 'Ağ',
-                    prefixIcon: Icon(
-                      Icons.color_lens,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Rəng tələb olunur';
-                    }
-                    return null;
-                  },
-                ),
-
-                SizedBox(height: 16.h),
-
-                // Plate Number
-                TextFormField(
-                  controller: _plateController,
-                  decoration: InputDecoration(
-                    labelText: 'Nömrə nişanı',
-                    hintText: '10-AA-123',
-                    prefixIcon: Icon(
-                      Icons.confirmation_number,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Nömrə nişanı tələb olunur';
-                    }
-                    return null;
-                  },
-                ),
-
-                SizedBox(height: 32.h),
+                SizedBox(height: 24.h),
 
                 // Register button
                 LoadingButton(

@@ -4,6 +4,7 @@ const { auth, authorize } = require('../middleware/auth');
 const Order = require('../models/Order');
 const Driver = require('../models/Driver');
 const User = require('../models/User'); // Added for population
+const Setting = require('../models/Setting');
 const { 
   calculateDistance, 
   calculateFare, 
@@ -85,13 +86,14 @@ router.post('/', auth, [
     const fare = calculateFare(distance, estimatedTime);
 
     // Order number yarat
-    const generateOrderNumber = () => {
+    const generateOrderNumber = async () => {
+      const prefix = await Setting.getValue('order_prefix', 'ORD');
       const date = new Date();
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
       const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-      return `ORD-${year}${month}${day}-${random}`;
+      return `${prefix}-${year}${month}${day}-${random}`;
     };
 
     // Yeni sifariş yarat
@@ -102,7 +104,7 @@ router.post('/', auth, [
     });
     
     const orderData = {
-      orderNumber: generateOrderNumber(), // Manual order number yarat
+      orderNumber: await generateOrderNumber(), // Manual order number yarat
       customerId: customerId, // Müəyyən edilmiş müştəri ID-si
       pickup: {
         location: {
@@ -456,6 +458,46 @@ router.patch('/:orderId/status', auth, [
       notes: notes || order.notes
     });
 
+    // If status moved to completed/cancelled -> free up driver
+    if ((status === 'completed' || status === 'cancelled') && order.driverId) {
+      const driver = await Driver.findByPk(order.driverId);
+      if (driver) {
+        driver.isAvailable = true;
+        
+        // Deduct 10% of order fare from driver balance when order is completed
+        if (status === 'completed' && order.fare) {
+          // Handle different fare structures (object vs number)
+          let fareAmount = 0;
+          if (typeof order.fare === 'object' && order.fare.total) {
+            fareAmount = parseFloat(order.fare.total);
+          } else if (typeof order.fare === 'number') {
+            fareAmount = order.fare;
+          } else if (typeof order.fare === 'string') {
+            fareAmount = parseFloat(order.fare);
+          }
+          
+          if (fareAmount > 0) {
+            const deductionAmount = fareAmount * 0.10; // 10% of fare
+            const currentBalance = parseFloat(driver.balance);
+            const newBalance = currentBalance - deductionAmount;
+            
+            // Ensure balance doesn't go below 0
+            if (newBalance >= 0) {
+              driver.balance = newBalance;
+              console.log(`Driver ${driver.id} balance deducted: ${deductionAmount.toFixed(2)} AZN (10% of ${fareAmount.toFixed(2)} AZN fare). New balance: ${newBalance.toFixed(2)} AZN`);
+            } else {
+              console.log(`Driver ${driver.id} balance would go negative. Deduction skipped. Current balance: ${currentBalance.toFixed(2)} AZN, would deduct: ${deductionAmount.toFixed(2)} AZN`);
+            }
+          } else {
+            console.log(`Driver ${driver.id} order ${order.id} has invalid fare amount: ${order.fare}`);
+          }
+        }
+        
+        await driver.save();
+        console.log(`Driver ${driver.id} freed up after order ${order.id} ${status}`);
+      }
+    }
+
     res.json({
       message: 'Status uğurla yeniləndi',
       order: {
@@ -510,6 +552,16 @@ router.post('/:orderId/cancel', auth, [
       cancellationReason: reason,
       timeline
     });
+
+    // Free up driver if order was cancelled
+    if (order.driverId) {
+      const driver = await Driver.findByPk(order.driverId);
+      if (driver) {
+        driver.isAvailable = true;
+        await driver.save();
+        console.log(`Driver ${driver.id} freed up after order ${order.id} cancelled`);
+      }
+    }
 
     res.json({
       message: 'Sifariş uğurla ləğv edildi',

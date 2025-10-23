@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "ayiq-surucu-api-collection",
-    "name": "Ayiq Sürücü API",
-    "description": "Ayiq Sürücü taxi ordering system API collection with all endpoints and examples",
+    "name": "Peregon hayda API",
+    "description": "Peregon hayda taxi ordering system API collection with all endpoints and examples",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "ayiq-surucu"
   },
@@ -192,6 +192,26 @@
           }
         },
         {
+          "name": "Update Order Status (with Balance Deduction)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{operator_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"completed\",\n  \"notes\": \"Trip completed successfully\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "orders", "{{order_id}}", "status"]
+            },
+            "description": "Update order status. When status is 'completed', automatically deducts 10% of fare from driver's balance and sets driver as available"
+          }
+        },
+        {
           "name": "Assign Driver to Order",
           "request": {
             "method": "POST",
@@ -201,7 +221,7 @@
             ],
             "body": {"mode": "raw", "raw": "{\n  \"driverId\": \"{{driver_id}}\"\n}"},
             "url": {"raw": "{{base_url}}/api/operator/orders/{{order_id}}/assign-driver", "host": ["{{base_url}}"], "path": ["api", "operator", "orders", "{{order_id}}", "assign-driver"]},
-            "description": "Assign a driver to an order"
+            "description": "Assign a driver to an order. Emits 'new_order_assigned' socket event to driver with complete order data including 'id' field."
           }
         },
         {
@@ -614,6 +634,58 @@
             "url": {"raw": "{{base_url}}/api/admin/orders?status=completed&page=1&limit=20", "host": ["{{base_url}}"], "path": ["api", "admin", "orders"], "query": [{"key": "status", "value": "completed"}, {"key": "page", "value": "1"}, {"key": "limit", "value": "20"}]},
             "description": "Get all orders for admin management"
           }
+        },
+        {
+          "name": "💰 Get Drivers Balance",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{admin_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/drivers/balance",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "drivers", "balance"]
+            },
+            "description": "Get all drivers with their balance information for admin management"
+          }
+        },
+        {
+          "name": "💰 Update Driver Balance",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{admin_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 50.00,\n  \"operation\": \"add\",\n  \"reason\": \"Bonus for excellent service\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/drivers/{{driver_id}}/balance",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "drivers", "{{driver_id}}", "balance"]
+            },
+            "description": "Update driver balance (add or subtract amount). Operations: 'add' or 'subtract'"
+          }
+        },
+        {
+          "name": "💰 Get Driver Balance History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "Bearer {{admin_token}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/drivers/{{driver_id}}/balance-history",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "drivers", "{{driver_id}}", "balance-history"]
+            },
+            "description": "Get balance transaction history for a specific driver (placeholder endpoint)"
+          }
         }
       ]
     },
@@ -657,7 +729,7 @@
             ],
             "body": {"mode": "raw", "raw": "{\n  \"driverId\": \"{{driver_id}}\"\n}"},
             "url": {"raw": "{{base_url}}/api/dispatcher/orders/{{order_id}}/assign-driver", "host": ["{{base_url}}"], "path": ["api", "dispatcher", "orders", "{{order_id}}", "assign-driver"]},
-            "description": "Assign driver to order (dispatcher)"
+            "description": "Assign driver to order (dispatcher). Emits 'new_order_assigned' socket event to driver with complete order data including 'id' field."
           }
         },
         {
@@ -685,6 +757,83 @@
             "header": [{"key": "Authorization", "value": "Bearer {{dispatcher_token}}"}],
             "url": {"raw": "{{base_url}}/api/dispatcher/map-data", "host": ["{{base_url}}"], "path": ["api", "dispatcher", "map-data"]},
             "description": "Get map data with orders and drivers locations"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📍 Address Search",
+      "item": [
+        {
+          "name": "Search Addresses",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": {
+              "raw": "{{base_url}}/api/addresses/search?query=28 May metro&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "addresses", "search"],
+              "query": [
+                {"key": "query", "value": "28 May metro", "description": "Search query for addresses"},
+                {"key": "limit", "value": "10", "description": "Maximum number of results (1-20)"}
+              ]
+            },
+            "description": "Search addresses with local database first, then Google Maps fallback. Returns smart search results with coordinates."
+          }
+        },
+        {
+          "name": "Reverse Geocoding",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": {
+              "raw": "{{base_url}}/api/addresses/reverse-geocode?latitude=40.3777&longitude=49.8520",
+              "host": ["{{base_url}}"],
+              "path": ["api", "addresses", "reverse-geocode"],
+              "query": [
+                {"key": "latitude", "value": "40.3777", "description": "Latitude coordinate"},
+                {"key": "longitude", "value": "49.8520", "description": "Longitude coordinate"}
+              ]
+            },
+            "description": "Get address by coordinates (reverse geocoding). Checks local database first, then Google Maps."
+          }
+        },
+        {
+          "name": "Add Address",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"addressText\": \"28 May metro station\",\n  \"formattedAddress\": \"28 May metro station, Baku, Azerbaijan\",\n  \"latitude\": 40.3777,\n  \"longitude\": 49.8520,\n  \"city\": \"Baku\",\n  \"district\": \"Nasimi\",\n  \"street\": \"28 May Street\",\n  \"buildingNumber\": \"1\",\n  \"country\": \"Azerbaijan\"\n}"
+            },
+            "url": {"raw": "{{base_url}}/api/addresses/add", "host": ["{{base_url}}"], "path": ["api", "addresses", "add"]},
+            "description": "Add a new address to the local database with coordinates and search keywords."
+          }
+        },
+        {
+          "name": "Get Popular Addresses",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": {
+              "raw": "{{base_url}}/api/addresses/popular?limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "addresses", "popular"],
+              "query": [
+                {"key": "limit", "value": "10", "description": "Maximum number of results (1-50)"}
+              ]
+            },
+            "description": "Get popular addresses sorted by usage frequency (popularity score)."
+          }
+        },
+        {
+          "name": "Get Address Statistics",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": {"raw": "{{base_url}}/api/addresses/stats", "host": ["{{base_url}}"], "path": ["api", "addresses", "stats"]},
+            "description": "Get address database statistics including total count, city/district distribution, and popularity metrics."
           }
         }
       ]

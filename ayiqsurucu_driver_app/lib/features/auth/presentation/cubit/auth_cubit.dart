@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/services/api_service.dart';
@@ -19,6 +20,8 @@ class AuthAuthenticated extends AuthState {
 }
 
 class AuthUnauthenticated extends AuthState {}
+
+class AuthDriverDeactivated extends AuthState {}
 
 class AuthError extends AuthState {
   final String message;
@@ -59,11 +62,17 @@ class AuthCubit extends Cubit<AuthState> {
         Map<String, dynamic>? driver;
 
         if (userJson != null) {
-          user = Map<String, dynamic>.from(Uri.splitQueryString(userJson));
+          user = Map<String, dynamic>.from(json.decode(userJson));
         }
 
         if (driverJson != null) {
-          driver = Map<String, dynamic>.from(Uri.splitQueryString(driverJson));
+          driver = Map<String, dynamic>.from(json.decode(driverJson));
+        }
+
+        // Check if driver is deactivated
+        if (driver != null && driver['isActive'] == false) {
+          emit(AuthDriverDeactivated());
+          return;
         }
 
         emit(
@@ -168,17 +177,24 @@ class AuthCubit extends Cubit<AuthState> {
       // Convert to Map safely
       Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
 
+      // Check if driver is deactivated
+      if (dataMap['isDeactivated'] == true) {
+        emit(AuthDriverDeactivated());
+        return false;
+      }
+
       if (dataMap['token'] != null) {
         final token = dataMap['token'];
         final user = dataMap['user'];
+        final driver = dataMap['driver'];
 
         // Store auth data
-        await _storeAuthData(token, user);
+        await _storeAuthData(token, user, driver);
 
         // Set token in API service
         await _apiService.setAuthToken(token);
 
-        emit(AuthAuthenticated(token: token, user: user));
+        emit(AuthAuthenticated(token: token, user: user, driver: driver));
         return true;
       }
 
@@ -241,7 +257,13 @@ class AuthCubit extends Cubit<AuthState> {
   // Driver registration
   Future<bool> registerDriver({
     required String licenseNumber,
-    required Map<String, dynamic> vehicleInfo,
+    required String actualAddress,
+    required DateTime licenseExpiryDate,
+    String? identityCardFront,
+    String? identityCardBack,
+    String? licenseFront,
+    String? licenseBack,
+    Map<String, dynamic>? vehicleInfo,
     Map<String, dynamic>? documents,
   }) async {
     try {
@@ -251,7 +273,13 @@ class AuthCubit extends Cubit<AuthState> {
         AppConstants.driverRegisterEndpoint,
         data: {
           'licenseNumber': licenseNumber,
-          'vehicleInfo': vehicleInfo,
+          'actualAddress': actualAddress,
+          'licenseExpiryDate': licenseExpiryDate.toIso8601String(),
+          if (identityCardFront != null) 'identityCardFront': identityCardFront,
+          if (identityCardBack != null) 'identityCardBack': identityCardBack,
+          if (licenseFront != null) 'licenseFront': licenseFront,
+          if (licenseBack != null) 'licenseBack': licenseBack,
+          if (vehicleInfo != null) 'vehicleInfo': vehicleInfo,
           if (documents != null) 'documents': documents,
         },
       );
@@ -424,10 +452,17 @@ class AuthCubit extends Cubit<AuthState> {
   }
 
   // Store auth data locally
-  Future<void> _storeAuthData(String token, Map<String, dynamic> user) async {
+  Future<void> _storeAuthData(
+    String token,
+    Map<String, dynamic> user, [
+    Map<String, dynamic>? driver,
+  ]) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(AppConstants.tokenKey, token);
-    await prefs.setString(AppConstants.userKey, user.toString());
+    await prefs.setString(AppConstants.userKey, json.encode(user));
+    if (driver != null) {
+      await prefs.setString(AppConstants.driverKey, json.encode(driver));
+    }
   }
 
   // Store driver data locally

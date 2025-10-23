@@ -33,11 +33,9 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
   }
 
   void _goToRegistration() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const RegistrationScreen(),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => const RegistrationScreen()));
   }
 
   @override
@@ -77,35 +75,32 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
             child: Column(
               children: [
                 SizedBox(height: 60.h),
-                
+
                 // Logo and Title
-                Icon(
-                  Icons.local_taxi,
-                  size: 80.sp,
-                  color: Colors.white,
-                ),
+                Icon(Icons.local_taxi, size: 80.sp, color: Colors.white),
                 SizedBox(height: 24.h),
-                
+
                 Text(
-                  'Ayiq Sürücü',
+                  'Peregon hayda',
                   style: AppTheme.headlineLarge.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 SizedBox(height: 8.h),
-                
+
                 Text(
                   'Taksi sifariş etmək üçün telefon nömrənizi daxil edin',
-                  style: AppTheme.bodyMedium.copyWith(
-                    color: Colors.white70,
-                  ),
+                  style: AppTheme.bodyMedium.copyWith(color: Colors.white70),
                   textAlign: TextAlign.center,
                 ),
                 SizedBox(height: 8.h),
-                
+
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 16.w,
+                    vertical: 8.h,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.yellow.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(8.r),
@@ -121,7 +116,7 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
                   ),
                 ),
                 SizedBox(height: 60.h),
-                
+
                 // Phone Input Form
                 Form(
                   key: _formKey,
@@ -149,7 +144,7 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
                             ),
                           ),
                           SizedBox(height: 16.h),
-                          
+
                           TextFormField(
                             controller: _phoneController,
                             keyboardType: TextInputType.phone,
@@ -178,7 +173,7 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
                             },
                           ),
                           SizedBox(height: 24.h),
-                          
+
                           ElevatedButton(
                             onPressed: _isLoading ? null : _sendOtp,
                             style: ElevatedButton.styleFrom(
@@ -195,7 +190,9 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
                                     width: 20.w,
                                     child: const CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
                                     ),
                                   )
                                 : Text(
@@ -211,9 +208,9 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
                     ),
                   ),
                 ),
-                
+
                 SizedBox(height: 24.h),
-                
+
                 // Registration link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -237,15 +234,13 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
                     ),
                   ],
                 ),
-                
+
                 const Spacer(),
-                
+
                 // Footer
                 Text(
                   'OTP göndərilməsi ilə siz istifadə şərtləri və məxfilik siyasəti ilə razısınız',
-                  style: AppTheme.bodySmall.copyWith(
-                    color: Colors.white60,
-                  ),
+                  style: AppTheme.bodySmall.copyWith(color: Colors.white60),
                   textAlign: TextAlign.center,
                 ),
               ],

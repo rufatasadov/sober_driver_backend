@@ -48,7 +48,7 @@ class AppConstants {
   static const String paymentOnline = 'online';
 
   // App Settings
-  static const String appName = 'Ayiq Sürücü Customer';
+  static const String appName = 'Peregon hayda Customer';
   static const String appVersion = '1.0.0';
 
   // Map Settings

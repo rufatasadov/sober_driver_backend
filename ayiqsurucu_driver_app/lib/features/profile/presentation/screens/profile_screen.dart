@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/localization/language_provider.dart';
 import '../../../../shared/widgets/loading_screen.dart';
+import '../../../orders/presentation/cubit/orders_cubit.dart';
 import '../cubit/profile_cubit.dart';
 import 'edit_profile_screen.dart';
 import 'profile_settings_screen.dart';
 import 'earnings_screen.dart';
+import 'language_selection_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -19,22 +23,26 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
-    // Load profile when screen is built
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ProfileCubit>().loadProfile();
-    });
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, child) {
+        // Load profile when screen is built
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          context.read<ProfileCubit>().loadProfile();
+        });
 
-    return _buildProfileContent();
+        return _buildProfileContent(languageProvider);
+      },
+    );
   }
 
-  Widget _buildProfileContent() {
+  Widget _buildProfileContent(LanguageProvider languageProvider) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.background,
         elevation: 0,
         title: Text(
-          'Profil',
+          languageProvider.getString('profile'),
           style: AppTheme.heading3.copyWith(color: AppColors.textPrimary),
         ),
         actions: [
@@ -66,7 +74,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
 
           if (state is ProfileError) {
-            return _buildErrorWidget(state.message);
+            return _buildErrorWidget(state.message, languageProvider);
           }
 
           if (state is ProfileLoaded) {
@@ -76,27 +84,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // Profile Header
-                  _buildProfileHeader(state),
+                  _buildProfileHeader(state, languageProvider),
 
                   SizedBox(height: 32.h),
 
                   // Statistics Cards
-                  _buildStatisticsCards(state),
+                  _buildStatisticsCards(state, languageProvider),
 
                   SizedBox(height: 32.h),
 
                   // Profile Information
-                  _buildProfileInfo(state),
+                  _buildProfileInfo(state, languageProvider),
 
                   SizedBox(height: 32.h),
 
                   // Action Buttons
-                  _buildActionButtons(context),
+                  _buildActionButtons(context, languageProvider),
 
                   SizedBox(height: 24.h),
 
                   // Logout Button
-                  _buildLogoutButton(context),
+                  _buildLogoutButton(context, languageProvider),
                 ],
               ),
             );
@@ -108,7 +116,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildProfileHeader(ProfileLoaded state) {
+  Widget _buildProfileHeader(
+    ProfileLoaded state,
+    LanguageProvider languageProvider,
+  ) {
     return Container(
       padding: EdgeInsets.all(24.w),
       decoration: BoxDecoration(
@@ -160,12 +171,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  state.user['name'] ?? 'Ad Soyad',
+                  state.user['name'] ?? languageProvider.getString('fullName'),
                   style: AppTheme.heading3.copyWith(color: AppColors.primary),
                 ),
                 SizedBox(height: 4.h),
                 Text(
-                  state.user['phone'] ?? 'Telefon nömrəsi',
+                  state.user['phone'] ?? languageProvider.getString('phone'),
                   style: AppTheme.bodyMedium.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -178,7 +189,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     borderRadius: BorderRadius.circular(12.r),
                   ),
                   child: Text(
-                    _getStatusText(state.driver?['status']),
+                    _getStatusText(state.driver?['status'], languageProvider),
                     style: AppTheme.caption.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
@@ -214,14 +225,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildStatisticsCards(ProfileLoaded state) {
+  Widget _buildStatisticsCards(
+    ProfileLoaded state,
+    LanguageProvider languageProvider,
+  ) {
     final earnings = state.driver?['earnings'] ?? {};
 
     return Row(
       children: [
         Expanded(
           child: _buildStatCard(
-            'Günlük Gəlir',
+            languageProvider.getString('dailyEarnings'),
             '${earnings['today']?.toString() ?? '0'} AZN',
             Icons.today,
             AppColors.success,
@@ -230,7 +244,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         SizedBox(width: 16.w),
         Expanded(
           child: _buildStatCard(
-            'Həftəlik Gəlir',
+            languageProvider.getString('weeklyEarnings'),
             '${earnings['thisWeek']?.toString() ?? '0'} AZN',
             Icons.date_range,
             AppColors.info,
@@ -273,7 +287,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildProfileInfo(ProfileLoaded state) {
+  Widget _buildProfileInfo(
+    ProfileLoaded state,
+    LanguageProvider languageProvider,
+  ) {
     return Container(
       padding: EdgeInsets.all(20.w),
       decoration: BoxDecoration(
@@ -285,28 +302,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Şəxsi Məlumatlar',
+            languageProvider.getString('personalInfo'),
             style: AppTheme.heading3.copyWith(color: AppColors.textPrimary),
           ),
           SizedBox(height: 16.h),
           _buildInfoRow(
-            'Ad Soyad',
-            state.user['name'] ?? 'Məlumat yoxdur',
+            languageProvider.getString('fullName'),
+            state.user['name'] ?? languageProvider.getString('noData'),
             Icons.person,
           ),
           _buildInfoRow(
-            'Telefon',
-            state.user['phone'] ?? 'Məlumat yoxdur',
+            languageProvider.getString('phone'),
+            state.user['phone'] ?? languageProvider.getString('noData'),
             Icons.phone,
           ),
           _buildInfoRow(
-            'Email',
-            state.user['email'] ?? 'Məlumat yoxdur',
+            languageProvider.getString('email'),
+            state.user['email'] ?? languageProvider.getString('noData'),
             Icons.email,
           ),
           _buildInfoRow(
-            'Qeydiyyat Tarixi',
-            _formatDate(state.user['createdAt']),
+            languageProvider.getString('registrationDate'),
+            _formatDate(state.user['createdAt'], languageProvider),
             Icons.calendar_today,
           ),
         ],
@@ -346,11 +363,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildActionButtons(BuildContext context) {
+  Widget _buildActionButtons(
+    BuildContext context,
+    LanguageProvider languageProvider,
+  ) {
     return Column(
       children: [
         _buildActionButton(
-          'Profil Məlumatlarını Yenilə',
+          languageProvider.getString('editProfile'),
           Icons.edit,
           AppColors.primary,
           () {
@@ -368,7 +388,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         SizedBox(height: 12.h),
         _buildActionButton(
-          'Gəlir Hesabatı',
+          languageProvider.getString('earnings'),
           Icons.account_balance_wallet,
           AppColors.success,
           () {
@@ -384,6 +404,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
             );
           },
         ),
+        SizedBox(height: 12.h),
+        _buildActionButton(
+          languageProvider.getString('language'),
+          Icons.language,
+          AppColors.info,
+          () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const LanguageSelectionScreen(),
+              ),
+            );
+          },
+        ),
+        SizedBox(height: 12.h),
+        _buildSoundSettingsButton(context, languageProvider),
       ],
     );
   }
@@ -424,7 +460,93 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildLogoutButton(BuildContext context) {
+  Widget _buildSoundSettingsButton(
+    BuildContext context,
+    LanguageProvider languageProvider,
+  ) {
+    return BlocBuilder<OrdersCubit, OrdersState>(
+      builder: (context, ordersState) {
+        final ordersCubit = context.read<OrdersCubit>();
+        final isSoundEnabled = ordersCubit.isSoundEnabled;
+
+        return InkWell(
+          onTap: () {
+            ordersCubit.setSoundEnabled(!isSoundEnabled);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  isSoundEnabled
+                      ? languageProvider.getString('soundDisabled')
+                      : languageProvider.getString('soundEnabled'),
+                ),
+                backgroundColor:
+                    isSoundEnabled ? AppColors.warning : AppColors.success,
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(12.r),
+          child: Container(
+            padding: EdgeInsets.all(16.w),
+            decoration: BoxDecoration(
+              color: (isSoundEnabled ? AppColors.success : AppColors.warning)
+                  .withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12.r),
+              border: Border.all(
+                color: (isSoundEnabled ? AppColors.success : AppColors.warning)
+                    .withOpacity(0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  isSoundEnabled ? Icons.volume_up : Icons.volume_off,
+                  color: isSoundEnabled ? AppColors.success : AppColors.warning,
+                  size: 24.sp,
+                ),
+                SizedBox(width: 16.w),
+                Expanded(
+                  child: Text(
+                    languageProvider.getString('soundNotifications'),
+                    style: AppTheme.bodyMedium.copyWith(
+                      color:
+                          isSoundEnabled
+                              ? AppColors.success
+                              : AppColors.warning,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Switch(
+                  value: isSoundEnabled,
+                  onChanged: (value) {
+                    ordersCubit.setSoundEnabled(value);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          value
+                              ? languageProvider.getString('soundEnabled')
+                              : languageProvider.getString('soundDisabled'),
+                        ),
+                        backgroundColor:
+                            value ? AppColors.success : AppColors.warning,
+                      ),
+                    );
+                  },
+                  activeColor: AppColors.success,
+                  inactiveThumbColor: AppColors.warning,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLogoutButton(
+    BuildContext context,
+    LanguageProvider languageProvider,
+  ) {
     return Container(
       width: double.infinity,
       height: 48.h,
@@ -437,7 +559,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
         child: Text(
-          'Çıxış',
+          languageProvider.getString('logout'),
           style: AppTheme.bodyLarge.copyWith(
             color: Colors.white,
             fontWeight: FontWeight.w600,
@@ -447,7 +569,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildErrorWidget(String error) {
+  Widget _buildErrorWidget(String error, LanguageProvider languageProvider) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -455,7 +577,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Icon(Icons.error_outline, size: 64.sp, color: AppColors.error),
           SizedBox(height: 16.h),
           Text(
-            'Xəta baş verdi',
+            languageProvider.getString('errorOccurred'),
             style: AppTheme.heading3.copyWith(color: AppColors.error),
           ),
           SizedBox(height: 8.h),
@@ -469,7 +591,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: () {
               context.read<ProfileCubit>().loadProfile();
             },
-            child: Text('Yenidən cəhd et'),
+            child: Text(languageProvider.getString('tryAgain')),
           ),
         ],
       ),
@@ -477,6 +599,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showImagePicker(ProfileLoaded state) {
+    final languageProvider = context.read<LanguageProvider>();
     showModalBottomSheet(
       context: context,
       builder:
@@ -485,19 +608,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Profil şəkli seçin', style: AppTheme.heading3),
+                Text(
+                  languageProvider.getString('selectProfileImage'),
+                  style: AppTheme.heading3,
+                ),
                 SizedBox(height: 24.h),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _buildImageOption('Kamera', Icons.camera_alt, () {
-                      Navigator.pop(context);
-                      // TODO: Implement camera picker
-                    }),
-                    _buildImageOption('Qalereya', Icons.photo_library, () {
-                      Navigator.pop(context);
-                      // TODO: Implement gallery picker
-                    }),
+                    _buildImageOption(
+                      languageProvider.getString('camera'),
+                      Icons.camera_alt,
+                      () {
+                        Navigator.pop(context);
+                        // TODO: Implement camera picker
+                      },
+                    ),
+                    _buildImageOption(
+                      languageProvider.getString('gallery'),
+                      Icons.photo_library,
+                      () {
+                        Navigator.pop(context);
+                        // TODO: Implement gallery picker
+                      },
+                    ),
                   ],
                 ),
               ],
@@ -529,23 +663,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showLogoutDialog(BuildContext context) {
+    final languageProvider = context.read<LanguageProvider>();
     showDialog(
       context: context,
       builder:
           (context) => AlertDialog(
-            title: Text('Çıxış'),
-            content: Text('Hesabınızdan çıxmaq istədiyinizə əminsiniz?'),
+            title: Text(languageProvider.getString('logout')),
+            content: Text(languageProvider.getString('logout')),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text('Ləğv et'),
+                child: Text(languageProvider.getString('cancel')),
               ),
               TextButton(
                 onPressed: () {
                   Navigator.pop(context);
                   context.read<ProfileCubit>().logout();
                 },
-                child: Text('Çıxış', style: TextStyle(color: AppColors.error)),
+                child: Text(
+                  languageProvider.getString('logout'),
+                  style: TextStyle(color: AppColors.error),
+                ),
               ),
             ],
           ),
@@ -567,28 +705,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  String _getStatusText(String? status) {
+  String _getStatusText(String? status, LanguageProvider languageProvider) {
     switch (status) {
       case 'approved':
-        return 'Təsdiqlənib';
+        return languageProvider.getString('approved');
       case 'pending':
-        return 'Gözləyir';
+        return languageProvider.getString('pending');
       case 'rejected':
-        return 'Rədd edilib';
+        return languageProvider.getString('rejected');
       case 'suspended':
-        return 'Dayandırılıb';
+        return languageProvider.getString('suspended');
       default:
-        return 'Naməlum';
+        return languageProvider.getString('unknown');
     }
   }
 
-  String _formatDate(dynamic date) {
-    if (date == null) return 'Məlumat yoxdur';
+  String _formatDate(dynamic date, LanguageProvider languageProvider) {
+    if (date == null) return languageProvider.getString('noData');
     try {
       final dateTime = DateTime.parse(date.toString());
       return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
     } catch (e) {
-      return 'Məlumat yoxdur';
+      return languageProvider.getString('noData');
     }
   }
 }

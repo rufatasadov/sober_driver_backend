@@ -35,7 +35,7 @@ class LoadingScreen extends StatelessWidget {
 
             // App name
             Text(
-              'Ayiq Sürücü',
+              'Peregon hayda',
               style: TextStyle(
                 fontSize: 28.sp,
                 fontWeight: FontWeight.bold,

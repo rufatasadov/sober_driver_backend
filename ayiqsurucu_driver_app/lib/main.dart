@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:provider/provider.dart';
 
 import 'core/theme/app_theme.dart';
 import 'core/services/api_service.dart';
 import 'core/services/socket_service.dart';
 import 'core/services/location_service.dart';
+import 'core/localization/language_provider.dart';
 import 'features/auth/presentation/cubit/auth_cubit.dart';
 import 'features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
+import 'features/auth/presentation/screens/driver_deactivated_screen.dart';
 import 'features/profile/presentation/cubit/profile_cubit.dart';
 import 'features/orders/presentation/cubit/orders_cubit.dart';
 import 'features/notifications/presentation/cubit/notifications_cubit.dart';
@@ -29,8 +32,9 @@ class AyiqSurucuDriverApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider(
+    return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (context) => LanguageProvider()),
         BlocProvider(create: (context) => AuthCubit()),
         BlocProvider(create: (context) => DashboardCubit()),
         BlocProvider(create: (context) => ProfileCubit()),
@@ -43,7 +47,7 @@ class AyiqSurucuDriverApp extends StatelessWidget {
         splitScreenMode: true,
         builder: (context, child) {
           return MaterialApp(
-            title: 'Ayiq Sürücü Driver',
+            title: 'Peregon hayda Driver',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
             home: const AppInitializer(),
@@ -72,6 +76,10 @@ class _AppInitializerState extends State<AppInitializer> {
 
   Future<void> _initializeApp() async {
     try {
+      // Initialize language provider
+      final languageProvider = context.read<LanguageProvider>();
+      await languageProvider.loadLanguage();
+
       // Request location permissions first
       final locationService = LocationService();
       await locationService.checkAndRequestPermissions();
@@ -105,6 +113,8 @@ class _AppInitializerState extends State<AppInitializer> {
             SocketService().initialize(authToken: state.token);
           }
           return const DashboardScreen();
+        } else if (state is AuthDriverDeactivated) {
+          return const DriverDeactivatedScreen();
         } else {
           return const LoginScreen();
         }

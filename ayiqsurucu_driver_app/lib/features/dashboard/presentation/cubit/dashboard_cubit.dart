@@ -75,6 +75,7 @@ class DashboardCubit extends Cubit<DashboardState> {
 
       try {
         earningsMap = Map<String, dynamic>.from(earningsData);
+        print('DashboardCubit: Earnings data structure: $earningsMap');
       } catch (e) {
         print('DashboardCubit: Error converting earnings data: $e');
         earningsMap = {};
@@ -89,11 +90,19 @@ class DashboardCubit extends Cubit<DashboardState> {
 
       // Map earnings data to stats format
       if (earningsMap.isNotEmpty) {
+        // Extract earnings data from nested structure
+        final earnings = earningsMap['earnings'] as Map<String, dynamic>? ?? {};
+        final balance = _safeParseDouble(earnings['balance']) ?? 0.0;
+
+        print('DashboardCubit: Extracted earnings: $earnings');
+        print('DashboardCubit: Balance value: $balance');
+
         return {
-          'todayOrders': _safeParseInt(earningsMap['totalOrders']) ?? 0,
-          'todayEarnings': _safeParseDouble(earningsMap['netEarnings']) ?? 0.0,
-          'totalOrders': _safeParseInt(earningsMap['totalOrders']) ?? 0,
-          'totalEarnings': _safeParseDouble(earningsMap['netEarnings']) ?? 0.0,
+          'todayOrders': _safeParseInt(earnings['totalOrders']) ?? 0,
+          'todayEarnings': _safeParseDouble(earnings['netEarnings']) ?? 0.0,
+          'totalOrders': _safeParseInt(earnings['totalOrders']) ?? 0,
+          'totalEarnings': _safeParseDouble(earnings['netEarnings']) ?? 0.0,
+          'balance': balance,
           'isOnline': _safeParseBool(statusMap['isOnline']) ?? true,
           'isAvailable': _safeParseBool(statusMap['isAvailable']) ?? true,
         };
@@ -201,6 +210,47 @@ class DashboardCubit extends Cubit<DashboardState> {
       print('DashboardCubit: Error updating driver status: $e');
       emit(DashboardError(e.toString()));
       return false;
+    }
+  }
+
+  // Refresh only balance data
+  Future<void> refreshBalance() async {
+    try {
+      print('DashboardCubit: Refreshing balance data...');
+
+      final response = await _apiService.get(
+        AppConstants.dashboardStatsEndpoint,
+      );
+      final data = _apiService.handleResponse(response);
+
+      // Convert to Map safely
+      Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
+
+      if (dataMap['earnings'] != null &&
+          dataMap['earnings']['balance'] != null) {
+        final newBalance =
+            _safeParseDouble(dataMap['earnings']['balance']) ?? 0.0;
+
+        // Update current state with new balance
+        if (state is DashboardLoaded) {
+          final currentState = state as DashboardLoaded;
+          final updatedStats = Map<String, dynamic>.from(currentState.stats);
+          updatedStats['balance'] = newBalance;
+
+          print(
+            'DashboardCubit: Balance updated to: ${newBalance.toStringAsFixed(2)} AZN',
+          );
+
+          emit(
+            DashboardLoaded(
+              stats: updatedStats,
+              recentOrders: currentState.recentOrders,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('DashboardCubit: Error refreshing balance: $e');
     }
   }
 

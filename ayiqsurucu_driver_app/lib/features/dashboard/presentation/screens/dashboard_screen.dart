@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:provider/provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/localization/language_provider.dart';
 import '../../../auth/presentation/cubit/auth_cubit.dart';
 import '../../../orders/presentation/screens/orders_screen.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
@@ -12,7 +14,9 @@ import '../../../profile/presentation/screens/earnings_screen.dart';
 import '../../../notifications/presentation/screens/notifications_screen.dart';
 import '../../../orders/presentation/widgets/new_order_notification_widget.dart';
 import '../../../orders/presentation/widgets/broadcast_order_notification_widget.dart';
+import '../../../orders/presentation/widgets/assigned_order_notification_widget.dart';
 import '../../../orders/presentation/screens/order_details_screen.dart';
+import '../widgets/animated_balance_widget.dart';
 import '../../../orders/presentation/cubit/orders_cubit.dart';
 import '../cubit/dashboard_cubit.dart';
 import '../../../../core/services/location_tracking_service.dart';
@@ -65,25 +69,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     _buildBottomNavItem(
                       Icons.home_rounded,
-                      'Ana Səhifə',
+                      Provider.of<LanguageProvider>(context).getString('home'),
                       0,
                       hasActiveOrder,
                     ),
                     _buildBottomNavItem(
                       Icons.assignment_rounded,
-                      'Sifarişlər',
+                      Provider.of<LanguageProvider>(
+                        context,
+                      ).getString('orders'),
                       1,
                       hasActiveOrder,
                     ),
                     _buildBottomNavItem(
                       Icons.attach_money_rounded,
-                      'Qazanc',
+                      Provider.of<LanguageProvider>(
+                        context,
+                      ).getString('earnings'),
                       2,
                       hasActiveOrder,
                     ),
                     _buildBottomNavItem(
                       Icons.person_rounded,
-                      'Profil',
+                      Provider.of<LanguageProvider>(
+                        context,
+                      ).getString('profile'),
                       3,
                       hasActiveOrder,
                     ),
@@ -187,6 +197,8 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _showNewOrderNotification = false;
   Order? _broadcastOrder;
   bool _showBroadcastOrderNotification = false;
+  Order? _assignedOrder;
+  bool _showAssignedOrderNotification = false;
 
   @override
   void initState() {
@@ -194,6 +206,9 @@ class _HomeScreenState extends State<HomeScreen> {
     // Listen for new orders
     _listenForNewOrders();
     _listenForBroadcastOrders();
+    _listenForAssignedOrders();
+    // Setup dashboard refresh callback
+    _setupDashboardRefreshCallback();
     // Start location tracking
     _startLocationTracking();
     // Check and auto-set online status
@@ -213,6 +228,42 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final ordersCubit = context.read<OrdersCubit>();
       ordersCubit.setBroadcastOrderCallback(_showBroadcastOrder);
+    });
+  }
+
+  void _listenForAssignedOrders() {
+    // Set callback for assigned order notifications
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ordersCubit = context.read<OrdersCubit>();
+      ordersCubit.setOrderAssignedCallback(_showAssignedOrder);
+    });
+  }
+
+  void _setupDashboardRefreshCallback() {
+    // Set callback for dashboard refresh after order completion
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ordersCubit = context.read<OrdersCubit>();
+      ordersCubit.setDashboardRefreshCallback(_refreshDashboardData);
+      ordersCubit.setDismissNotificationsCallback(_dismissAllNotifications);
+    });
+  }
+
+  void _refreshDashboardData() {
+    // Refresh dashboard data to update balance after order completion
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final dashboardCubit = context.read<DashboardCubit>();
+
+      // First refresh only balance for faster update
+      await dashboardCubit.refreshBalance();
+      print('Dashboard: Balance refreshed after order completion');
+
+      // Then refresh full dashboard data
+      await dashboardCubit.loadDashboardData();
+      print('Dashboard: Full dashboard data refreshed');
+
+      // Also refresh orders to ensure consistency
+      final ordersCubit = context.read<OrdersCubit>();
+      ordersCubit.getDriverOrders();
     });
   }
 
@@ -284,6 +335,32 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  void _showAssignedOrder(Order order) {
+    setState(() {
+      _assignedOrder = order;
+      _showAssignedOrderNotification = true;
+    });
+  }
+
+  void _dismissAssignedOrder() {
+    setState(() {
+      _showAssignedOrderNotification = false;
+      _assignedOrder = null;
+    });
+  }
+
+  void _dismissAllNotifications() {
+    setState(() {
+      _showNewOrderNotification = false;
+      _newOrder = null;
+      _showBroadcastOrderNotification = false;
+      _broadcastOrder = null;
+      _showAssignedOrderNotification = false;
+      _assignedOrder = null;
+    });
+    print('Dashboard: All notifications dismissed after order completion');
+  }
+
   Future<void> _acceptOrder(Order order) async {
     final ordersCubit = context.read<OrdersCubit>();
     final dashboardCubit = context.read<DashboardCubit>();
@@ -297,8 +374,10 @@ class _HomeScreenState extends State<HomeScreen> {
             backgroundColor: AppColors.success,
           ),
         );
-        _dismissNewOrder();
-        _dismissBroadcastOrder();
+        // Don't dismiss notifications here - only dismiss when order is completed
+        // _dismissNewOrder();
+        // _dismissBroadcastOrder();
+        // _dismissAssignedOrder();
 
         // Check and auto-set online status after accepting order
         await dashboardCubit.checkAndAutoSetOnlineStatus(ordersCubit);
@@ -326,8 +405,9 @@ class _HomeScreenState extends State<HomeScreen> {
             backgroundColor: AppColors.warning,
           ),
         );
-        _dismissNewOrder();
-        _dismissBroadcastOrder();
+        // Don't dismiss notifications here - only dismiss when order is completed
+        // _dismissNewOrder();
+        // _dismissBroadcastOrder();
 
         // Check and auto-set online status after rejecting order
         await dashboardCubit.checkAndAutoSetOnlineStatus(ordersCubit);
@@ -350,7 +430,7 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: AppColors.background,
         elevation: 0,
         title: Text(
-          'Ayiq Sürücü',
+          'Peregon hayda',
           style: AppTheme.heading3.copyWith(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.bold,
@@ -415,13 +495,19 @@ class _HomeScreenState extends State<HomeScreen> {
           }
 
           final stats = state is DashboardLoaded ? state.stats : {};
-          final user = context.read<AuthCubit>().user;
+
+          // Get user from AuthCubit state
+          final authState = context.read<AuthCubit>().state;
+          final user = authState is AuthAuthenticated ? authState.user : null;
+
           final isOnline = stats['isOnline'] ?? false;
           final isAvailable = stats['isAvailable'] ?? false;
 
           print(
             'UI: Current state - isOnline: $isOnline, isAvailable: $isAvailable',
           );
+          print('UI: User data - $user');
+          print('UI: User name - ${user?['name']}');
 
           return Stack(
             children: [
@@ -457,7 +543,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             const Spacer(),
                             // Balance section at bottom
-                            _buildBalanceSection(stats),
+                            AnimatedBalanceWidget(
+                              balance: stats['balance']?.toDouble() ?? 0.0,
+                              todayEarnings:
+                                  stats['todayEarnings']?.toDouble() ?? 0.0,
+                              isUpdating: state is DashboardLoading,
+                            ),
                             SizedBox(height: 12.h), // Small gap before nav
                           ],
                         ),
@@ -492,6 +583,22 @@ class _HomeScreenState extends State<HomeScreen> {
                     onAccept: () => _acceptOrder(_broadcastOrder!),
                     onReject: () => _rejectOrder(_broadcastOrder!),
                     onDismiss: _dismissBroadcastOrder,
+                  ),
+                ),
+
+              // Assigned Order Notification Overlay
+              if (_showAssignedOrderNotification && _assignedOrder != null)
+                Positioned(
+                  top:
+                      (_showNewOrderNotification ? 200.h : 0) +
+                      (_showBroadcastOrderNotification ? 200.h : 0),
+                  left: 0,
+                  right: 0,
+                  child: AssignedOrderNotificationWidget(
+                    order: _assignedOrder!,
+                    onAccept: () => _acceptOrder(_assignedOrder!),
+                    onReject: () => _rejectOrder(_assignedOrder!),
+                    onDismiss: _dismissAssignedOrder,
                   ),
                 ),
             ],
@@ -542,7 +649,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Salam, ${user?['name'] ?? 'Sürücü'}! 👋',
+                      user?['name'] != null &&
+                              user!['name'].toString().isNotEmpty
+                          ? 'Hello, ${user['name']}'
+                          : 'Hello, Driver',
                       style: AppTheme.heading2.copyWith(
                         fontSize: 22.sp,
                         fontWeight: FontWeight.bold,
@@ -551,8 +661,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     SizedBox(height: 4.h),
                     Text(
                       isOnline
-                          ? 'Onlayn və hazırsınız'
-                          : 'Hazır olduğunuzda işə başlaya bilərsiniz',
+                          ? Provider.of<LanguageProvider>(
+                            context,
+                          ).getString('onlineReady')
+                          : Provider.of<LanguageProvider>(
+                            context,
+                          ).getString('readyToStart'),
                       style: AppTheme.bodyMedium.copyWith(
                         color: AppColors.textSecondary,
                       ),
@@ -1517,7 +1631,9 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Ünvan məlumatları kopyalandı'),
+            content: Text(
+              Provider.of<LanguageProvider>(context).getString('addressCopied'),
+            ),
             backgroundColor: AppColors.success,
             duration: const Duration(seconds: 2),
           ),
@@ -1528,7 +1644,9 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Mətn paylaşma xətası: $e'),
+            content: Text(
+              '${Provider.of<LanguageProvider>(context).getString('textShareError')}: $e',
+            ),
             backgroundColor: AppColors.error,
           ),
         );
@@ -1543,7 +1661,7 @@ class _HomeScreenState extends State<HomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Bugünkü Statistikalar',
+            Provider.of<LanguageProvider>(context).getString('todayStats'),
             style: AppTheme.heading3.copyWith(fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 16.h),
@@ -1551,7 +1669,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Expanded(
                 child: _buildModernStatCard(
-                  'Sifarişlər',
+                  Provider.of<LanguageProvider>(context).getString('orders'),
                   '${stats['todayOrders'] ?? 0}',
                   Icons.assignment_rounded,
                   AppColors.info,
@@ -1560,7 +1678,7 @@ class _HomeScreenState extends State<HomeScreen> {
               SizedBox(width: 12.w),
               Expanded(
                 child: _buildModernStatCard(
-                  'Qazanc',
+                  Provider.of<LanguageProvider>(context).getString('earnings'),
                   '${(stats['todayEarnings'] ?? 0.0).toStringAsFixed(2)} ₼',
                   Icons.trending_up_rounded,
                   AppColors.success,
@@ -1789,111 +1907,6 @@ class _HomeScreenState extends State<HomeScreen> {
         await dashboardCubit.checkAndAutoSetOnlineStatus(ordersCubit);
       }
     }
-  }
-
-  Widget _buildBalanceSection(Map<dynamic, dynamic> stats) {
-    return Container(
-      margin: EdgeInsets.fromLTRB(16.w, 8.w, 16.w, 0),
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              AppColors.primary.withOpacity(0.05),
-              AppColors.primary.withOpacity(0.02),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(16.r),
-          border: Border.all(
-            color: AppColors.primary.withOpacity(0.15),
-            width: 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withOpacity(0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.account_balance_wallet_outlined,
-                        color: AppColors.primary,
-                        size: 16.sp,
-                      ),
-                      SizedBox(width: 6.w),
-                      Text(
-                        'Balans',
-                        style: AppTheme.bodySmall.copyWith(
-                          color: AppColors.primary,
-                          fontSize: 12.sp,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 6.h),
-                  Text(
-                    '${stats['totalEarnings']?.toStringAsFixed(2) ?? '0.00'} ₼',
-                    style: AppTheme.heading3.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20.sp,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  SizedBox(height: 2.h),
-                  Text(
-                    'Bugün: ${(stats['todayEarnings'] ?? 0.0).toStringAsFixed(2)} ₼',
-                    style: AppTheme.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
-                      fontSize: 11.sp,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: EdgeInsets.all(10.w),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.primary.withOpacity(0.1),
-                    AppColors.primary.withOpacity(0.05),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(12.r),
-                border: Border.all(
-                  color: AppColors.primary.withOpacity(0.2),
-                  width: 1,
-                ),
-              ),
-              child: Icon(
-                Icons.trending_up_rounded,
-                color: AppColors.primary,
-                size: 18.sp,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   String _getElapsedTimeSinceLastUpdate(Order order) {

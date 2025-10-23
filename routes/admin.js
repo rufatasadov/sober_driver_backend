@@ -5,6 +5,9 @@ const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const { auth, authorize } = require('../middleware/auth');
 const { sequelize } = require('../config/database');
+const Setting = require('../models/Setting');
+const Driver = require('../models/Driver');
+const User = require('../models/User');
 
 // Middleware to check if user has admin privileges
 const requireAdmin = (req, res, next) => {
@@ -324,6 +327,248 @@ router.delete('/users/:id', auth, requireAdmin, async (req, res) => {
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
     console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get all settings
+router.get('/settings', auth, requireAdmin, async (req, res) => {
+  try {
+    const settings = await Setting.findAll({
+      order: [['key', 'ASC']]
+    });
+    
+    res.json({ settings });
+  } catch (error) {
+    console.error('Error fetching settings:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get a specific setting by key
+router.get('/settings/:key', auth, requireAdmin, async (req, res) => {
+  try {
+    const { key } = req.params;
+    const value = await Setting.getValue(key);
+    
+    if (value === null) {
+      return res.status(404).json({ error: 'Setting not found' });
+    }
+    
+    res.json({ key, value });
+  } catch (error) {
+    console.error('Error fetching setting:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update a setting
+router.put('/settings/:key', auth, requireAdmin, [
+  body('value').notEmpty().withMessage('Value is required'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { key } = req.params;
+    const { value, description } = req.body;
+
+    await Setting.setValue(key, value, description);
+
+    res.json({ 
+      message: 'Setting updated successfully',
+      key,
+      value
+    });
+  } catch (error) {
+    console.error('Error updating setting:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Create a new setting
+router.post('/settings', auth, requireAdmin, [
+  body('key').notEmpty().withMessage('Key is required'),
+  body('value').notEmpty().withMessage('Value is required'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { key, value, description } = req.body;
+
+    // Check if setting already exists
+    const existingSetting = await Setting.findOne({ where: { key } });
+    if (existingSetting) {
+      return res.status(400).json({ error: 'Setting with this key already exists' });
+    }
+
+    const setting = await Setting.create({ key, value, description });
+
+    res.status(201).json({ 
+      message: 'Setting created successfully',
+      setting
+    });
+  } catch (error) {
+    console.error('Error creating setting:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete a setting
+router.delete('/settings/:key', auth, requireAdmin, async (req, res) => {
+  try {
+    const { key } = req.params;
+
+    const setting = await Setting.findOne({ where: { key } });
+    if (!setting) {
+      return res.status(404).json({ error: 'Setting not found' });
+    }
+
+    await setting.destroy();
+
+    res.json({ message: 'Setting deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting setting:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ==================== DRIVER BALANCE MANAGEMENT ====================
+
+// Get all drivers with their balance information
+router.get('/drivers/balance', auth, requireAdmin, async (req, res) => {
+  try {
+    const drivers = await Driver.findAll({
+      include: [{
+        model: User,
+        as: 'user',
+        attributes: ['id', 'name', 'phone', 'email']
+      }],
+      attributes: ['id', 'licenseNumber', 'balance', 'status', 'isOnline', 'isAvailable'],
+      order: [['balance', 'DESC']]
+    });
+
+    res.json({
+      message: 'Drivers balance information retrieved successfully',
+      drivers: drivers.map(driver => ({
+        id: driver.id,
+        userId: driver.userId,
+        name: driver.user?.name || 'N/A',
+        phone: driver.user?.phone || 'N/A',
+        email: driver.user?.email || 'N/A',
+        licenseNumber: driver.licenseNumber,
+        balance: parseFloat(driver.balance),
+        status: driver.status,
+        isOnline: driver.isOnline,
+        isAvailable: driver.isAvailable
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching drivers balance:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update driver balance (add or subtract)
+router.patch('/drivers/:driverId/balance', auth, requireAdmin, [
+  body('amount').isNumeric().withMessage('Amount must be a number'),
+  body('operation').isIn(['add', 'subtract']).withMessage('Operation must be add or subtract'),
+  body('reason').optional().isLength({ min: 3 }).withMessage('Reason must be at least 3 characters')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { driverId } = req.params;
+    const { amount, operation, reason } = req.body;
+
+    const driver = await Driver.findByPk(driverId, {
+      include: [{
+        model: User,
+        as: 'user',
+        attributes: ['name', 'phone']
+      }]
+    });
+
+    if (!driver) {
+      return res.status(404).json({ error: 'Driver not found' });
+    }
+
+    const currentBalance = parseFloat(driver.balance);
+    let newBalance;
+
+    if (operation === 'add') {
+      newBalance = currentBalance + parseFloat(amount);
+    } else {
+      newBalance = currentBalance - parseFloat(amount);
+      if (newBalance < 0) {
+        return res.status(400).json({ error: 'Insufficient balance. Cannot subtract more than available balance.' });
+      }
+    }
+
+    await driver.update({ balance: newBalance });
+
+    // Log the transaction (you might want to create a separate transactions table)
+    console.log(`Balance ${operation} for driver ${driverId}: ${amount} AZN. Reason: ${reason || 'No reason provided'}. New balance: ${newBalance}`);
+
+    res.json({
+      message: `Driver balance ${operation}ed successfully`,
+      driver: {
+        id: driver.id,
+        name: driver.user?.name || 'N/A',
+        phone: driver.user?.phone || 'N/A',
+        licenseNumber: driver.licenseNumber,
+        previousBalance: currentBalance,
+        newBalance: newBalance,
+        operation: operation,
+        amount: parseFloat(amount),
+        reason: reason
+      }
+    });
+  } catch (error) {
+    console.error('Error updating driver balance:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get driver balance history (if you implement transaction logging)
+router.get('/drivers/:driverId/balance-history', auth, requireAdmin, async (req, res) => {
+  try {
+    const { driverId } = req.params;
+
+    const driver = await Driver.findByPk(driverId, {
+      include: [{
+        model: User,
+        as: 'user',
+        attributes: ['name', 'phone']
+      }]
+    });
+
+    if (!driver) {
+      return res.status(404).json({ error: 'Driver not found' });
+    }
+
+    // For now, return current balance. In a full implementation, you'd query a transactions table
+    res.json({
+      message: 'Driver balance history retrieved successfully',
+      driver: {
+        id: driver.id,
+        name: driver.user?.name || 'N/A',
+        phone: driver.user?.phone || 'N/A',
+        licenseNumber: driver.licenseNumber,
+        currentBalance: parseFloat(driver.balance)
+      },
+      transactions: [] // Placeholder for future transaction history
+    });
+  } catch (error) {
+    console.error('Error fetching driver balance history:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

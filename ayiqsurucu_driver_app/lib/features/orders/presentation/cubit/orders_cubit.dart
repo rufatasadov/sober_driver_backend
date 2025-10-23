@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/services/api_service.dart';
 import '../../../../core/services/socket_service.dart';
+import '../../../../core/services/sound_notification_service.dart';
 import '../../../../core/constants/app_constants.dart';
 
 // Order Model
@@ -130,12 +132,32 @@ class OrdersLoaded extends OrdersState {
   final List<Order> pendingOrders;
   final List<Order> activeOrders;
   final List<Order> completedOrders;
+  final String? updatingOrderId;
+  final String? updatingStatus;
 
   OrdersLoaded({
     required this.pendingOrders,
     required this.activeOrders,
     required this.completedOrders,
+    this.updatingOrderId,
+    this.updatingStatus,
   });
+
+  OrdersLoaded copyWith({
+    List<Order>? pendingOrders,
+    List<Order>? activeOrders,
+    List<Order>? completedOrders,
+    String? updatingOrderId,
+    String? updatingStatus,
+  }) {
+    return OrdersLoaded(
+      pendingOrders: pendingOrders ?? this.pendingOrders,
+      activeOrders: activeOrders ?? this.activeOrders,
+      completedOrders: completedOrders ?? this.completedOrders,
+      updatingOrderId: updatingOrderId ?? this.updatingOrderId,
+      updatingStatus: updatingStatus ?? this.updatingStatus,
+    );
+  }
 }
 
 class OrdersError extends OrdersState {
@@ -148,10 +170,20 @@ class OrdersError extends OrdersState {
 class OrdersCubit extends Cubit<OrdersState> {
   final ApiService _apiService = ApiService();
   final SocketService _socketService = SocketService();
+  final SoundNotificationService _soundService = SoundNotificationService();
   StreamSubscription? _newOrderSubscription;
 
   // Callback for new order notifications
   Function(Order)? _newOrderCallback;
+
+  // Callback for order assigned notifications
+  Function(Order)? _orderAssignedCallback;
+
+  // Callback for dashboard refresh after order completion
+  VoidCallback? _dashboardRefreshCallback;
+
+  // Callback for dismissing notifications when order is completed
+  VoidCallback? _dismissNotificationsCallback;
 
   // Callback for broadcast order notifications
   Function(Order)? _broadcastOrderCallback;
@@ -161,6 +193,9 @@ class OrdersCubit extends Cubit<OrdersState> {
     Future.delayed(const Duration(seconds: 2), () {
       _initializeSocketListeners();
     });
+
+    // Initialize sound service
+    _soundService.initialize();
   }
 
   // Getters
@@ -235,6 +270,8 @@ class OrdersCubit extends Cubit<OrdersState> {
             pendingOrders: pendingOrders,
             activeOrders: activeOrders,
             completedOrders: completedOrders,
+            updatingOrderId: null,
+            updatingStatus: null,
           ),
         );
       } else {
@@ -243,6 +280,8 @@ class OrdersCubit extends Cubit<OrdersState> {
             pendingOrders: [],
             activeOrders: [],
             completedOrders: [],
+            updatingOrderId: null,
+            updatingStatus: null,
           ),
         );
       }
@@ -329,14 +368,23 @@ class OrdersCubit extends Cubit<OrdersState> {
     }
   }
 
-  // Update order status
+  // Update order status with animation
   Future<bool> updateOrderStatus({
     required String orderId,
     required String status,
     String? notes,
   }) async {
     try {
-      emit(OrdersLoading());
+      // Show updating state with animation
+      if (state is OrdersLoaded) {
+        final currentState = state as OrdersLoaded;
+        emit(
+          currentState.copyWith(
+            updatingOrderId: orderId,
+            updatingStatus: status,
+          ),
+        );
+      }
 
       final response = await _apiService.patch(
         '${AppConstants.ordersEndpoint}/$orderId/status',
@@ -349,17 +397,118 @@ class OrdersCubit extends Cubit<OrdersState> {
       Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
 
       if (response.statusCode == 200 || dataMap['success'] == true) {
-        // Refresh orders
+        // Update order in current state with animation
+        await _updateOrderInState(orderId, status);
+
+        // Wait a bit for animation to complete
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        // Refresh orders to get latest data
         await getDriverOrders();
         return true;
+      }
+
+      // Clear updating state on error
+      if (state is OrdersLoaded) {
+        final currentState = state as OrdersLoaded;
+        emit(
+          currentState.copyWith(updatingOrderId: null, updatingStatus: null),
+        );
       }
 
       emit(OrdersError('Failed to update order status'));
       return false;
     } catch (e) {
+      // Clear updating state on error
+      if (state is OrdersLoaded) {
+        final currentState = state as OrdersLoaded;
+        emit(
+          currentState.copyWith(updatingOrderId: null, updatingStatus: null),
+        );
+      }
       emit(OrdersError(e.toString()));
       return false;
     }
+  }
+
+  // Update order in current state for smooth animation
+  Future<void> _updateOrderInState(String orderId, String newStatus) async {
+    if (state is! OrdersLoaded) return;
+
+    final currentState = state as OrdersLoaded;
+
+    // Find the order in current lists
+    Order? orderToUpdate;
+    List<Order> updatedPendingOrders = List.from(currentState.pendingOrders);
+    List<Order> updatedActiveOrders = List.from(currentState.activeOrders);
+    List<Order> updatedCompletedOrders = List.from(
+      currentState.completedOrders,
+    );
+
+    // Find and remove order from current list
+    orderToUpdate = updatedPendingOrders.firstWhere(
+      (order) => order.id == orderId,
+      orElse:
+          () => updatedActiveOrders.firstWhere(
+            (order) => order.id == orderId,
+            orElse:
+                () => updatedCompletedOrders.firstWhere(
+                  (order) => order.id == orderId,
+                  orElse: () => throw StateError('Order not found'),
+                ),
+          ),
+    );
+
+    // Remove from current list
+    updatedPendingOrders.removeWhere((order) => order.id == orderId);
+    updatedActiveOrders.removeWhere((order) => order.id == orderId);
+    updatedCompletedOrders.removeWhere((order) => order.id == orderId);
+
+    // Create updated order
+    final updatedOrder = Order(
+      id: orderToUpdate.id,
+      orderNumber: orderToUpdate.orderNumber,
+      customerId: orderToUpdate.customerId,
+      driverId: orderToUpdate.driverId,
+      pickup: orderToUpdate.pickup,
+      destination: orderToUpdate.destination,
+      status: newStatus,
+      estimatedTime: orderToUpdate.estimatedTime,
+      estimatedDistance: orderToUpdate.estimatedDistance,
+      fare: orderToUpdate.fare,
+      paymentMethod: orderToUpdate.paymentMethod,
+      notes: orderToUpdate.notes,
+      createdAt: orderToUpdate.createdAt,
+      updatedAt: DateTime.now(),
+      customer: orderToUpdate.customer,
+      customerPhone: orderToUpdate.customerPhone,
+      etaMinutes: orderToUpdate.etaMinutes,
+    );
+
+    // Add to appropriate list based on new status
+    if (newStatus == 'pending') {
+      updatedPendingOrders.add(updatedOrder);
+    } else if ([
+      'accepted',
+      'in_progress',
+      'driver_assigned',
+      'driver_arrived',
+    ].contains(newStatus)) {
+      updatedActiveOrders.add(updatedOrder);
+    } else if (['completed', 'cancelled'].contains(newStatus)) {
+      updatedCompletedOrders.add(updatedOrder);
+    }
+
+    // Emit updated state
+    emit(
+      OrdersLoaded(
+        pendingOrders: updatedPendingOrders,
+        activeOrders: updatedActiveOrders,
+        completedOrders: updatedCompletedOrders,
+        updatingOrderId: orderId,
+        updatingStatus: newStatus,
+      ),
+    );
   }
 
   // Start order
@@ -369,16 +518,97 @@ class OrdersCubit extends Cubit<OrdersState> {
 
   // Complete order
   Future<bool> completeOrder(String orderId) async {
-    return await updateOrderStatus(orderId: orderId, status: 'completed');
+    try {
+      final success = await updateOrderStatus(
+        orderId: orderId,
+        status: 'completed',
+      );
+
+      if (success) {
+        // Update driver status to available after completing order
+        final socketService = SocketService();
+        socketService.updateStatus(isOnline: true, isAvailable: true);
+        print(
+          'OrdersCubit: Driver status updated to available after completing order',
+        );
+
+        // Refresh dashboard data to update balance information
+        // This will trigger a refresh of the balance display
+        _refreshDashboardData();
+
+        // Dismiss notifications when order is completed
+        _dismissNotifications();
+      }
+
+      return success;
+    } catch (e) {
+      print('OrdersCubit: Error completing order: $e');
+      return false;
+    }
+  }
+
+  // Dismiss notifications when order is completed
+  void _dismissNotifications() {
+    try {
+      print('OrdersCubit: Dismissing notifications after order completion');
+
+      // Call the dismiss notifications callback if it's set
+      if (_dismissNotificationsCallback != null) {
+        _dismissNotificationsCallback!();
+        print('OrdersCubit: Notifications dismissed successfully');
+      } else {
+        print('OrdersCubit: No dismiss notifications callback set');
+      }
+    } catch (e) {
+      print('OrdersCubit: Error dismissing notifications: $e');
+    }
+  }
+
+  // Refresh dashboard data after order completion
+  void _refreshDashboardData() {
+    try {
+      print(
+        'OrdersCubit: Triggering dashboard data refresh for balance update',
+      );
+
+      // Call the dashboard refresh callback if it's set
+      if (_dashboardRefreshCallback != null) {
+        _dashboardRefreshCallback!();
+        print('OrdersCubit: Dashboard refresh callback executed');
+      } else {
+        print('OrdersCubit: No dashboard refresh callback set');
+      }
+    } catch (e) {
+      print('OrdersCubit: Error refreshing dashboard data: $e');
+    }
   }
 
   // Cancel order
   Future<bool> cancelOrder(String orderId, {String? reason}) async {
-    return await updateOrderStatus(
-      orderId: orderId,
-      status: 'cancelled',
-      notes: reason,
-    );
+    try {
+      final success = await updateOrderStatus(
+        orderId: orderId,
+        status: 'cancelled',
+        notes: reason,
+      );
+
+      if (success) {
+        // Update driver status to available after cancelling order
+        final socketService = SocketService();
+        socketService.updateStatus(isOnline: true, isAvailable: true);
+        print(
+          'OrdersCubit: Driver status updated to available after cancelling order',
+        );
+
+        // Refresh dashboard data to update balance information
+        _refreshDashboardData();
+      }
+
+      return success;
+    } catch (e) {
+      print('OrdersCubit: Error cancelling order: $e');
+      return false;
+    }
   }
 
   // Get order by ID
@@ -410,9 +640,28 @@ class OrdersCubit extends Cubit<OrdersState> {
   }
 
   // Set callback for broadcast order notifications
+  void setOrderAssignedCallback(Function(Order) callback) {
+    _orderAssignedCallback = callback;
+  }
+
+  void setDashboardRefreshCallback(VoidCallback callback) {
+    _dashboardRefreshCallback = callback;
+  }
+
+  void setDismissNotificationsCallback(VoidCallback callback) {
+    _dismissNotificationsCallback = callback;
+  }
+
   void setBroadcastOrderCallback(Function(Order) callback) {
     _broadcastOrderCallback = callback;
   }
+
+  // Sound control methods
+  void setSoundEnabled(bool enabled) {
+    _soundService.setSoundEnabled(enabled);
+  }
+
+  bool get isSoundEnabled => _soundService.isSoundEnabled;
 
   // Initialize socket listeners
   void _initializeSocketListeners() {
@@ -430,6 +679,12 @@ class OrdersCubit extends Cubit<OrdersState> {
       _handleBroadcastOrder(orderData);
     });
 
+    // Listen for orders assigned by operator
+    _socketService.orderAssignedStream.listen((orderData) {
+      print('OrdersCubit: Order assigned by operator: $orderData');
+      _handleOrderAssigned(orderData);
+    });
+
     // Listen for orders accepted by other drivers
     _socketService.orderAcceptedByOtherStream.listen((data) {
       print('OrdersCubit: Order accepted by other driver: $data');
@@ -443,6 +698,9 @@ class OrdersCubit extends Cubit<OrdersState> {
   void _handleNewOrder(Map<String, dynamic> orderData) {
     try {
       final newOrder = Order.fromJson(orderData);
+
+      // Play sound notification for new order
+      _soundService.playNewOrderSound();
 
       // Call the callback to show notification
       if (_newOrderCallback != null) {
@@ -487,10 +745,62 @@ class OrdersCubit extends Cubit<OrdersState> {
     }
   }
 
+  // Handle order assigned by operator
+  void _handleOrderAssigned(Map<String, dynamic> orderData) {
+    try {
+      final assignedOrder = Order.fromJson(orderData);
+
+      // Play sound notification for assigned order
+      _soundService.playAssignedOrderSound();
+
+      // Call the callback to show notification
+      if (_orderAssignedCallback != null) {
+        print(
+          'OrdersCubit: Calling order assigned callback for: ${assignedOrder.orderNumber}',
+        );
+        _orderAssignedCallback!(assignedOrder);
+      }
+
+      if (state is OrdersLoaded) {
+        final currentState = state as OrdersLoaded;
+        final updatedActiveOrders = List<Order>.from(currentState.activeOrders);
+
+        // Check if order already exists
+        final existingIndex = updatedActiveOrders.indexWhere(
+          (order) => order.id == assignedOrder.id,
+        );
+        if (existingIndex == -1) {
+          // Add new assigned order to active orders
+          updatedActiveOrders.add(assignedOrder);
+
+          emit(
+            OrdersLoaded(
+              pendingOrders: currentState.pendingOrders,
+              activeOrders: updatedActiveOrders,
+              completedOrders: currentState.completedOrders,
+            ),
+          );
+
+          print(
+            'OrdersCubit: Assigned order added to active orders: ${assignedOrder.orderNumber}',
+          );
+        }
+      } else {
+        // If not loaded, refresh orders
+        getDriverOrders();
+      }
+    } catch (e) {
+      print('OrdersCubit: Error handling assigned order: $e');
+    }
+  }
+
   // Handle broadcast order from socket
   void _handleBroadcastOrder(Map<String, dynamic> orderData) {
     try {
       final broadcastOrder = Order.fromJson(orderData);
+
+      // Play sound notification for broadcast order
+      _soundService.playBroadcastOrderSound();
 
       // Call the callback to show broadcast notification
       if (_broadcastOrderCallback != null) {
@@ -570,6 +880,7 @@ class OrdersCubit extends Cubit<OrdersState> {
   @override
   Future<void> close() {
     _newOrderSubscription?.cancel();
+    _soundService.dispose();
     return super.close();
   }
 }
