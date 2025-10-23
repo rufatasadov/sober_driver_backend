@@ -97,11 +97,38 @@ class AuthCubit extends Cubit<AuthState> {
           token: _apiService.authToken!,
         ));
       } else {
-        await _apiService.logout();
-        emit(AuthUnauthenticated());
+        // If server unreachable/timeouts, keep user in a soft-auth state instead of exiting
+        if (_apiService.authToken != null) {
+          final softUser = UserModel(
+            id: 'soft-user',
+            name: 'User',
+            phone: 'unknown',
+            role: 'customer',
+            isVerified: true,
+            isActive: true,
+            createdAt: DateTime.now(),
+          );
+          emit(AuthAuthenticated(user: softUser, token: _apiService.authToken!));
+        } else {
+          emit(AuthUnauthenticated());
+        }
       }
     } catch (e) {
-      emit(AuthError('Failed to check auth status: ${e.toString()}'));
+      // Network/timeout -> soft-auth if token exists
+      if (_apiService.authToken != null) {
+        final softUser = UserModel(
+          id: 'soft-user',
+          name: 'User',
+          phone: 'unknown',
+          role: 'customer',
+          isVerified: true,
+          isActive: true,
+          createdAt: DateTime.now(),
+        );
+        emit(AuthAuthenticated(user: softUser, token: _apiService.authToken!));
+      } else {
+        emit(AuthUnauthenticated());
+      }
     }
   }
 

@@ -82,6 +82,7 @@ class _AppInitializerState extends State<AppInitializer> {
       _hasSeenIntro = prefs.getBool('intro_seen') ?? false;
 
       // Check if user is already logged in
+      if (!mounted) return;
       final authCubit = context.read<AuthCubit>();
       await authCubit.checkAuthStatus();
 
