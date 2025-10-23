@@ -291,6 +291,21 @@ router.post('/driver-login', [
       { expiresIn: '7d' }
     );
 
+    // Driver məlumatını tap
+    const Driver = require('../models/Driver');
+    const driver = await Driver.findOne({ 
+      where: { userId: user.id },
+      include: [{ model: User, as: 'user' }]
+    });
+
+    // Check if driver is active
+    if (driver && driver.isActive === false) {
+      return res.status(403).json({ 
+        error: 'Hesabınız deaktivdir',
+        isDeactivated: true 
+      });
+    }
+
     res.json({
       message: 'Uğurla daxil oldunuz',
       token,
@@ -300,7 +315,19 @@ router.post('/driver-login', [
         username: user.username,
         role: user.role,
         phone: user.phone
-      }
+      },
+      driver: driver ? {
+        id: driver.id,
+        licenseNumber: driver.licenseNumber,
+        isActive: driver.isActive,
+        status: driver.status,
+        actualAddress: driver.actualAddress,
+        licenseExpiryDate: driver.licenseExpiryDate,
+        identityCardFront: driver.identityCardFront,
+        identityCardBack: driver.identityCardBack,
+        licenseFront: driver.licenseFront,
+        licenseBack: driver.licenseBack
+      } : null
     });
   } catch (error) {
     console.error('Driver login xətası:', error);

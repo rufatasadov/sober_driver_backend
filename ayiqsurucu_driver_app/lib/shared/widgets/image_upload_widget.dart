@@ -1,9 +1,14 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as path;
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/constants/app_constants.dart';
+import '../../core/services/api_service.dart';
 
 class ImageUploadWidget extends StatefulWidget {
   final String label;
@@ -28,6 +33,7 @@ class ImageUploadWidget extends StatefulWidget {
 class _ImageUploadWidgetState extends State<ImageUploadWidget> {
   String? _selectedImagePath;
   final ImagePicker _picker = ImagePicker();
+  bool _isUploading = false;
 
   @override
   void initState() {
@@ -45,10 +51,7 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
       );
 
       if (image != null) {
-        setState(() {
-          _selectedImagePath = image.path;
-        });
-        widget.onImageSelected(image.path);
+        await _uploadImage(image.path);
       }
     } catch (e) {
       print('Error picking image: $e');
@@ -66,14 +69,76 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
       );
 
       if (image != null) {
-        setState(() {
-          _selectedImagePath = image.path;
-        });
-        widget.onImageSelected(image.path);
+        await _uploadImage(image.path);
       }
     } catch (e) {
       print('Error taking photo: $e');
       _showErrorSnackBar('Foto çəkməkdə xəta baş verdi');
+    }
+  }
+
+  Future<void> _uploadImage(String imagePath) async {
+    setState(() {
+      _isUploading = true;
+    });
+
+    try {
+      final fileName = path.basename(imagePath);
+
+      // Create multipart request
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${AppConstants.baseUrl}/uploads/upload-document'),
+      );
+
+      // Add headers
+      request.headers.addAll({
+        'Authorization': 'Bearer ${await _getStoredToken()}',
+      });
+
+      // Add file
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'document',
+          imagePath,
+          filename: fileName,
+        ),
+      );
+
+      // Send request
+      final response = await request.send();
+
+      if (response.statusCode == 200) {
+        final responseBody = await response.stream.bytesToString();
+        final data = json.decode(responseBody);
+
+        setState(() {
+          _selectedImagePath = data['filePath'];
+        });
+
+        widget.onImageSelected(data['filePath']);
+        _showSuccessSnackBar('Şəkil uğurla yükləndi');
+      } else {
+        _showErrorSnackBar('Şəkil yüklənmədi');
+      }
+    } catch (e) {
+      print('Error uploading image: $e');
+      _showErrorSnackBar('Şəkil yükləməkdə xəta baş verdi');
+    } finally {
+      setState(() {
+        _isUploading = false;
+      });
+    }
+  }
+
+  Future<String?> _getStoredToken() async {
+    try {
+      // Get token from API service
+      final apiService = ApiService();
+      return await apiService.getStoredToken();
+    } catch (e) {
+      print('Error getting stored token: $e');
+      return null;
     }
   }
 
@@ -87,6 +152,12 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: AppColors.error),
+    );
+  }
+
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: AppColors.success),
     );
   }
 
@@ -194,7 +265,7 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
 
         // Image container
         GestureDetector(
-          onTap: _showImageOptions,
+          onTap: _isUploading ? null : _showImageOptions,
           child: Container(
             width: double.infinity,
             height: 120.h,
@@ -213,18 +284,52 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
                       : AppColors.background,
             ),
             child:
-                _selectedImagePath != null
+                _isUploading
+                    ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(color: AppColors.primary),
+                          SizedBox(height: 8.h),
+                          Text(
+                            'Yüklənir...',
+                            style: AppTheme.bodySmall.copyWith(
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                    : _selectedImagePath != null
                     ? Stack(
                       children: [
                         // Image preview
                         ClipRRect(
                           borderRadius: BorderRadius.circular(10.r),
-                          child: Image.file(
-                            File(_selectedImagePath!),
-                            width: double.infinity,
-                            height: double.infinity,
-                            fit: BoxFit.cover,
-                          ),
+                          child:
+                              _selectedImagePath!.startsWith('http')
+                                  ? Image.network(
+                                    '${AppConstants.baseUrl}${_selectedImagePath!}',
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        color: AppColors.surface,
+                                        child: Icon(
+                                          Icons.image,
+                                          color: AppColors.textSecondary,
+                                          size: 32.sp,
+                                        ),
+                                      );
+                                    },
+                                  )
+                                  : Image.file(
+                                    File(_selectedImagePath!),
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                    fit: BoxFit.cover,
+                                  ),
                         ),
 
                         // Remove button
@@ -315,7 +420,7 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
         if (_selectedImagePath != null) ...[
           SizedBox(height: 4.h),
           Text(
-            'Fayl: ${_selectedImagePath!.split('/').last}',
+            'Serverdə saxlanılıb',
             style: AppTheme.bodySmall.copyWith(
               color: AppColors.success,
               fontSize: 10.sp,

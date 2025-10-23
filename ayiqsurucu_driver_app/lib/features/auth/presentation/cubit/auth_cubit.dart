@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/services/api_service.dart';
@@ -61,11 +62,11 @@ class AuthCubit extends Cubit<AuthState> {
         Map<String, dynamic>? driver;
 
         if (userJson != null) {
-          user = Map<String, dynamic>.from(Uri.splitQueryString(userJson));
+          user = Map<String, dynamic>.from(json.decode(userJson));
         }
 
         if (driverJson != null) {
-          driver = Map<String, dynamic>.from(Uri.splitQueryString(driverJson));
+          driver = Map<String, dynamic>.from(json.decode(driverJson));
         }
 
         // Check if driver is deactivated
@@ -176,16 +177,16 @@ class AuthCubit extends Cubit<AuthState> {
       // Convert to Map safely
       Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
 
+      // Check if driver is deactivated
+      if (dataMap['isDeactivated'] == true) {
+        emit(AuthDriverDeactivated());
+        return false;
+      }
+
       if (dataMap['token'] != null) {
         final token = dataMap['token'];
         final user = dataMap['user'];
         final driver = dataMap['driver'];
-
-        // Check if driver is active
-        if (driver != null && driver['isActive'] == false) {
-          emit(AuthDriverDeactivated());
-          return false;
-        }
 
         // Store auth data
         await _storeAuthData(token, user, driver);
@@ -458,9 +459,9 @@ class AuthCubit extends Cubit<AuthState> {
   ]) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(AppConstants.tokenKey, token);
-    await prefs.setString(AppConstants.userKey, user.toString());
+    await prefs.setString(AppConstants.userKey, json.encode(user));
     if (driver != null) {
-      await prefs.setString(AppConstants.driverKey, driver.toString());
+      await prefs.setString(AppConstants.driverKey, json.encode(driver));
     }
   }
 

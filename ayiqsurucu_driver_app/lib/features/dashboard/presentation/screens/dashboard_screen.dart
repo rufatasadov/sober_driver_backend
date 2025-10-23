@@ -495,13 +495,19 @@ class _HomeScreenState extends State<HomeScreen> {
           }
 
           final stats = state is DashboardLoaded ? state.stats : {};
-          final user = context.read<AuthCubit>().user;
+
+          // Get user from AuthCubit state
+          final authState = context.read<AuthCubit>().state;
+          final user = authState is AuthAuthenticated ? authState.user : null;
+
           final isOnline = stats['isOnline'] ?? false;
           final isAvailable = stats['isAvailable'] ?? false;
 
           print(
             'UI: Current state - isOnline: $isOnline, isAvailable: $isAvailable',
           );
+          print('UI: User data - $user');
+          print('UI: User name - ${user?['name']}');
 
           return Stack(
             children: [
@@ -643,15 +649,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      Provider.of<LanguageProvider>(context)
-                          .getString('welcomeDriver')
-                          .replaceAll(
-                            '{name}',
-                            user?['name'] ??
-                                Provider.of<LanguageProvider>(
-                                  context,
-                                ).getString('driver'),
-                          ),
+                      user?['name'] != null &&
+                              user!['name'].toString().isNotEmpty
+                          ? 'Hello, ${user['name']}'
+                          : 'Hello, Driver',
                       style: AppTheme.heading2.copyWith(
                         fontSize: 22.sp,
                         fontWeight: FontWeight.bold,

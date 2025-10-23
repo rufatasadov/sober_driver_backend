@@ -17,6 +17,7 @@ const dispatcherRoutes = require('./routes/dispatcher');
 const paymentRoutes = require('./routes/payments');
 const notificationRoutes = require('./routes/notifications');
 const addressRoutes = require('./routes/addresses');
+const uploadRoutes = require('./routes/uploads');
 
 const { setupSocketHandlers } = require('./socket/socketHandlers');
 
@@ -58,6 +59,7 @@ app.use('/api/dispatcher', dispatcherRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/addresses', addressRoutes);
+app.use('/api/uploads', uploadRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
