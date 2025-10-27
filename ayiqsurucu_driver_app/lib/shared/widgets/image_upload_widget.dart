@@ -57,7 +57,7 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
       }
     } catch (e) {
       print('Error picking image: $e');
-      _showErrorSnackBar('Şəkil seçməkdə xəta baş verdi');
+      _showErrorSnackBar(_getLocalizedString('errorPickingImage'));
     }
   }
 
@@ -75,7 +75,7 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
       }
     } catch (e) {
       print('Error taking photo: $e');
-      _showErrorSnackBar('Foto çəkməkdə xəta baş verdi');
+      _showErrorSnackBar(_getLocalizedString('errorTakingPhoto'));
     }
   }
 
@@ -85,6 +85,16 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
     });
 
     try {
+      final token = await _getStoredToken();
+
+      if (token == null) {
+        setState(() {
+          _isUploading = false;
+        });
+        _showErrorSnackBar(_getLocalizedString('notAuthenticated'));
+        return;
+      }
+
       final fileName = path.basename(imagePath);
 
       // Create multipart request
@@ -94,9 +104,9 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
       );
 
       // Add headers
-      request.headers.addAll({
-        'Authorization': 'Bearer ${await _getStoredToken()}',
-      });
+      request.headers.addAll({'Authorization': 'Bearer $token'});
+
+      print('🔍 Upload headers: ${request.headers}');
 
       // Add file
       request.files.add(
@@ -119,13 +129,13 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
         });
 
         widget.onImageSelected(data['filePath']);
-        _showSuccessSnackBar('Şəkil uğurla yükləndi');
+        _showSuccessSnackBar(_getLocalizedString('imageUploadedSuccessfully'));
       } else {
-        _showErrorSnackBar('Şəkil yüklənmədi');
+        _showErrorSnackBar(_getLocalizedString('imageUploadFailed'));
       }
     } catch (e) {
       print('Error uploading image: $e');
-      _showErrorSnackBar('Şəkil yükləməkdə xəta baş verdi');
+      _showErrorSnackBar(_getLocalizedString('errorUploadingImage'));
     } finally {
       setState(() {
         _isUploading = false;
@@ -151,6 +161,59 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
     widget.onImageSelected(null);
   }
 
+  String _getLocalizedString(String key) {
+    final lang =
+        Provider.of<LanguageProvider>(context, listen: false).currentLanguage;
+
+    final translations = {
+      'en': {
+        'addImage': 'Add Image',
+        'camera': 'Camera',
+        'gallery': 'Gallery',
+        'uploading': 'Uploading...',
+        'uploaded': 'Uploaded',
+        'storedOnServer': 'Stored on server',
+        'errorPickingImage': 'Error selecting image',
+        'errorTakingPhoto': 'Error taking photo',
+        'imageUploadedSuccessfully': 'Image uploaded successfully',
+        'imageUploadFailed': 'Image upload failed',
+        'errorUploadingImage': 'Error uploading image',
+        'notAuthenticated': 'You must be logged in to upload images',
+      },
+      'ru': {
+        'addImage': 'Добавить изображение',
+        'camera': 'Камера',
+        'gallery': 'Галерея',
+        'uploading': 'Загрузка...',
+        'uploaded': 'Загружено',
+        'storedOnServer': 'Сохранено на сервере',
+        'errorPickingImage': 'Ошибка при выборе изображения',
+        'errorTakingPhoto': 'Ошибка при съемке фото',
+        'imageUploadedSuccessfully': 'Изображение успешно загружено',
+        'imageUploadFailed': 'Не удалось загрузить изображение',
+        'errorUploadingImage': 'Ошибка при загрузке изображения',
+        'notAuthenticated':
+            'Вы должны быть авторизованы для загрузки изображений',
+      },
+      'uz': {
+        'addImage': 'Rasm qo\'shish',
+        'camera': 'Kamera',
+        'gallery': 'Galereya',
+        'uploading': 'Yuklanmoqda...',
+        'uploaded': 'Yuklandi',
+        'storedOnServer': 'Serverda saqlanildi',
+        'errorPickingImage': 'Rasm tanlashda xato',
+        'errorTakingPhoto': 'Foto chakishda xato',
+        'imageUploadedSuccessfully': 'Rasm muvaffaqiyatli yuklandi',
+        'imageUploadFailed': 'Rasm yuklanmadi',
+        'errorUploadingImage': 'Rasm yuklashda xato',
+        'notAuthenticated': 'Rasmlarni yuklash uchun tizimga kirishingiz kerak',
+      },
+    };
+
+    return translations[lang]?[key] ?? translations['en']![key]!;
+  }
+
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: AppColors.error),
@@ -173,7 +236,7 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Şəkil əlavə et',
+                  _getLocalizedString('addImage'),
                   style: AppTheme.heading3.copyWith(
                     color: AppColors.textPrimary,
                   ),
@@ -188,7 +251,7 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
                           _takePhoto();
                         },
                         icon: Icon(Icons.camera_alt, color: AppColors.primary),
-                        label: Text('Kamera'),
+                        label: Text(_getLocalizedString('camera')),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary.withOpacity(0.1),
                           foregroundColor: AppColors.primary,
@@ -207,7 +270,7 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
                           Icons.photo_library,
                           color: AppColors.primary,
                         ),
-                        label: Text('Qalereya'),
+                        label: Text(_getLocalizedString('gallery')),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary.withOpacity(0.1),
                           foregroundColor: AppColors.primary,
@@ -294,7 +357,7 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
                           CircularProgressIndicator(color: AppColors.primary),
                           SizedBox(height: 8.h),
                           Text(
-                            'Yüklənir...',
+                            _getLocalizedString('uploading'),
                             style: AppTheme.bodySmall.copyWith(
                               color: AppColors.primary,
                             ),
@@ -378,7 +441,7 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
                                 ),
                                 SizedBox(width: 4.w),
                                 Text(
-                                  'Yükləndi',
+                                  _getLocalizedString('uploaded'),
                                   style: AppTheme.bodySmall.copyWith(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w600,
@@ -400,7 +463,7 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
                         ),
                         SizedBox(height: 8.h),
                         Text(
-                          'Şəkil əlavə et',
+                          _getLocalizedString('addImage'),
                           style: AppTheme.bodySmall.copyWith(
                             color: AppColors.textSecondary,
                           ),
@@ -422,7 +485,7 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
         if (_selectedImagePath != null) ...[
           SizedBox(height: 4.h),
           Text(
-            'Serverdə saxlanılıb',
+            _getLocalizedString('storedOnServer'),
             style: AppTheme.bodySmall.copyWith(
               color: AppColors.success,
               fontSize: 10.sp,

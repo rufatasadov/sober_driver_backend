@@ -4,13 +4,22 @@ const { sequelize } = require('../config/database');
 
 const auth = async (req, res, next) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
+    const authHeader = req.header('Authorization');
+    console.log('🔍 Auth header:', authHeader);
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Access denied. No token provided.' });
+    }
+    
+    const token = authHeader.replace('Bearer ', '').trim();
+    console.log('🔍 Extracted token:', token ? token.substring(0, 20) + '...' : 'null');
     
     if (!token) {
       return res.status(401).json({ error: 'Access denied. No token provided.' });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('🔍 Decoded token:', decoded);
     
     // Get user with role and privileges using Sequelize
     const users = await sequelize.query(`
