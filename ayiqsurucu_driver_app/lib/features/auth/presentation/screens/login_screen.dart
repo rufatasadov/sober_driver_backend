@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/localization/language_provider.dart';
@@ -24,12 +25,75 @@ class _LoginScreenState extends State<LoginScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _isAutoLoggingIn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCredentials();
+  }
 
   @override
   void dispose() {
     _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedUsername = prefs.getString('saved_username');
+      final savedPassword = prefs.getString('saved_password');
+
+      if (savedUsername != null && savedPassword != null) {
+        setState(() {
+          _isAutoLoggingIn = true;
+        });
+
+        // Auto login with saved credentials
+        final authCubit = context.read<AuthCubit>();
+        final success = await authCubit.driverLogin(
+          username: savedUsername,
+          password: savedPassword,
+        );
+
+        if (success && mounted) {
+          if (authCubit.driver != null) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const DashboardScreen()),
+              (route) => false,
+            );
+          }
+        } else if (mounted) {
+          // Clear saved credentials if login failed
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('saved_username');
+          await prefs.remove('saved_password');
+
+          setState(() {
+            _isAutoLoggingIn = false;
+          });
+        }
+      }
+    } catch (e) {
+      print('Error loading saved credentials: $e');
+      setState(() {
+        _isAutoLoggingIn = false;
+      });
+    }
+  }
+
+  Future<void> _saveCredentials(String username, String password) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('saved_username', username);
+      await prefs.setString('saved_password', password);
+      print('✅ Credentials saved for auto login');
+    } catch (e) {
+      print('Error saving credentials: $e');
+    }
   }
 
   Future<void> _driverLogin() async {
@@ -45,6 +109,12 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (success) {
+        // Save credentials for auto login
+        await _saveCredentials(
+          _usernameController.text.trim(),
+          _passwordController.text.trim(),
+        );
+
         if (mounted) {
           // Check if user is already a driver
           if (authCubit.driver != null) {
@@ -97,6 +167,32 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Show loading screen during auto login
+    if (_isAutoLoggingIn) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                ),
+                SizedBox(height: 24.h),
+                Text(
+                  'Logging in...',
+                  style: AppTheme.bodyLarge.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Consumer<LanguageProvider>(
       builder: (context, languageProvider, child) {
         return Scaffold(

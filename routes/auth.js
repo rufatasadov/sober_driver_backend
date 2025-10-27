@@ -568,4 +568,151 @@ router.get('/me', auth, async (req, res) => {
   }
 });
 
+// Send password reset code
+router.post('/send-reset-code', [
+  body('phone').optional().notEmpty().withMessage('Phone number is required'),
+  body('email').optional().isEmail().withMessage('Email is required'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { phone, email } = req.body;
+
+    // Find user by phone or email
+    const whereClause = {};
+    if (phone) {
+      whereClause.phone = phone.replace(/\s/g, '');
+    } else if (email) {
+      whereClause.email = email;
+    } else {
+      return res.status(400).json({ error: 'Phone or email is required' });
+    }
+
+    const user = await User.findOne({ where: whereClause });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found with this phone or email' });
+    }
+
+    // TODO: Implement actual OTP sending via SMS/Email
+    // For now, just return success with test code
+    const resetCode = '123456'; // Test code
+
+    // Store reset code temporarily (in production, use Redis or database)
+    // For now, we'll just send the test code
+
+    res.json({
+      message: 'Reset code sent successfully',
+      testCode: resetCode, // For testing only - remove in production
+      expiresIn: '10 minutes'
+    });
+  } catch (error) {
+    console.error('Send reset code error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Verify reset code
+router.post('/verify-reset-code', [
+  body('phone').optional().notEmpty().withMessage('Phone number is required'),
+  body('email').optional().isEmail().withMessage('Email is required'),
+  body('code').notEmpty().withMessage('Reset code is required'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { phone, email, code } = req.body;
+
+    // Find user by phone or email
+    const whereClause = {};
+    if (phone) {
+      whereClause.phone = phone.replace(/\s/g, '');
+    } else if (email) {
+      whereClause.email = email;
+    } else {
+      return res.status(400).json({ error: 'Phone or email is required' });
+    }
+
+    const user = await User.findOne({ where: whereClause });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Verify code (for now, test code is always 123456)
+    if (code !== '123456') {
+      return res.status(400).json({ error: 'Invalid reset code' });
+    }
+
+    // TODO: In production, verify actual OTP from storage
+
+    res.json({
+      message: 'Code verified successfully',
+      verified: true
+    });
+  } catch (error) {
+    console.error('Verify reset code error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Reset password
+router.post('/reset-password', [
+  body('phone').optional().notEmpty().withMessage('Phone number is required'),
+  body('email').optional().isEmail().withMessage('Email is required'),
+  body('code').notEmpty().withMessage('Reset code is required'),
+  body('newPassword').notEmpty().isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { phone, email, code, newPassword } = req.body;
+
+    // Find user by phone or email
+    const whereClause = {};
+    if (phone) {
+      whereClause.phone = phone.replace(/\s/g, '');
+    } else if (email) {
+      whereClause.email = email;
+    } else {
+      return res.status(400).json({ error: 'Phone or email is required' });
+    }
+
+    const user = await User.findOne({ where: whereClause });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Verify code (for now, test code is always 123456)
+    if (code !== '123456') {
+      return res.status(400).json({ error: 'Invalid reset code' });
+    }
+
+    // Hash new password
+    const bcrypt = require('bcryptjs');
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password
+    await user.update({ password: hashedPassword });
+
+    res.json({
+      message: 'Password reset successfully',
+      success: true
+    });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 module.exports = router; 
