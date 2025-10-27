@@ -1,63 +1,3 @@
-1. "MY SERVER"-ə məxsus "PEREGON HAYDA" mobil tətbiqi sifariş götürmək üçün vasitədir və baş verəcək hadisələrdə məsuliyyəti sürücü daşıyır.
-
-
-2. Online qeydiyyat zamanı sürücü sürücülük vəsiqəsini proqrama yükləməlidir.
-
-
-3. Online qeydiyyat zamanı təqdim edilən əlaqə nömrəsi sürücünün iş vaxtı yanında olmalıdır.
-
-
-4. Sifarişi qəbul etdikdən sonra, müştəri ilə əlaqə saxlayıb ünvanı dəqiqləşdirmək vacibdir.
-
-
-5. Sifariş ünvanına doğru hərəkət edərkən piyada keçidlərindən istifadə edilməlidir.
-
-
-6. Sürücünün istifadəsində olan mobil telefon iş zamanı aktiv və internetə qoşulu olmalıdır.
-
-
-7. Hər bir sürücü şirkətlə xidməti müqavilə imzaladıqdan sonra işləyə bilər.
-
-
-8. Nəqliyyat vasitəsi idarə edilərkən heç bir halda telefona cavab verilməməlidir.
-
-
-9. Heç bir halda yol hərəkəti qaydalarının pozulmasına yol verilməməlidir.
-
-
-10. Qayda pozuntusu olduğu halda məsuliyyəti sürücü daşıyır.
-
-
-11. Müştəriyə zəng edilərkən deyiləcək cümlə: «Salam, müəllim (xanım). Sizi "PEREGON HAYDA" ayıq sürücü xidmətindən narahat edirik.»
-
-
-12. Müştəri şirkət tərəfindən verilən ünvandan əlavə ünvan istəyərsə və ya ünvanı dəyişərsə, bu barədə şirkətə məlumat verilməlidir. Əks halda hadisə baş verərsə, şirkət məsuliyyət daşımır və sığorta tərəfindən qarşılanmayacaq.
-
-
-13. Müştəriyə şəxsi mobil nömrə təqdim etmək qəti qadağandır.
-
-
-14. Müştəri avtomobilə əyləşmədən sürücü avtomobilə əyləşməməlidir.
-
-
-15. Müştəri yolda hər hansı səbəbdən avtomobildən düşərsə, sürücü də avtomobildən düşüb, müştərinin gəlməsini avtomobilin yanında gözləməlidir.
-
-
-16. Müştəriyə artıq suallar vermək olmaz.
-
-
-17. Müştərinin avtomobilində müştəri demədən musiqinin səsinə, kondisionerə, qızdırıcıya və s. müdaxilə edilməməlidir.
-
-
-18. Müştəri sual vermədiyi halda onunla danışmaq olmaz.
-
-
-19. Müştəridən əlavə pul tələb etmək qəti qadağandır.
-
-
-20. Sığorta qaydalarının pozulduğu halda məsuliyyəti sürücü daşıyır
-
-
 1. Мобильное приложение "PEREGON HAYDA" компании "MY SERVER" является средством для получения заказов, и за все происшествия ответственность несёт водитель.
 
 
@@ -118,50 +58,49 @@
 20. В случае нарушения правил страхования ответственность несёт водитель.
 
 
-
 1. "MY SERVER" kompaniyasiga tegishli "PEREGON HAYDA" mobil ilovasi buyurtma olish vositasidir va barcha hodisalarda javobgarlik haydovchiga yuklanadi.
 
 
-2. Onlayn ro‘yxatdan o‘tishda haydovchi haydovchilik guvohnomasini ilovaga yuklashi shart.
+2. Onlayn ro'yxatdan o'tishda haydovchi haydovchilik guvohnomasini ilovaga yuklashi shart.
 
 
-3. Ro‘yxatdan o‘tishda ko‘rsatilgan aloqa raqami haydovchida ish vaqtida yonida bo‘lishi kerak.
+3. Ro'yxatdan o'tishda ko'rsatilgan aloqa raqami haydovchida ish vaqtida yonida bo'lishi kerak.
 
 
-4. Buyurtmani qabul qilgandan so‘ng, mijoz bilan bog‘lanib manzilni aniqlab olish zarur.
+4. Buyurtmani qabul qilgandan so'ng, mijoz bilan bog'lanib manzilni aniqlab olish zarur.
 
 
-5. Buyurtma manziliga yo‘l olayotganda piyodalar o‘tish joylaridan foydalanish tavsiya etiladi.
+5. Buyurtma manziliga yo'l olayotganda piyodalar o'tish joylaridan foydalanish tavsiya etiladi.
 
 
-6. Haydovchining telefoni ish vaqtida faol va internetga ulangan bo‘lishi shart.
+6. Haydovchining telefoni ish vaqtida faol va internetga ulangan bo'lishi shart.
 
 
-7. Har bir haydovchi kompaniya bilan shartnoma imzolagandan so‘nggina ishlashi mumkin.
+7. Har bir haydovchi kompaniya bilan shartnoma imzolagandan so'nggina ishlashi mumkin.
 
 
-8. Transport vositasini boshqarayotganda telefonga javob berish qat’iyan taqiqlanadi.
+8. Transport vositasini boshqarayotganda telefonga javob berish qat'iyan taqiqlanadi.
 
 
-9. Yo‘l harakati qoidalarini buzishga yo‘l qo‘yilmaydi.
+9. Yo'l harakati qoidalarini buzishga yo'l qo'yilmaydi.
 
 
-10. Qoidabuzarlik sodir bo‘lsa, javobgarlik haydovchining zimmasida.
+10. Qoidabuzarlik sodir bo'lsa, javobgarlik haydovchining zimmasida.
 
 
-11. Mijozga qo‘ng‘iroq qilganda aytiladigan jumla: «Salom, janob (xonim). Sizni "PEREGON HAYDA" hushyor haydovchi xizmati bezovta qilmoqda.»
+11. Mijozga qo'ng'iroq qilganda aytiladigan jumla: «Salom, janob (xonim). Sizni "PEREGON HAYDA" hushyor haydovchi xizmati bezovta qilmoqda.»
 
 
-12. Agar mijoz kompaniya bergan manzildan boshqa manzilga borishni yoki manzilni o‘zgartirishni so‘rasa, bu haqda kompaniyaga xabar berilishi shart. Aks holda hodisa sodir bo‘lsa, kompaniya javobgar emas va sug‘urta qoplamaydi.
+12. Agar mijoz kompaniya bergan manzildan boshqa manzilga borishni yoki manzilni o'zgartirishni so'rasa, bu haqda kompaniyaga xabar berilishi shart. Aks holda hodisa sodir bo'lsa, kompaniya javobgar emas va sug'urta qoplamaydi.
 
 
-13. Mijozga shaxsiy telefon raqamini berish qat’iyan man etiladi.
+13. Mijozga shaxsiy telefon raqamini berish qat'iyan man etiladi.
 
 
-14. Haydovchi mijoz mashinaga o‘tirmaguncha mashinaga o‘tirmasligi kerak.
+14. Haydovchi mijoz mashinaga o'tirmaguncha mashinaga o'tirmasligi kerak.
 
 
-15. Agar mijoz yo‘lda qandaydir sabab bilan avtomobildan tushsa, haydovchi ham avtomobildan tushib, mijozni mashina yonida kutishi shart.
+15. Agar mijoz yo'lda qandaydir sabab bilan avtomobildan tushsa, haydovchi ham avtomobildan tushib, mijozni mashina yonida kutishi shart.
 
 
 16. Mijozga ortiqcha savol berish mumkin emas.
@@ -173,7 +112,67 @@
 18. Agar mijoz savol bermasa — u bilan suhbatlashish mumkin emas.
 
 
-19. Mijozdan qo‘shimcha pul talab qilish qat’iyan man etiladi.
+19. Mijozdan qo'shimcha pul talab qilish qat'iyan man etiladi.
 
 
-20. Sug‘urta qoidalari buzilganda javobgarlik haydovchiga yuklanadi.
+20. Sug'urta qoidalari buzilganda javobgarlik haydovchiga yuklanadi.
+
+
+1. "PEREGON HAYDA" mobile application owned by "MY SERVER" is a tool for receiving orders, and the driver is responsible for all incidents that occur.
+
+
+2. During online registration, the driver must upload their driver's license to the application.
+
+
+3. The contact number provided during online registration must be with the driver during working hours.
+
+
+4. After accepting an order, it is essential to contact the customer and clarify the address.
+
+
+5. When heading to the order address, pedestrian crossings should be used.
+
+
+6. The driver's mobile phone must be active and connected to the internet during work.
+
+
+7. Each driver can work only after signing a service contract with the company.
+
+
+8. It is strictly forbidden to answer phone calls while driving the vehicle.
+
+
+9. Violation of traffic rules is not allowed under any circumstances.
+
+
+10. In case of rule violations, the driver bears responsibility.
+
+
+11. When calling a customer, the sentence to be used is: "Hello, sir (madam). We are disturbing you from 'PEREGON HAYDA' sober driver service."
+
+
+12. If the customer requests a different address or changes the address, this must be reported to the company. Otherwise, if an incident occurs, the company is not responsible, and insurance will not cover it.
+
+
+13. It is strictly forbidden to provide the customer with a personal mobile number.
+
+
+14. The driver should not get into the car before the customer gets in.
+
+
+15. If the customer gets out of the car for any reason on the way, the driver must also get out and wait for the customer near the car.
+
+
+16. Asking extra questions to the customer is not allowed.
+
+
+17. In the customer's car, the driver is not allowed to interfere with the music volume, air conditioning, heater, etc., without the customer's permission.
+
+
+18. If the customer does not ask questions, conversation is not allowed.
+
+
+19. Requesting additional money from the customer is strictly forbidden.
+
+
+20. In case of insurance rule violations, the driver bears responsibility.

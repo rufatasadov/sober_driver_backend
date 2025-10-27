@@ -12,11 +12,13 @@ import 'features/auth/presentation/cubit/auth_cubit.dart';
 import 'features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/auth/presentation/screens/driver_deactivated_screen.dart';
+import 'features/intro/presentation/screens/intro_screen.dart';
 import 'features/profile/presentation/cubit/profile_cubit.dart';
 import 'features/orders/presentation/cubit/orders_cubit.dart';
 import 'features/notifications/presentation/cubit/notifications_cubit.dart';
 import 'features/dashboard/presentation/cubit/dashboard_cubit.dart';
 import 'shared/widgets/loading_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -107,18 +109,44 @@ class _AppInitializerState extends State<AppInitializer> {
 
     return BlocBuilder<AuthCubit, AuthState>(
       builder: (context, state) {
-        if (state is AuthAuthenticated) {
-          // Initialize socket service if authenticated
-          if (!SocketService().isConnected) {
-            SocketService().initialize(authToken: state.token);
-          }
-          return const DashboardScreen();
-        } else if (state is AuthDriverDeactivated) {
-          return const DriverDeactivatedScreen();
-        } else {
-          return const LoginScreen();
-        }
+        return FutureBuilder<bool>(
+          future: _checkIntroCompleted(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const LoadingScreen();
+            }
+
+            final introCompleted = snapshot.data ?? true;
+
+            // Show intro screen first if not completed
+            if (!introCompleted) {
+              return const IntroScreen();
+            }
+
+            // Then check auth state
+            if (state is AuthAuthenticated) {
+              // Initialize socket service if authenticated
+              if (!SocketService().isConnected) {
+                SocketService().initialize(authToken: state.token);
+              }
+              return const DashboardScreen();
+            } else if (state is AuthDriverDeactivated) {
+              return const DriverDeactivatedScreen();
+            } else {
+              return const LoginScreen();
+            }
+          },
+        );
       },
     );
+  }
+
+  Future<bool> _checkIntroCompleted() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool('intro_completed') ?? false;
+    } catch (e) {
+      return false;
+    }
   }
 }

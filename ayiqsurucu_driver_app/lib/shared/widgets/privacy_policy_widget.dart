@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/localization/language_provider.dart';
 
 class PrivacyPolicyWidget extends StatefulWidget {
   final bool isAccepted;
@@ -30,9 +32,29 @@ class _PrivacyPolicyWidgetState extends State<PrivacyPolicyWidget> {
 
   Future<void> _loadPrivacyPolicy() async {
     try {
-      final String policyText = await rootBundle.loadString(
+      final languageProvider = Provider.of<LanguageProvider>(
+        context,
+        listen: false,
+      );
+      final lang = languageProvider.currentLanguage;
+
+      // Load only the text for the current language
+      final String fullText = await rootBundle.loadString(
         'driver_privacy_policy.txt',
       );
+
+      // Extract text for current language
+      String policyText = '';
+      if (lang == 'en') {
+        policyText = _extractLanguageText(fullText, 'en');
+      } else if (lang == 'ru') {
+        policyText = _extractLanguageText(fullText, 'ru');
+      } else if (lang == 'uz') {
+        policyText = _extractLanguageText(fullText, 'uz');
+      } else {
+        policyText = _extractLanguageText(fullText, 'en'); // Default to English
+      }
+
       setState(() {
         _privacyPolicyText = policyText;
         _isLoading = false;
@@ -45,55 +67,107 @@ class _PrivacyPolicyWidgetState extends State<PrivacyPolicyWidget> {
     }
   }
 
+  String _extractLanguageText(String fullText, String lang) {
+    // The file has 3 sections separated by empty lines
+    // Section 1: Russian (lines 1-60)
+    // Section 2: Uzbek (lines 62-121)
+    // Section 3: English (lines 123-182)
+
+    final lines = fullText.split('\n');
+    int startLine = 0;
+    int endLine = 0;
+
+    if (lang == 'en') {
+      // English section (third section)
+      startLine = 123;
+      endLine = 183;
+    } else if (lang == 'ru') {
+      // Russian section (first section)
+      startLine = 0;
+      endLine = 61;
+    } else if (lang == 'uz') {
+      // Uzbek section (second section)
+      startLine = 62;
+      endLine = 122;
+    } else {
+      // Default to Russian
+      startLine = 0;
+      endLine = 61;
+    }
+
+    final selectedLines = lines.sublist(startLine, endLine);
+    return selectedLines.join('\n');
+  }
+
   void _showPrivacyPolicyDialog() {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Row(
-              children: [
-                Icon(Icons.privacy_tip_outlined, color: AppColors.primary),
-                SizedBox(width: 8.w),
-                Text(
-                  'Terms and Conditions',
-                  style: AppTheme.heading3.copyWith(
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-            content: SizedBox(
-              width: double.maxFinite,
-              height: 400.h,
-              child:
-                  _isLoading
-                      ? Center(
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            AppColors.primary,
-                          ),
-                        ),
-                      )
-                      : SingleChildScrollView(
-                        child: Text(
-                          _privacyPolicyText,
-                          style: AppTheme.bodyMedium.copyWith(
-                            color: AppColors.textPrimary,
-                            height: 1.5,
-                          ),
-                        ),
-                      ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(
-                  'Close',
-                  style: AppTheme.bodyMedium.copyWith(color: AppColors.primary),
-                ),
+      builder: (context) {
+        final languageProvider = Provider.of<LanguageProvider>(
+          context,
+          listen: false,
+        );
+        final lang = languageProvider.currentLanguage;
+
+        final title =
+            lang == 'en'
+                ? 'Terms and Conditions'
+                : lang == 'ru'
+                ? 'Условия использования'
+                : lang == 'uz'
+                ? 'Shartlar va qoidalar'
+                : 'Terms and Conditions';
+
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.privacy_tip_outlined, color: AppColors.primary),
+              SizedBox(width: 8.w),
+              Text(
+                title,
+                style: AppTheme.heading3.copyWith(color: AppColors.textPrimary),
               ),
             ],
           ),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 400.h,
+            child:
+                _isLoading
+                    ? Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppColors.primary,
+                        ),
+                      ),
+                    )
+                    : SingleChildScrollView(
+                      child: Text(
+                        _privacyPolicyText,
+                        style: AppTheme.bodyMedium.copyWith(
+                          color: AppColors.textPrimary,
+                          height: 1.5,
+                        ),
+                      ),
+                    ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                lang == 'en'
+                    ? 'Close'
+                    : lang == 'ru'
+                    ? 'Закрыть'
+                    : lang == 'uz'
+                    ? 'Yopish'
+                    : 'Close',
+                style: AppTheme.bodyMedium.copyWith(color: AppColors.primary),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

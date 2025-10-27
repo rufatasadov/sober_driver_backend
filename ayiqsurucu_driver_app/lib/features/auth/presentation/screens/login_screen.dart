@@ -9,6 +9,7 @@ import '../../../../shared/widgets/loading_screen.dart';
 import '../cubit/auth_cubit.dart';
 import 'driver_registration_screen.dart';
 import 'direct_driver_registration_screen.dart';
+import 'forgot_password_screen.dart';
 import '../../../dashboard/presentation/screens/dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -116,13 +117,19 @@ class _LoginScreenState extends State<LoginScreen> {
                         width: 120.w,
                         height: 120.w,
                         decoration: BoxDecoration(
-                          color: AppColors.primary,
+                          color: AppColors.background,
                           borderRadius: BorderRadius.circular(20.r),
                         ),
-                        child: Icon(
-                          Icons.local_taxi,
-                          size: 60.sp,
-                          color: AppColors.textOnPrimary,
+                        child: Image.asset(
+                          'assets/images/logo.jpeg',
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Icon(
+                              Icons.local_taxi,
+                              size: 60.sp,
+                              color: AppColors.primary,
+                            );
+                          },
                         ),
                       ),
                     ),
@@ -290,7 +297,31 @@ class _LoginScreenState extends State<LoginScreen> {
                       onChanged: (value) => setState(() {}),
                     ),
 
-                    SizedBox(height: 32.h),
+                    SizedBox(height: 16.h),
+
+                    // Forgot Password
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (context) => const ForgotPasswordScreen(),
+                            ),
+                          );
+                        },
+                        child: Text(
+                          'Forgot Password?',
+                          style: AppTheme.bodyMedium.copyWith(
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    SizedBox(height: 16.h),
 
                     // Login button
                     LoadingButton(

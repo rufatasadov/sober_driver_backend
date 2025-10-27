@@ -5,10 +5,12 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/constants/app_constants.dart';
-import '../../core/services/api_service.dart';
+import '../../core/localization/language_provider.dart';
 
 class ImageUploadWidget extends StatefulWidget {
   final String label;
@@ -133,9 +135,9 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
 
   Future<String?> _getStoredToken() async {
     try {
-      // Get token from API service
-      final apiService = ApiService();
-      return await apiService.getStoredToken();
+      // Get token from SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('auth_token');
     } catch (e) {
       print('Error getting stored token: $e');
       return null;
