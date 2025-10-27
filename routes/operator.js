@@ -1138,6 +1138,7 @@ router.post('/drivers', auth, authorize('admin', 'operator', 'dispatcher'), [
       phone: phone.replace(/\s/g, ''),
       email,
       role: 'driver',
+      role_id: 4, // Driver role_id = 4
       isVerified: true,
       isActive: true
     });

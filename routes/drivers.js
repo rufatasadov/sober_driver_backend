@@ -221,6 +221,7 @@ router.get('/status', auth, authorize('driver'), async (req, res) => {
       success: true,
       isOnline: driver.isOnline,
       isAvailable: driver.isAvailable,
+      isActive: driver.isActive,
       lastActive: driver.lastActive
     });
   } catch (error) {

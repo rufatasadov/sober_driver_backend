@@ -60,8 +60,16 @@ class _PrivacyPolicyWidgetState extends State<PrivacyPolicyWidget> {
         _isLoading = false;
       });
     } catch (e) {
+      final lang =
+          Provider.of<LanguageProvider>(context, listen: false).currentLanguage;
+      final errorMessages = {
+        'en': 'Privacy policy could not be loaded.',
+        'ru': 'Не удалось загрузить политику конфиденциальности.',
+        'uz': 'Maxfiylik siyosati yuklana olmadi.',
+      };
+
       setState(() {
-        _privacyPolicyText = 'Privacy policy could not be loaded.';
+        _privacyPolicyText = errorMessages[lang] ?? errorMessages['en']!;
         _isLoading = false;
       });
     }
@@ -171,6 +179,43 @@ class _PrivacyPolicyWidgetState extends State<PrivacyPolicyWidget> {
     );
   }
 
+  String _getLocalizedText(String key) {
+    final languageProvider = Provider.of<LanguageProvider>(
+      context,
+      listen: false,
+    );
+    final lang = languageProvider.currentLanguage;
+
+    final translations = {
+      'en': {
+        'termsAndConditions': 'Terms and Conditions',
+        'description':
+            'By registering as a driver, you agree to our terms and conditions. Please read them carefully before proceeding.',
+        'acceptTerms': 'I accept the terms and conditions',
+        'viewTerms': 'View Terms',
+        'termsAccepted': 'Terms accepted',
+      },
+      'ru': {
+        'termsAndConditions': 'Условия использования',
+        'description':
+            'Регистрируясь как водитель, вы соглашаетесь с нашими условиями использования. Пожалуйста, внимательно прочитайте их перед продолжением.',
+        'acceptTerms': 'Я принимаю условия использования',
+        'viewTerms': 'Посмотреть условия',
+        'termsAccepted': 'Условия приняты',
+      },
+      'uz': {
+        'termsAndConditions': 'Shartlar va qoidalar',
+        'description':
+            'Haydovchi sifatida ro\'yxatdan o\'tish orqali siz bizning shartlar va qoidalarimizga rozi bo\'lasiz. Davom etishdan oldin ularni diqqat bilan o\'qing.',
+        'acceptTerms': 'Men shartlar va qoidalarga roziman',
+        'viewTerms': 'Shartlarni ko\'rish',
+        'termsAccepted': 'Shartlar qabul qilindi',
+      },
+    };
+
+    return translations[lang]?[key] ?? translations['en']![key]!;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -201,7 +246,7 @@ class _PrivacyPolicyWidgetState extends State<PrivacyPolicyWidget> {
               ),
               SizedBox(width: 8.w),
               Text(
-                'Terms and Conditions',
+                _getLocalizedText('termsAndConditions'),
                 style: AppTheme.bodyMedium.copyWith(
                   color: AppColors.textPrimary,
                   fontWeight: FontWeight.w600,
@@ -214,7 +259,7 @@ class _PrivacyPolicyWidgetState extends State<PrivacyPolicyWidget> {
 
           // Description
           Text(
-            'By registering as a driver, you agree to our terms and conditions. Please read them carefully before proceeding.',
+            _getLocalizedText('description'),
             style: AppTheme.bodySmall.copyWith(
               color: AppColors.textSecondary,
               height: 1.4,
@@ -243,7 +288,7 @@ class _PrivacyPolicyWidgetState extends State<PrivacyPolicyWidget> {
                 child: GestureDetector(
                   onTap: () => widget.onChanged(!widget.isAccepted),
                   child: Text(
-                    'I accept the terms and conditions',
+                    _getLocalizedText('acceptTerms'),
                     style: AppTheme.bodyMedium.copyWith(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.w500,
@@ -266,7 +311,7 @@ class _PrivacyPolicyWidgetState extends State<PrivacyPolicyWidget> {
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 child: Text(
-                  'View Terms',
+                  _getLocalizedText('viewTerms'),
                   style: AppTheme.bodySmall.copyWith(
                     color: AppColors.primary,
                     fontWeight: FontWeight.w600,
@@ -297,7 +342,7 @@ class _PrivacyPolicyWidgetState extends State<PrivacyPolicyWidget> {
                   ),
                   SizedBox(width: 4.w),
                   Text(
-                    'Terms accepted',
+                    _getLocalizedText('termsAccepted'),
                     style: AppTheme.bodySmall.copyWith(
                       color: AppColors.success,
                       fontWeight: FontWeight.w500,

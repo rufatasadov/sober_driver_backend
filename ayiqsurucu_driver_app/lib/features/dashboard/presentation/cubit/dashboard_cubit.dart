@@ -105,6 +105,7 @@ class DashboardCubit extends Cubit<DashboardState> {
           'balance': balance,
           'isOnline': _safeParseBool(statusMap['isOnline']) ?? true,
           'isAvailable': _safeParseBool(statusMap['isAvailable']) ?? true,
+          'isActive': _safeParseBool(statusMap['isActive']) ?? true,
         };
       }
 
@@ -301,6 +302,7 @@ class DashboardCubit extends Cubit<DashboardState> {
       'totalEarnings': 0.0,
       'isOnline': true, // Default to online
       'isAvailable': true, // Default to available
+      'isActive': true, // Default to active
     };
   }
 

@@ -213,6 +213,114 @@ class _HomeScreenState extends State<HomeScreen> {
     _startLocationTracking();
     // Check and auto-set online status
     _checkAutoOnlineStatus();
+    // Check if driver is deactivated
+    _checkDriverActiveStatus();
+  }
+
+  void _checkDriverActiveStatus() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        // Check from auth cubit first
+        final authCubit = context.read<AuthCubit>();
+        final authState = authCubit.state;
+
+        if (authState is AuthAuthenticated && authState.driver != null) {
+          final driver = authState.driver!;
+          final isActive = driver['isActive'] ?? true;
+
+          if (!isActive && mounted) {
+            // Driver is deactivated from auth, show dialog
+            _showDeactivatedDialog();
+            return;
+          }
+        }
+
+        // Also check from dashboard cubit for consistency
+        final dashboardCubit = context.read<DashboardCubit>();
+        await dashboardCubit.loadDashboardData();
+        final state = dashboardCubit.state;
+
+        if (state is DashboardLoaded) {
+          final stats = state.stats;
+          final isActive = stats['isActive'] ?? true;
+
+          if (!isActive && mounted) {
+            // Driver is deactivated, show dialog
+            _showDeactivatedDialog();
+          }
+        }
+      } catch (e) {
+        print('Error checking driver active status: $e');
+      }
+    });
+  }
+
+  void _showDeactivatedDialog() {
+    final languageProvider = Provider.of<LanguageProvider>(
+      context,
+      listen: false,
+    );
+    final lang = languageProvider.currentLanguage;
+
+    final translations = {
+      'en': {
+        'title': 'Account Deactivated',
+        'message':
+            'Your driver account has been deactivated. Please contact support for more information.',
+        'ok': 'OK',
+      },
+      'ru': {
+        'title': 'Аккаунт деактивирован',
+        'message':
+            'Ваш аккаунт водителя был деактивирован. Пожалуйста, свяжитесь со службой поддержки для получения дополнительной информации.',
+        'ok': 'OK',
+      },
+      'uz': {
+        'title': 'Hisob deaktiv qilindi',
+        'message':
+            'Sizning haydovchi hisobingiz deaktiv qilingan. Qo\'shimcha ma\'lumot uchun qo\'llab-quvvatlash xizmatiga murojaat qiling.',
+        'ok': 'OK',
+      },
+    };
+
+    final strings = translations[lang] ?? translations['en']!;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.error_outline, color: AppColors.error, size: 24.sp),
+                SizedBox(width: 8.w),
+                Expanded(
+                  child: Text(
+                    strings['title']!,
+                    style: AppTheme.heading3.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            content: Text(
+              strings['message']!,
+              style: AppTheme.bodyMedium.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  strings['ok']!,
+                  style: AppTheme.bodyMedium.copyWith(color: AppColors.primary),
+                ),
+              ),
+            ],
+          ),
+    );
   }
 
   void _listenForNewOrders() {
@@ -502,6 +610,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
           final isOnline = stats['isOnline'] ?? false;
           final isAvailable = stats['isAvailable'] ?? false;
+          final isActive = stats['isActive'] ?? true;
+
+          // Check from auth state as well
+          final authIsActive =
+              authState is AuthAuthenticated
+                  ? (authState.driver?['isActive'] ?? true)
+                  : true;
+
+          // If driver is deactivated, block all UI functionality
+          if (!isActive || !authIsActive) {
+            return _buildDeactivatedView();
+          }
 
           print(
             'UI: Current state - isOnline: $isOnline, isAvailable: $isAvailable',
@@ -604,6 +724,62 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildDeactivatedView() {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+    final lang = languageProvider.currentLanguage;
+
+    final translations = {
+      'en': {
+        'title': 'Account Deactivated',
+        'description':
+            'Your driver account has been deactivated. Please contact support for assistance.',
+        'contactSupport': 'Contact Support',
+      },
+      'ru': {
+        'title': 'Аккаунт деактивирован',
+        'description':
+            'Ваш аккаунт водителя был деактивирован. Пожалуйста, свяжитесь со службой поддержки для получения помощи.',
+        'contactSupport': 'Связаться с поддержкой',
+      },
+      'uz': {
+        'title': 'Hisob deaktiv qilindi',
+        'description':
+            'Sizning haydovchi hisobingiz deaktiv qilingan. Yordam uchun qo\'llab-quvvatlash xizmatiga murojaat qiling.',
+        'contactSupport': 'Qo\'llab-quvvatlashga murojaat qiling',
+      },
+    };
+
+    final strings = translations[lang] ?? translations['en']!;
+
+    return SafeArea(
+      child: Center(
+        child: Padding(
+          padding: EdgeInsets.all(32.w),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.person_off, size: 80.sp, color: AppColors.error),
+              SizedBox(height: 24.h),
+              Text(
+                strings['title']!,
+                style: AppTheme.heading2.copyWith(color: AppColors.textPrimary),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 16.h),
+              Text(
+                strings['description']!,
+                style: AppTheme.bodyMedium.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
