@@ -220,16 +220,18 @@ class _HomeScreenState extends State<HomeScreen> {
   void _checkDriverActiveStatus() {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
-        // Check from auth cubit first
-        final authCubit = context.read<AuthCubit>();
-        final authState = authCubit.state;
+        // Check from auth state first
+        final authState = context.read<AuthCubit>().state;
 
         if (authState is AuthAuthenticated && authState.driver != null) {
           final driver = authState.driver!;
           final isActive = driver['isActive'] ?? true;
 
+          print('🔍 Checking driver active status from auth: $isActive');
+
           if (!isActive && mounted) {
-            // Driver is deactivated from auth, show dialog
+            print('⚠️ Driver is deactivated, showing dialog');
+            // Show deactivated dialog immediately
             _showDeactivatedDialog();
             return;
           }
@@ -244,8 +246,11 @@ class _HomeScreenState extends State<HomeScreen> {
           final stats = state.stats;
           final isActive = stats['isActive'] ?? true;
 
+          print('🔍 Checking driver active status from dashboard: $isActive');
+
           if (!isActive && mounted) {
-            // Driver is deactivated, show dialog
+            print('⚠️ Driver is deactivated from dashboard');
+            // Show deactivated dialog
             _showDeactivatedDialog();
           }
         }
