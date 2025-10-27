@@ -228,12 +228,16 @@ class ApiService {
             error.response?.data?['error'] ??
             'Naməlum xəta';
 
+        // Log full error response for debugging
+        print('❌ API Error: Status=$statusCode, Message=$message');
+        print('❌ Full Error Data: ${error.response?.data}');
+
         switch (statusCode) {
           case 400:
             return Exception('Yanlış sorğu: $message');
           case 401:
             return Exception(
-              'Yetkisiz giriş. Zəhmət olmasa yenidən daxil olun.',
+              'İstifadəçi adı və ya şifrə yanlışdır. Zəhmət olmasa yenidən daxil olun.',
             );
           case 403:
             return Exception('Bu əməliyyat üçün icazəniz yoxdur.');

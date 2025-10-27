@@ -569,27 +569,26 @@ router.get('/me', auth, async (req, res) => {
 });
 
 // Send password reset code
-router.post('/send-reset-code', [
-  body('phone').optional().notEmpty().withMessage('Phone number is required'),
-  body('email').optional().isEmail().withMessage('Email is required'),
-], async (req, res) => {
+router.post('/send-reset-code', async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+    const { phone, email, username } = req.body;
+    
+    console.log('📥 Send reset code request body:', req.body);
 
-    const { phone, email } = req.body;
-
-    // Find user by phone or email
+    // Find user by username, phone, or email
     const whereClause = {};
-    if (phone) {
+    if (username) {
+      whereClause.username = username;
+    } else if (phone) {
       whereClause.phone = phone.replace(/\s/g, '');
     } else if (email) {
       whereClause.email = email;
     } else {
-      return res.status(400).json({ error: 'Phone or email is required' });
+      console.log('❌ No username, phone, or email provided');
+      return res.status(400).json({ error: 'Username, phone, or email is required' });
     }
+    
+    console.log('🔍 Searching user with:', whereClause);
 
     const user = await User.findOne({ where: whereClause });
 
@@ -616,17 +615,8 @@ router.post('/send-reset-code', [
 });
 
 // Verify reset code
-router.post('/verify-reset-code', [
-  body('phone').optional().notEmpty().withMessage('Phone number is required'),
-  body('email').optional().isEmail().withMessage('Email is required'),
-  body('code').notEmpty().withMessage('Reset code is required'),
-], async (req, res) => {
+router.post('/verify-reset-code', async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
     const { phone, email, code } = req.body;
 
     // Find user by phone or email
@@ -663,28 +653,20 @@ router.post('/verify-reset-code', [
 });
 
 // Reset password
-router.post('/reset-password', [
-  body('phone').optional().notEmpty().withMessage('Phone number is required'),
-  body('email').optional().isEmail().withMessage('Email is required'),
-  body('code').notEmpty().withMessage('Reset code is required'),
-  body('newPassword').notEmpty().isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-], async (req, res) => {
+router.post('/reset-password', async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
+    const { phone, email, username, code, newPassword } = req.body;
 
-    const { phone, email, code, newPassword } = req.body;
-
-    // Find user by phone or email
+    // Find user by username, phone, or email
     const whereClause = {};
-    if (phone) {
+    if (username) {
+      whereClause.username = username;
+    } else if (phone) {
       whereClause.phone = phone.replace(/\s/g, '');
     } else if (email) {
       whereClause.email = email;
     } else {
-      return res.status(400).json({ error: 'Phone or email is required' });
+      return res.status(400).json({ error: 'Username, phone, or email is required' });
     }
 
     const user = await User.findOne({ where: whereClause });

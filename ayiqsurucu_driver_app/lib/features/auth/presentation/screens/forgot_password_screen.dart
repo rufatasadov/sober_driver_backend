@@ -35,14 +35,20 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     try {
       final usernameOrPhone = _usernameOrPhoneController.text.trim();
 
+      print('📤 Sending reset code for username: $usernameOrPhone');
+
+      final requestBody = {'username': usernameOrPhone};
+      print('📤 Request body: $requestBody');
+
       // Call backend API to send reset code
       final response = await http.post(
-        Uri.parse('${AppConstants.baseUrl}/api/auth/send-reset-code'),
+        Uri.parse('${AppConstants.baseUrl}/auth/send-reset-code'),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          _selectedMethod == 'phone' ? 'phone' : 'email': usernameOrPhone,
-        }),
+        body: json.encode(requestBody),
       );
+
+      print('📥 Response status: ${response.statusCode}');
+      print('📥 Response body: ${response.body}');
 
       if (mounted) {
         if (response.statusCode == 200) {
@@ -596,10 +602,10 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
 
       // Call backend API to reset password
       final response = await http.post(
-        Uri.parse('${AppConstants.baseUrl}/api/auth/reset-password'),
+        Uri.parse('${AppConstants.baseUrl}/auth/reset-password'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
-          widget.method == 'phone' ? 'phone' : 'email': widget.usernameOrPhone,
+          'username': widget.usernameOrPhone,
           'code': '123456', // Test code
           'newPassword': newPassword,
         }),

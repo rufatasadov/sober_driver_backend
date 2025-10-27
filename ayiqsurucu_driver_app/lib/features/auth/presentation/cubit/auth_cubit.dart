@@ -198,10 +198,26 @@ class AuthCubit extends Cubit<AuthState> {
         return true;
       }
 
-      emit(AuthError('Invalid credentials'));
+      emit(AuthError('Invalid credentials or user not found'));
       return false;
     } catch (e) {
-      emit(AuthError(e.toString()));
+      // Extract clean error message from exception
+      String errorMessage = 'Login failed. Please try again.';
+      if (e.toString().contains('İstifadəçi adı və ya şifrə yanlışdır')) {
+        errorMessage = 'İstifadəçi adı və ya şifrə yanlışdır';
+      } else if (e.toString().contains('Yetkisiz giriş')) {
+        errorMessage = 'Yetkisiz giriş. Zəhmət olmasa yenidən daxil olun.';
+      } else if (e.toString().contains('Hesabınız deaktivdir')) {
+        emit(AuthDriverDeactivated());
+        return false;
+      } else {
+        // Extract actual backend error message
+        final match = RegExp(r':\s*(.+)$').firstMatch(e.toString());
+        if (match != null) {
+          errorMessage = match.group(1) ?? errorMessage;
+        }
+      }
+      emit(AuthError(errorMessage));
       return false;
     }
   }

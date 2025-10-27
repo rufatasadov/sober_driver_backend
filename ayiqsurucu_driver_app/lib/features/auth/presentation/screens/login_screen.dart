@@ -26,6 +26,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _isAutoLoggingIn = false;
+  bool _obscurePassword = true;
 
   @override
   void initState() {
@@ -360,7 +361,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     // Password input
                     TextFormField(
                       controller: _passwordController,
-                      obscureText: true,
+                      obscureText: _obscurePassword,
                       decoration: InputDecoration(
                         labelText: languageProvider.getString('password'),
                         hintText: languageProvider.getString('enterPassword'),
@@ -368,16 +369,19 @@ class _LoginScreenState extends State<LoginScreen> {
                           Icons.lock,
                           color: AppColors.textSecondary,
                         ),
-                        suffixIcon:
-                            _passwordController.text.isNotEmpty
-                                ? IconButton(
-                                  icon: Icon(
-                                    Icons.clear,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                  onPressed: () => _passwordController.clear(),
-                                )
-                                : null,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                            color: AppColors.textSecondary,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
