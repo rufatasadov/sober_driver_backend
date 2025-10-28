@@ -252,6 +252,10 @@ router.post('/driver-login', [
   body('password').notEmpty().withMessage('Şifrə tələb olunur')
 ], async (req, res) => {
   try {
+    console.log('📨 Raw request received');
+    console.log('📨 Content-Type:', req.headers['content-type']);
+    console.log('📨 Raw body:', JSON.stringify(req.body));
+    
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
@@ -261,6 +265,9 @@ router.post('/driver-login', [
     
     console.log('🔐 Driver login attempt for username:', username);
     console.log('📝 Password received:', password ? password.substring(0, 3) + '***' : 'null');
+    console.log('📝 Full request body:', JSON.stringify(req.body));
+    console.log('📝 Password type:', typeof password);
+    console.log('📝 Password length:', password ? password.length : 0);
 
     // İstifadəçini tap
     const user = await User.findOne({ 
