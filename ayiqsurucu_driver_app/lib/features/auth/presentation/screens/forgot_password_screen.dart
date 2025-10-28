@@ -17,13 +17,12 @@ class ForgotPasswordScreen extends StatefulWidget {
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _usernameOrPhoneController = TextEditingController();
+  final _usernameController = TextEditingController();
   bool _isLoading = false;
-  String? _selectedMethod = 'phone'; // 'phone' or 'email'
 
   @override
   void dispose() {
-    _usernameOrPhoneController.dispose();
+    _usernameController.dispose();
     super.dispose();
   }
 
@@ -33,11 +32,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final usernameOrPhone = _usernameOrPhoneController.text.trim();
+      final username = _usernameController.text.trim();
 
-      print('📤 Sending reset code for username: $usernameOrPhone');
+      print('📤 Sending reset code for username: $username');
 
-      final requestBody = {'username': usernameOrPhone};
+      final requestBody = {'username': username};
       print('📤 Request body: $requestBody');
 
       // Call backend API to send reset code
@@ -55,9 +54,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           // Show success message
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                'Reset code sent to ${_selectedMethod == 'phone' ? 'phone' : 'email'}. Test code: 123456',
-              ),
+              content: Text('Reset code sent! Test code: 123456'),
               backgroundColor: AppColors.success,
               duration: const Duration(seconds: 5),
             ),
@@ -69,8 +66,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             MaterialPageRoute(
               builder:
                   (context) => ResetCodeVerificationScreen(
-                    usernameOrPhone: usernameOrPhone,
-                    method: _selectedMethod!,
+                    usernameOrPhone: username,
+                    method: 'username',
                   ),
             ),
           );
@@ -158,7 +155,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
                 // Description
                 Text(
-                  'Enter your username or phone number to receive a reset code',
+                  'Enter your username to receive a reset code',
                   style: AppTheme.bodyLarge.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -167,7 +164,30 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
                 SizedBox(height: 32.h),
 
-                // Method selection
+                // Username input field (simplified - no method selection)
+                TextFormField(
+                  controller: _usernameController,
+                  keyboardType: TextInputType.text,
+                  decoration: InputDecoration(
+                    labelText: 'Username',
+                    hintText: 'Enter your username',
+                    prefixIcon: Icon(
+                      Icons.person,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Username is required';
+                    }
+                    return null;
+                  },
+                ),
+
+                SizedBox(height: 32.h),
+
+                // Old method selection removed - keeping for reference
+                /* Old code starts
                 Row(
                   children: [
                     Expanded(
@@ -270,34 +290,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   ],
                 ),
 
-                SizedBox(height: 24.h),
+                // Old code ends */
+                SizedBox(height: 0.h),
 
-                // Input field
-                TextFormField(
-                  controller: _usernameOrPhoneController,
-                  keyboardType:
-                      _selectedMethod == 'phone'
-                          ? TextInputType.phone
-                          : TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    labelText:
-                        _selectedMethod == 'phone' ? 'Phone Number' : 'Email',
-                    hintText:
-                        _selectedMethod == 'phone'
-                            ? '+994501234567'
-                            : 'example@email.com',
-                    prefixIcon: Icon(
-                      _selectedMethod == 'phone' ? Icons.phone : Icons.email,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'This field is required';
-                    }
-                    return null;
-                  },
-                ),
+                // Old input field removed above - keeping button below
+                if (true) SizedBox(height: 0.h),
 
                 SizedBox(height: 32.h),
 

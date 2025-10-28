@@ -258,6 +258,9 @@ router.post('/driver-login', [
     }
 
     const { username, password } = req.body;
+    
+    console.log('🔐 Driver login attempt for username:', username);
+    console.log('📝 Password received:', password ? password.substring(0, 3) + '***' : 'null');
 
     // İstifadəçini tap
     const user = await User.findOne({ 
@@ -268,16 +271,25 @@ router.post('/driver-login', [
     });
 
     if (!user) {
+      console.log('❌ User not found:', username);
       return res.status(401).json({ error: 'İstifadəçi adı və ya şifrə yanlışdır' });
     }
+    
+    console.log('✅ User found:', username);
+    console.log('📝 Stored password hash:', user.password ? user.password.substring(0, 20) + '...' : 'null');
 
     // Şifrəni yoxla
     const bcrypt = require('bcryptjs');
     const isPasswordValid = await bcrypt.compare(password, user.password);
+    
+    console.log('✅ Password comparison result:', isPasswordValid);
 
     if (!isPasswordValid) {
+      console.log('❌ Password mismatch for user:', username);
       return res.status(401).json({ error: 'İstifadəçi adı və ya şifrə yanlışdır' });
     }
+    
+    console.log('✅ Login successful for:', username);
 
     // Son giriş vaxtını yenilə
     await user.update({
@@ -656,6 +668,9 @@ router.post('/verify-reset-code', async (req, res) => {
 router.post('/reset-password', async (req, res) => {
   try {
     const { phone, email, username, code, newPassword } = req.body;
+    
+    console.log('🔄 Password reset request for username:', username);
+    console.log('📝 New password length:', newPassword ? newPassword.length : 0);
 
     // Find user by username, phone, or email
     const whereClause = {};
@@ -668,24 +683,35 @@ router.post('/reset-password', async (req, res) => {
     } else {
       return res.status(400).json({ error: 'Username, phone, or email is required' });
     }
+    
+    console.log('🔍 Searching user with:', whereClause);
 
     const user = await User.findOne({ where: whereClause });
 
     if (!user) {
+      console.log('❌ User not found for password reset');
       return res.status(404).json({ error: 'User not found' });
     }
+    
+    console.log('✅ User found:', user.username);
 
     // Verify code (for now, test code is always 123456)
     if (code !== '123456') {
+      console.log('❌ Invalid reset code:', code);
       return res.status(400).json({ error: 'Invalid reset code' });
     }
 
     // Hash new password
     const bcrypt = require('bcryptjs');
     const hashedPassword = await bcrypt.hash(newPassword, 10);
+    
+    console.log('🔐 Password hashed successfully');
+    console.log('🔐 Hash:', hashedPassword.substring(0, 20) + '...');
 
     // Update password
     await user.update({ password: hashedPassword });
+    
+    console.log('✅ Password updated successfully for user:', user.username);
 
     res.json({
       message: 'Password reset successfully',
