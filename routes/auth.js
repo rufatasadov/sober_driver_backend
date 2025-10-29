@@ -716,8 +716,8 @@ router.post('/reset-password', async (req, res) => {
     const bcrypt = require('bcryptjs');
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     
-    console.log('🔐 Password hashed successfully');
-    console.log('🔐 Hash:', hashedPassword.substring(0, 20) + '...');
+    console.log('🔐 Password hashed successfully - newPassword:', newPassword);
+    console.log('🔐 Hash:', hashedPassword);
 
     // Update password
     await user.update({ password: hashedPassword });
