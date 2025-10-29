@@ -167,6 +167,11 @@ class AuthCubit extends Cubit<AuthState> {
     try {
       emit(AuthLoading());
 
+      final loginData = {'username': username, 'password': password};
+      print('🔐 Sending login request with username: $username');
+      print('🔐 Password length: ${password.length}');
+      print('🔐 Data to send: $loginData');
+
       final response = await _apiService.post(
         AppConstants.driverLoginEndpoint,
         data: {'username': username, 'password': password},

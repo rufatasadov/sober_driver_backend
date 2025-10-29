@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -610,10 +611,19 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
 
       if (mounted) {
         if (response.statusCode == 200) {
+          // Clear saved credentials after password reset
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('saved_username');
+          await prefs.remove('saved_password');
+          print('✅ Cleared saved credentials after password reset');
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Password reset successfully!'),
+              content: Text(
+                'Password reset successfully! Please login with your new password.',
+              ),
               backgroundColor: AppColors.success,
+              duration: const Duration(seconds: 4),
             ),
           );
 
