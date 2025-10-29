@@ -281,7 +281,7 @@ router.post('/driver-login', [
       console.log('❌ User not found:', username);
       return res.status(401).json({ error: 'İstifadəçi adı və ya şifrə yanlışdır' });
     }
-    
+    const bcrypt = require('bcryptjs');
     const hashedPassword = await bcrypt.hash(password, 12);
 
     console.log('✅ User found:', username);
@@ -290,7 +290,7 @@ router.post('/driver-login', [
     console.log('📝 Received password:', password ? password.substring(0, 3) + '***' : 'null');
 
     // Şifrəni yoxla
-    const bcrypt = require('bcryptjs');
+    
     const isPasswordValid = await bcrypt.compare(password, user.password);
     
     console.log('✅ Password comparison result:', isPasswordValid);
