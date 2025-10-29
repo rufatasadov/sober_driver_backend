@@ -283,7 +283,7 @@ router.post('/driver-login', [
     }
     
     console.log('✅ User found:', username);
-    console.log('📝 Stored password hash:', user.password ? user.password.substring(0, 20) + '...' : 'null');
+    console.log('📝 Stored password hash:', user.password ? user.password + '/' + password : 'null');
 
     // Şifrəni yoxla
     const bcrypt = require('bcryptjs');
