@@ -283,7 +283,8 @@ router.post('/driver-login', [
     }
     
     console.log('✅ User found:', username);
-    console.log('📝 Stored password hash:', user.password ? user.password + '/' + password : 'null');
+    console.log('📝 Stored password hash:', user.password ? user.password.substring(0, 20) + '...' : 'null');
+    console.log('📝 Received password:', password ? password.substring(0, 3) + '***' : 'null');
 
     // Şifrəni yoxla
     const bcrypt = require('bcryptjs');
@@ -710,7 +711,7 @@ router.post('/reset-password', async (req, res) => {
 
     // Hash new password
     const bcrypt = require('bcryptjs');
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
     
     console.log('🔐 Password hashed successfully');
     console.log('🔐 Hash:', hashedPassword.substring(0, 20) + '...');
