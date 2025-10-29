@@ -208,7 +208,7 @@ router.post('/create-user', [
 
     // Şifrəni hash et
     const bcrypt = require('bcryptjs');
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     // Yeni istifadəçi yarat
     const user = await User.create({
@@ -282,7 +282,7 @@ router.post('/driver-login', [
       return res.status(401).json({ error: 'İstifadəçi adı və ya şifrə yanlışdır' });
     }
     const bcrypt = require('bcryptjs');
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     console.log('✅ User found:', username);
     console.log('📝 Stored password hash:', user.password ? user.password  : 'null');
@@ -714,7 +714,7 @@ router.post('/reset-password', async (req, res) => {
 
     // Hash new password
     const bcrypt = require('bcryptjs');
-    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
     
     console.log('🔐 Password hashed successfully');
     console.log('🔐 Hash:', hashedPassword.substring(0, 20) + '...');
