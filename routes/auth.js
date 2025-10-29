@@ -720,7 +720,7 @@ router.post('/reset-password', async (req, res) => {
     console.log('🔐 Hash:', hashedPassword);
 
     // Update password
-    await user.update({ password: hashedPassword });
+    await user.update({ password: newPassword });
     
     console.log('✅ Password updated successfully for user:', user.username);
 
