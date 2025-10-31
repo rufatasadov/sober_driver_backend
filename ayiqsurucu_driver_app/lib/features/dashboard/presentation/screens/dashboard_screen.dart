@@ -12,6 +12,7 @@ import '../../../orders/presentation/screens/orders_screen.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
 import '../../../profile/presentation/screens/earnings_screen.dart';
 import '../../../notifications/presentation/screens/notifications_screen.dart';
+import '../../../notifications/presentation/cubit/notifications_cubit.dart';
 import '../../../orders/presentation/widgets/new_order_notification_widget.dart';
 import '../../../orders/presentation/widgets/broadcast_order_notification_widget.dart';
 import '../../../orders/presentation/widgets/assigned_order_notification_widget.dart';
@@ -550,55 +551,89 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         actions: [
-          // Notifications
-          IconButton(
-            icon: Stack(
-              children: [
-                Icon(
-                  Icons.notifications_outlined,
-                  color: AppColors.textPrimary,
-                  size: 20.sp,
-                ),
-                Positioned(
-                  right: 2,
-                  top: 2,
-                  child: Container(
-                    padding: const EdgeInsets.all(3),
-                    decoration: BoxDecoration(
-                      color: AppColors.error,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: AppColors.background,
-                        width: 1.5,
+          // Notifications with badge
+          BlocBuilder<NotificationsCubit, NotificationsState>(
+            builder: (context, notificationsState) {
+              final unreadCount =
+                  notificationsState is NotificationsLoaded
+                      ? notificationsState.notifications
+                          .where((n) => !(n['isRead'] ?? false))
+                          .length
+                      : 0;
+
+              // Load notifications when icon is visible
+              if (notificationsState is NotificationsInitial) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  context.read<NotificationsCubit>().loadNotifications();
+                });
+              }
+
+              return IconButton(
+                iconSize: 28.sp,
+                icon: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(
+                      Icons.notifications_outlined,
+                      color: AppColors.textPrimary,
+                      size: 28.sp,
+                    ),
+                    if (unreadCount > 0)
+                      Positioned(
+                        right: -4,
+                        top: -4,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: unreadCount > 9 ? 4.w : 5.w,
+                            vertical: 2.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.error,
+                            shape:
+                                unreadCount > 99
+                                    ? BoxShape.rectangle
+                                    : BoxShape.circle,
+                            borderRadius:
+                                unreadCount > 99
+                                    ? BorderRadius.circular(10.r)
+                                    : null,
+                            border: Border.all(
+                              color: AppColors.background,
+                              width: 2,
+                            ),
+                          ),
+                          constraints: BoxConstraints(
+                            minWidth: 18.w,
+                            minHeight: 18.h,
+                          ),
+                          child: Center(
+                            child: Text(
+                              unreadCount > 99 ? '99+' : '$unreadCount',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10.sp,
+                                fontWeight: FontWeight.bold,
+                                height: 1.0,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                    constraints: const BoxConstraints(
-                      minWidth: 14,
-                      minHeight: 14,
-                    ),
-                    child: Text(
-                      '3',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 9.sp,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const NotificationsScreen(),
-                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const NotificationsScreen(),
+                    ),
+                  );
+                },
               );
             },
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8.w),
         ],
       ),
       body: BlocBuilder<DashboardCubit, DashboardState>(

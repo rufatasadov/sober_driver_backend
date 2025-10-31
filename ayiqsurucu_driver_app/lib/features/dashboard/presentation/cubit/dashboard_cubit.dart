@@ -49,6 +49,29 @@ class DashboardCubit extends Cubit<DashboardState> {
       final statsData = results[0] as Map<String, dynamic>;
       final recentOrdersData = results[1] as List<Map<String, dynamic>>;
 
+      // Auto-set driver to online when app opens (if currently offline)
+      final isOnline = statsData['isOnline'] ?? true;
+      if (!isOnline) {
+        print(
+          'DashboardCubit: Driver is offline, setting to online automatically...',
+        );
+        try {
+          // Direct API call to avoid recursive loop
+          final response = await _apiService.patch(
+            AppConstants.driverStatusEndpoint,
+            data: {'isOnline': true, 'isAvailable': true},
+          );
+          _apiService.handleResponse(response);
+          print('DashboardCubit: Driver set to online successfully');
+
+          // Update statsData with new online status
+          statsData['isOnline'] = true;
+          statsData['isAvailable'] = true;
+        } catch (e) {
+          print('DashboardCubit: Error auto-setting online status: $e');
+        }
+      }
+
       emit(DashboardLoaded(stats: statsData, recentOrders: recentOrdersData));
     } catch (e) {
       emit(DashboardError(e.toString()));

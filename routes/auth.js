@@ -336,12 +336,26 @@ router.post('/driver-login', [
     
     // Set driver online when app opens (login)
     if (driver) {
-      await driver.update({
-        isOnline: true,
-        lastActive: new Date()
-      });
-      await driver.reload();
-      console.log('✅ Driver set to online');
+      console.log('🔄 Setting driver to online...');
+      console.log('🔄 Before update - isOnline:', driver.isOnline);
+      
+      try {
+        await driver.update({
+          isOnline: true,
+          lastActive: new Date()
+        });
+        console.log('✅ Driver update completed');
+        
+        await driver.reload();
+        console.log('✅ Driver reload completed');
+        console.log('✅ After update - isOnline:', driver.isOnline);
+        console.log('✅ Driver set to online successfully');
+      } catch (updateError) {
+        console.error('❌ Error updating driver to online:', updateError);
+        console.error('❌ Update error details:', updateError.message);
+      }
+    } else {
+      console.log('⚠️ Driver not found, cannot set to online');
     }
 
     res.json({
