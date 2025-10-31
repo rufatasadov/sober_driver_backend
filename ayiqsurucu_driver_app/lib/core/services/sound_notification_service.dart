@@ -9,6 +9,7 @@ class SoundNotificationService {
 
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _isSoundEnabled = true;
+  bool _isVibrationEnabled = true;
   bool _isPlaying = false;
 
   /// Initialize the sound service
@@ -25,15 +26,20 @@ class SoundNotificationService {
 
   /// Play new order notification sound
   Future<void> playNewOrderSound() async {
-    if (!_isSoundEnabled || _isPlaying) return;
+    if (_isPlaying) return;
 
     try {
       _isPlaying = true;
 
-      // Use system notification sound
-      await _playSystemNotificationSound();
-
-      print('🔊 Playing new order notification sound');
+      // Play sound if enabled
+      if (_isSoundEnabled) {
+        await _playSystemNotificationSound();
+        print('🔊 Playing new order notification sound');
+      } else {
+        // If sound is disabled, just play vibration
+        await _playHapticFeedback();
+        _isPlaying = false;
+      }
     } catch (e) {
       print('❌ Error playing new order sound: $e');
       _isPlaying = false;
@@ -45,15 +51,29 @@ class SoundNotificationService {
 
   /// Play assigned order notification sound
   Future<void> playAssignedOrderSound() async {
-    if (!_isSoundEnabled || _isPlaying) return;
+    if (_isPlaying) return;
 
     try {
       _isPlaying = true;
 
-      // Use system notification sound
-      await _playSystemNotificationSound();
-
-      print('🔊 Playing assigned order notification sound');
+      // Play sound if enabled
+      if (_isSoundEnabled) {
+        await _audioPlayer.play(AssetSource('sounds/new_assigned_order.mp3'));
+        _audioPlayer.onPlayerComplete.listen(
+          (event) {
+            _isPlaying = false;
+          },
+          onError: (error) {
+            _isPlaying = false;
+            _playHapticFeedback();
+          },
+        );
+        print('🔊 Playing assigned order notification sound');
+      } else {
+        // If sound is disabled, just play vibration
+        await _playHapticFeedback();
+        _isPlaying = false;
+      }
     } catch (e) {
       print('❌ Error playing assigned order sound: $e');
       _isPlaying = false;
@@ -65,15 +85,20 @@ class SoundNotificationService {
 
   /// Play broadcast order notification sound
   Future<void> playBroadcastOrderSound() async {
-    if (!_isSoundEnabled || _isPlaying) return;
+    if (_isPlaying) return;
 
     try {
       _isPlaying = true;
 
-      // Use system notification sound
-      await _playSystemNotificationSound();
-
-      print('🔊 Playing broadcast order notification sound');
+      // Play sound if enabled
+      if (_isSoundEnabled) {
+        await _playSystemNotificationSound();
+        print('🔊 Playing broadcast order notification sound');
+      } else {
+        // If sound is disabled, just play vibration
+        await _playHapticFeedback();
+        _isPlaying = false;
+      }
     } catch (e) {
       print('❌ Error playing broadcast order sound: $e');
       _isPlaying = false;
@@ -86,23 +111,35 @@ class SoundNotificationService {
   /// Play system notification sound using platform channels
   Future<void> _playSystemNotificationSound() async {
     try {
-      // Play a sequence of sounds to create notification effect
-      await _audioPlayer.play(AssetSource('sounds/notification.mp3'));
+      // Try to play asset sound first
+      await _audioPlayer.play(AssetSource('sounds/new_order.mp3'));
 
       // Listen for completion
-      _audioPlayer.onPlayerComplete.listen((event) {
-        _isPlaying = false;
-      });
+      _audioPlayer.onPlayerComplete.listen(
+        (event) {
+          _isPlaying = false;
+        },
+        onError: (error) {
+          _isPlaying = false;
+          print('❌ Error in audio player: $error');
+          // Fallback to haptic feedback
+          _playHapticFeedback();
+        },
+      );
     } catch (e) {
+      print('❌ Error playing sound asset: $e');
       // If asset doesn't exist, use haptic feedback
+      _isPlaying = false;
       await _playHapticFeedback();
     }
   }
 
-  /// Play haptic feedback as notification
+  /// Play haptic feedback as notification (vibration)
   Future<void> _playHapticFeedback() async {
+    if (!_isVibrationEnabled) return;
+
     try {
-      // Use haptic feedback for notification
+      // Use haptic feedback for notification (vibration)
       HapticFeedback.heavyImpact();
 
       // Add a small delay and play again for notification effect
@@ -112,11 +149,9 @@ class SoundNotificationService {
       await Future.delayed(const Duration(milliseconds: 300));
       HapticFeedback.heavyImpact();
 
-      _isPlaying = false;
-      print('🔊 Playing haptic feedback notification');
+      print('📳 Playing vibration notification');
     } catch (e) {
       print('❌ Error playing haptic feedback: $e');
-      _isPlaying = false;
     }
   }
 
@@ -128,6 +163,15 @@ class SoundNotificationService {
 
   /// Check if sound is enabled
   bool get isSoundEnabled => _isSoundEnabled;
+
+  /// Enable/disable vibration notifications
+  void setVibrationEnabled(bool enabled) {
+    _isVibrationEnabled = enabled;
+    print('📳 Vibration notifications ${enabled ? 'enabled' : 'disabled'}');
+  }
+
+  /// Check if vibration is enabled
+  bool get isVibrationEnabled => _isVibrationEnabled;
 
   /// Stop any currently playing sound
   Future<void> stopSound() async {

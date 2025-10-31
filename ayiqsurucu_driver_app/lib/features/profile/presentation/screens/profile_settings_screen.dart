@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../cubit/profile_cubit.dart';
+import '../../../orders/presentation/cubit/orders_cubit.dart';
 
 class ProfileSettingsScreen extends StatefulWidget {
   const ProfileSettingsScreen({super.key});
@@ -162,15 +163,40 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
 
             // Notifications Section
             _buildSection('Bildirişlər', Icons.notifications, [
-              _buildSwitchTile(
-                'Push Bildirişləri',
-                'Yeni sifarişlər və yeniləmələr üçün bildirişlər',
-                _notificationsEnabled,
-                (value) {
-                  setState(() {
-                    _notificationsEnabled = value;
-                  });
-                  // TODO: Update notification settings
+              Builder(
+                builder: (context) {
+                  final ordersCubit = context.read<OrdersCubit>();
+                  return Column(
+                    children: [
+                      _buildSwitchTile(
+                        'Səs Bildirişləri',
+                        'Yeni sifariş gələndə səs çal',
+                        ordersCubit.isSoundEnabled,
+                        (value) {
+                          ordersCubit.setSoundEnabled(value);
+                        },
+                      ),
+                      _buildSwitchTile(
+                        'Vibrasiya',
+                        'Yeni sifariş gələndə vibrasiya',
+                        ordersCubit.isVibrationEnabled,
+                        (value) {
+                          ordersCubit.setVibrationEnabled(value);
+                        },
+                      ),
+                      _buildSwitchTile(
+                        'Push Bildirişləri',
+                        'Yeni sifarişlər və yeniləmələr üçün bildirişlər',
+                        _notificationsEnabled,
+                        (value) {
+                          setState(() {
+                            _notificationsEnabled = value;
+                          });
+                          // TODO: Update notification settings
+                        },
+                      ),
+                    ],
+                  );
                 },
               ),
             ]),

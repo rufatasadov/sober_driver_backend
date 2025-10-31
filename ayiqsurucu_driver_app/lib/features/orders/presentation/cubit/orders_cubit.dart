@@ -314,13 +314,17 @@ class OrdersCubit extends Cubit<OrdersState> {
       // Convert to Map safely
       Map<String, dynamic> dataMap = Map<String, dynamic>.from(data);
 
-      if (dataMap['message'] != null || dataMap['order'] != null) {
+      if (dataMap['message'] != null ||
+          dataMap['order'] != null ||
+          dataMap['success'] == true) {
         // Refresh orders
         await getDriverOrders();
         return true;
       }
 
-      emit(OrdersError('Failed to accept order'));
+      // Get error message from response if available
+      final errorMessage = dataMap['error'] ?? 'Failed to accept order';
+      emit(OrdersError(errorMessage));
       return false;
     } catch (e) {
       print('OrdersCubit: Error accepting order: $e');
@@ -662,6 +666,13 @@ class OrdersCubit extends Cubit<OrdersState> {
   }
 
   bool get isSoundEnabled => _soundService.isSoundEnabled;
+
+  // Vibration control methods
+  void setVibrationEnabled(bool enabled) {
+    _soundService.setVibrationEnabled(enabled);
+  }
+
+  bool get isVibrationEnabled => _soundService.isVibrationEnabled;
 
   // Initialize socket listeners
   void _initializeSocketListeners() {

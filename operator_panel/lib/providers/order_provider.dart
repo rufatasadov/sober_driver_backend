@@ -208,6 +208,8 @@ class OrderProvider with ChangeNotifier {
 
   Future<bool> createOrder(Map<String, dynamic> orderData) async {
     try {
+      print('Creating order with data: ${json.encode(orderData)}');
+
       final response = await http.post(
         Uri.parse('${ApiEndpoints.operator}/orders'),
         headers: {
@@ -217,12 +219,26 @@ class OrderProvider with ChangeNotifier {
         body: json.encode(orderData),
       );
 
-      if (response.statusCode == 201) {
+      print('Order creation response status: ${response.statusCode}');
+      print('Order creation response body: ${response.body}');
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
         await loadDashboardData();
         return true;
       } else {
-        final data = json.decode(response.body);
-        throw Exception(data['error'] ?? 'Sifariş yaradılmadı');
+        try {
+          final data = json.decode(response.body);
+          final errorMessage = data['error'] ??
+              (data['errors'] != null
+                  ? data['errors']
+                      .map((e) => e['msg'] ?? e['message'])
+                      .join(', ')
+                  : 'Sifariş yaradılmadı');
+          throw Exception(errorMessage);
+        } catch (parseError) {
+          throw Exception(
+              'Sifariş yaradılmadı (Status: ${response.statusCode}): ${response.body}');
+        }
       }
     } catch (e) {
       print('Create order error: $e');
@@ -555,6 +571,8 @@ class OrderProvider with ChangeNotifier {
   // Enhanced order creation with all features
   Future<bool> createEnhancedOrder(Map<String, dynamic> orderData) async {
     try {
+      print('Creating order with data: ${json.encode(orderData)}');
+
       final response = await http.post(
         Uri.parse('${ApiEndpoints.operator}/orders'),
         headers: {
@@ -564,13 +582,27 @@ class OrderProvider with ChangeNotifier {
         body: json.encode(orderData),
       );
 
-      if (response.statusCode == 201) {
+      print('Order creation response status: ${response.statusCode}');
+      print('Order creation response body: ${response.body}');
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
         await loadDashboardData();
         await loadOrders();
         return true;
       } else {
-        final data = json.decode(response.body);
-        throw Exception(data['error'] ?? 'Sifariş yaradılmadı');
+        try {
+          final data = json.decode(response.body);
+          final errorMessage = data['error'] ??
+              (data['errors'] != null
+                  ? data['errors']
+                      .map((e) => e['msg'] ?? e['message'])
+                      .join(', ')
+                  : 'Sifariş yaradılmadı');
+          throw Exception(errorMessage);
+        } catch (parseError) {
+          throw Exception(
+              'Sifariş yaradılmadı (Status: ${response.statusCode}): ${response.body}');
+        }
       }
     } catch (e) {
       print('Create enhanced order error: $e');

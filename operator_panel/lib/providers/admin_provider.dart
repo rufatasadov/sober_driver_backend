@@ -634,15 +634,27 @@ class AdminProvider with ChangeNotifier {
         }),
       );
 
-      if (response.statusCode == 200) {
+      final responseBody = response.body;
+      print('Balance update response status: ${response.statusCode}');
+      print('Balance update response body: $responseBody');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
         await loadDriversBalance(); // Refresh the list
         return true;
       } else {
-        final data = json.decode(response.body);
-        _error = data['error'] ?? 'Failed to update driver balance';
+        try {
+          final data = json.decode(responseBody);
+          _error = data['error'] ??
+              data['message'] ??
+              'Failed to update driver balance';
+        } catch (e) {
+          _error =
+              'Failed to update driver balance (Status: ${response.statusCode})';
+        }
         return false;
       }
     } catch (e) {
+      print('Balance update error: $e');
       _error = 'Error updating driver balance: $e';
       return false;
     } finally {

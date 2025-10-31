@@ -840,9 +840,17 @@ router.post('/orders', auth, authorize('admin', 'operator', 'dispatcher'), [
   body('notes').optional().isString().withMessage('Qeydlər mətn olmalıdır')
 ], async (req, res) => {
   try {
+    console.log('📦 Creating order - Request received');
+    console.log('📦 Request body:', JSON.stringify(req.body, null, 2));
+    
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      console.log('❌ Validation errors:', errors.array());
+      return res.status(400).json({ 
+        error: 'Validation failed',
+        errors: errors.array(),
+        message: errors.array().map(e => e.msg).join(', ')
+      });
     }
 
     const { 
@@ -856,6 +864,15 @@ router.post('/orders', auth, authorize('admin', 'operator', 'dispatcher'), [
       manualFare,
       notes 
     } = req.body;
+
+    console.log('📦 Parsed order data:', {
+      customerPhone,
+      customerName,
+      pickup: pickup ? 'exists' : 'missing',
+      destination: destination ? 'exists' : 'missing',
+      stopsCount: stops.length,
+      payment: payment ? 'exists' : 'missing'
+    });
 
     // Müştərini tap və ya yarat
     let customer = await User.findOne({ where: { phone: customerPhone } });
@@ -1023,13 +1040,31 @@ router.post('/orders', auth, authorize('admin', 'operator', 'dispatcher'), [
       io.to('dispatchers').emit('new_order_created', { order: orderWithCustomer });
     }
 
+    console.log('✅ Order created successfully:', order.id);
+    
     res.status(201).json({
       message: 'Sifariş uğurla yaradıldı',
-      order: orderWithCustomer
+      order: orderWithCustomer,
+      success: true
     });
   } catch (error) {
-    console.error('Order creation error:', error);
-    res.status(500).json({ error: 'Server xətası' });
+    console.error('❌ Order creation error:', error);
+    console.error('❌ Error stack:', error.stack);
+    
+    // More specific error messages
+    let errorMessage = 'Server xətası';
+    if (error.name === 'SequelizeValidationError') {
+      errorMessage = 'Məlumatlar düzgün deyil: ' + error.errors.map(e => e.message).join(', ');
+    } else if (error.name === 'SequelizeUniqueConstraintError') {
+      errorMessage = 'Bu sifariş artıq mövcuddur';
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    res.status(500).json({ 
+      error: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 

@@ -102,6 +102,7 @@ flutter:
     - assets/images/
     - assets/icons/
     - assets/animations/
+    - assets/sounds/
     - assets/driver_privacy_policy.txt
     - driver_privacy_policy.txt
 

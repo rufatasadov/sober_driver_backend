@@ -1268,12 +1268,14 @@ class _AddOrderDialogState extends State<AddOrderDialog> {
               .asMap()
               .entries
               .map((entry) => {
-                    'address': entry.value.text.trim(),
-                    'coordinates': [
-                      (_stopLatLons[entry.key] ?? const [40.3900, 49.8800])[1],
-                      (_stopLatLons[entry.key] ?? const [40.3900, 49.8800])[0]
-                    ],
-                    'instructions': ''
+                    return {
+                      'address': entry.value.text.trim(),
+                      'coordinates': [
+                        (_stopLatLons[entry.key] ?? const [40.3900, 49.8800])[1],
+                        (_stopLatLons[entry.key] ?? const [40.3900, 49.8800])[0]
+                      ],
+                      'instructions': ''
+                    };
                   })
               .toList(),
           'payment': {
