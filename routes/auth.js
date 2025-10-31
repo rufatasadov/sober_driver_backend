@@ -281,16 +281,12 @@ router.post('/driver-login', [
       console.log('❌ User not found:', username);
       return res.status(401).json({ error: 'İstifadəçi adı və ya şifrə yanlışdır' });
     }
-    const bcrypt = require('bcryptjs');
-    const hashedPassword = await bcrypt.hash(password, 10);
-
     console.log('✅ User found:', username);
-    console.log('📝 Stored password hash:', user.password ? user.password  : 'null');
-    console.log('📝 input password hash:', hashedPassword);
+    console.log('📝 Stored password hash:', user.password ? user.password.substring(0, 20) + '...' : 'null');
     console.log('📝 Received password:', password ? password.substring(0, 3) + '***' : 'null');
 
     // Şifrəni yoxla
-    
+    const bcrypt = require('bcryptjs');
     const isPasswordValid = await bcrypt.compare(password, user.password);
     
     console.log('✅ Password comparison result:', isPasswordValid);
@@ -320,13 +316,32 @@ router.post('/driver-login', [
       where: { userId: user.id },
       include: [{ model: User, as: 'user' }]
     });
+    
+    console.log('🚗 Driver found:', driver ? 'Yes' : 'No');
+    if (driver) {
+      console.log('🚗 Driver isActive status:', driver.isActive);
+      console.log('🚗 Driver isOnline status:', driver.isOnline);
+    }
 
-    // Check if driver is active
+    // Check if driver is active - if not, return error (activation must be done from admin panel)
     if (driver && driver.isActive === false) {
+      console.log('❌ Driver account is deactivated - activation must be done from admin panel');
       return res.status(403).json({ 
-        error: 'Hesabınız deaktivdir',
+        error: 'Hesabınız deaktivdir. Zəhmət olmasa admin paneldən aktivləşdirin.',
         isDeactivated: true 
       });
+    }
+    
+    console.log('✅ Driver is active, proceeding with login');
+    
+    // Set driver online when app opens (login)
+    if (driver) {
+      await driver.update({
+        isOnline: true,
+        lastActive: new Date()
+      });
+      await driver.reload();
+      console.log('✅ Driver set to online');
     }
 
     res.json({
@@ -343,6 +358,8 @@ router.post('/driver-login', [
         id: driver.id,
         licenseNumber: driver.licenseNumber,
         isActive: driver.isActive,
+        isOnline: driver.isOnline,
+        isAvailable: driver.isAvailable,
         status: driver.status,
         actualAddress: driver.actualAddress,
         licenseExpiryDate: driver.licenseExpiryDate,
@@ -563,6 +580,19 @@ router.post('/logout', auth, async (req, res) => {
       await user.update({ fcmToken: null });
     }
     
+    // If driver, set offline when logging out
+    if (req.user.role === 'driver') {
+      const Driver = require('../models/Driver');
+      const driver = await Driver.findOne({ where: { userId: req.user.id } });
+      if (driver) {
+        await driver.update({
+          isOnline: false,
+          isAvailable: false
+        });
+        console.log('✅ Driver set to offline on logout');
+      }
+    }
+    
     res.json({ message: 'Uğurla çıxış edildi' });
   } catch (error) {
     console.error('Logout xətası:', error);
@@ -712,17 +742,14 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'Invalid reset code' });
     }
 
-    // Hash new password
-    const bcrypt = require('bcryptjs');
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    // Update password - User model will automatically hash it in beforeUpdate hook
+    // So we just pass the plain text password
+    console.log('🔐 Updating password (plain text - will be hashed by model):', newPassword ? newPassword.substring(0, 3) + '***' : 'null');
     
-    console.log('🔐 Password hashed successfully - newPassword:', newPassword);
-    console.log('🔐 Hash:', hashedPassword);
-
-    // Update password
     await user.update({ password: newPassword });
     
     console.log('✅ Password updated successfully for user:', user.username);
+    console.log('✅ Password was hashed by User model before saving');
 
     res.json({
       message: 'Password reset successfully',
